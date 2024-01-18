@@ -42,6 +42,7 @@ class CanSNPer2(object):
 		self.refdir = refdir
 		self.mauve_path = mauve_path
 		self.xmfa_files = []
+		# Risky dictionary use?
 		self.export = kwargs["export"]
 		self.database = database
 		self.min_required_hits = kwargs["min_required_hits"]
