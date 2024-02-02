@@ -11,12 +11,16 @@ logger = logging.getLogger(__name__)
 from CanSNPer2.modules.ParseXMFA import ParseXMFA
 from CanSNPer2.modules.NewickTree import NewickTree
 from CanSNPer2.CanSNPerTree import __version__
+from CanSNPer2.modules.Wrappers import * # Mauve, Minimap2, GATK4
 
 
 ## import standard python libraries for subprocess and multiprocess
 from subprocess import Popen,PIPE,STDOUT
 from multiprocessing import Process, Queue
 from time import sleep,time
+
+import random
+random.seed()
 
 class Error(Exception):
 	"""docstring for Error"""
@@ -25,17 +29,86 @@ class Error(Exception):
 	def __str__(self):
 		return repr(self.value)
 
-class MauveError(Error):
-	"""docstring for MauveE"""
-	pass
 
 class CanSNPer2Error(Error):
 	"""docstring for MauveE"""
 	pass
 
+'''Declarations used only for typehinting'''
+class CanSNPer2:
+	logdir : str
+	refdir : str
+	get_references : function
+	keep_going : bool
+class Aligner:
+	tmpdir : str
+	query : str
+
+class Aligner:
+	def __init__(self, query : str, instance : CanSNPer2, tmpdir : str=None):
+
+		self.query = query
+
+		# Attribute Inheritance from instance using __getattr__, is there another way?
+		self.instance = self.instance
+
+		'''If given a tmpdir, it is used. Else, get a random number as tmpfolder name.
+		When using the same tmpdir for each process, parallel processes may overwrite each of the others work.'''
+		self.tmpdir = tmpdir if tmpdir is not None else "tmp_{}{}".format(*random.random().as_integer_ratio())
+		if not os.path.exists(self.tmpdir):
+			logger.info("Creating tmp directory /{tmpdir} for aligner {aligner}".format(tmpdir=self.tmpdir, aligner=self))
+			os.makedirs(self.tmpdir)
+
+	def __getattr__(self, key):
+		'''Overriden for soft inheritance of attributes from parent instance'''
+		if hasattr(self.instance, key):
+			return self.instance.__getattribute__(key)
+		else:
+			raise AttributeError("type object '{}' has no attribute '{}'".format( type(self), key))
+
+	def __ref__(self):
+		return "<Aligner query='{query}' at 0x{id:>016}>".format(query=self.query, id=hex(id(self))[2:])
+
+	def align(self : Aligner | CanSNPer2, references=[]):
+		'''Align sequences and run mauve as subprocess'''
+		commands,logs = self.create_mauve_command(self.query, references)
+		
+		# Removed as this functionality belongs in the use of the Aligner
+		#if not self.skip_mauve: ### If mauve command was already run before don´t run mauve return xmfa paths
+		
+		ret = self.run_mauve(commands,logs)
+		if int(ret) == 11:
+			'''This error might be caused by mauve not handling dash(-) in the sequence, change the incoming sequence and replace - with N and retry once'''
+			logger.warning("Mauve ran into an error with sequence {seq} may contain a dash, replace with N characters and retry mauve".format(seq=query))
+			query_base = os.path.basename(self.query)
+			logger.debug("sed 's/-/N/g' {query} > {tmpdir}/{query_base}.tmp".format(query=self.query,query_base=query_base,tmpdir=self.tmpdir))
+			self.xmfa_files = []
+			os.system("sed 's/-/N/g' {query} > {tmpdir}/{query_base}.tmp".format(query=self.query,query_base=query_base,tmpdir=self.tmpdir))
+			new_query = "{tmpdir}/{query}.tmp".format(query=query_base,tmpdir=self.tmpdir)
+			logger.debug("New query: {nq}".format(nq=new_query))
+			commands,logs = self.create_mauve_command(new_query,references)
+			ret = self.run_mauve(commands,logs)
+		if ret != 0:
+			return []
+		logger.info("Alignments for {query} complete!".format(query=query))
+
+		return self.xmfa_files
+
+	def __mauve__(self):
+		pass
+	
+	def __minimap2__(self):
+		pass
+	
+	def __gatk4__(self):
+		pass
+
+class SNPCaller:
+	pass
+
 class CanSNPer2(object):
 	"""docstring for CanSNPer2"""
-	def __init__(self, query, mauve_path="",tmpdir=".tmp", refdir="references",database="CanSNPer.fdb", verbose=False,keep_going=False,**kwargs):
+	def __init__(self, query, mauve_path="",tmpdir=None, refdir="references",database="CanSNPer.fdb", verbose=False,keep_going=False,**kwargs):
 		super(CanSNPer2, self).__init__()
 		self.query = query
 		self.verbose = verbose
@@ -60,7 +133,9 @@ class CanSNPer2(object):
 		except FileNotFoundError:
 			exit("The directory {workdir} could not be found!".format(workdir=self.workdir))
 
-		self.tmpdir = tmpdir
+		'''If given a tmpdir, it is used. Else, get a random number as tmpfolder name.
+		When using the same tmpdir for each process, parallel processes may overwrite each of the others work.'''
+		self.tmpdir = tmpdir if tmpdir is not None else "tmp_{}{}".format(*random.random().as_integer_ratio())
 		if not os.path.exists(self.tmpdir):
 			logger.info("Creating tmp directory {tmpdir}".format(tmpdir=self.tmpdir))
 			os.makedirs(self.tmpdir)
@@ -96,7 +171,7 @@ class CanSNPer2(object):
 		'''Return references to aligned files'''
 		return self.xmfa_files
 
-	def get_references(self,selected=False):
+	def get_references(self, selected=False):
 		'''references must be available in the refdir'''
 		return [ref for ref in os.listdir(self.refdir) if ref.endswith(".fna")]
 
@@ -236,6 +311,7 @@ class CanSNPer2(object):
 		logger.info("Done!")
 		return
 
+	# UNUSED - DELETE?
 	def parse_xmfa(XMFA_obj, xmfa_file,results=[]):
 		'''Process xmfa file using ParseXMFA object'''
 		XMFA_obj.run(xmfa_file)
@@ -460,10 +536,12 @@ class CanSNPer2(object):
 						print("{query}: {SNP}".format(query=self.query_name, SNP=SNP))
 					'''Clean references to aligned xmfa files between queries if several was supplied'''
 					self.xmfa_files = []
-				except:
+				except Exception as e:
 					if not self.keep_going:
+						logger.warning("An error occured during processing of {file}: {exception}".format(file=self.query_name, exception=e))
 						raise CanSNPer2Error("A file did not run correctly exit CanSNPer2 (use --keep_going to continue with next file!)")
-					logger.debug("An error occured during processing of {file}".format(file=self.query_name))
+					else:
+						logger.debug("An error occured during processing of {file}: {exception}".format(file=self.query_name, exception=e))
 
 		if self.summary:
 			self.print_summary()
