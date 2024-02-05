@@ -2,6 +2,8 @@
 
 import os
 from logging import Logger
+from threading import Thread, Condition
+from subprocess import run, DEVNULL, PIPE
 
 ## import standard python libraries for subprocess and multiprocess
 from subprocess import Popen,PIPE,STDOUT
@@ -27,95 +29,166 @@ class Aligner:
 	tmpdir : str
 	query : str
 
+'''More OOP handling of multiple processes'''
+class ThreadGroup:
+	# barrier : Barrier
+	threads : list[Thread]
+	commands : list[str]
+
+	def __init__(self, target : function, args : list[list]=None, kwargs : list[dict]=None, n : int=None):
+		# self.barrier = Barrier(2)
+		self.target = target
+
+		# Error management for developers
+		if args is None and kwargs is None and n is None:
+			raise TypeError("""ThreadGroup created without specifying number of threads to be created.
+				   The number is hinted from the length of args or kwargs. or specified with n.""")
+		elif args is not None and kwargs is not None:
+			if len(args) != len(kwargs):
+				raise TypeError("""ThreadGroup number of threads is hinted from the length of args or kwargs.
+					They are not the same length. (They were {} and {}, respectively)""".format(len(args), len(kwargs)))
+			self.args = args
+			self.kwargs = kwargs
+		elif args is not None:
+			self.n = len(args)
+			self.args = args
+			self.kwargs = [{} for _ in range(self.n)]
+		elif kwargs is not None:
+			self.n = len(kwargs)
+			self.kwargs = kwargs
+			self.args = [[] for _ in range(self.n)]
+		else:
+			self.n = n
+			self.args = [[] for _ in range(self.n)]
+			self.kwargs = [{} for _ in range(self.n)]
+		self.communicator = [[] for _ in range(self.n)]
+		self.threads = [Thread(target=self.target, args=args, kwargs=kwargs) for args, kwargs in zip(self.communicator, self.args, self.kwargs)]
+
+	def newFinished(self):
+		return any(not t.is_alive() for t in self.threads if t is not None)
+
+	def start(self):
+		for t in self.threads:
+			t.start()
+
+	def waitNext(self):
+		# self.barrier.wait()
+		Condition.wait_for(self.newFinished, timeout=5)
+		# list comprehension to return all dead threads and also replace those same threads with 'None'.
+		return [i for i in range(len(self.threads)) if not self.threads[i].is_alive() if self.threads.__setitem__(i, None) is None]
+
+	def checkDone(self):
+		return all(t is None for t in self.threads)
+
 # Aligner and Mapper classes to inherit from
-class Aligner:
-	query : str
-	queryName : str
-	references : str
+class ProcessWrapper:
 	logger : Logger
 	softwareName : str
-	
-	def __init__(self, softwareName, **kwargs):
-		
-		self.softwareName
-
-		for key, item in kwargs.items():
-			self.__setattr__(key, item)
+	returncode : int
 	
 	def __call__(self, *args):
-		''' '''
+		'''Not implemented for the template class, check the wrapper of the
+		specific software you are intending to use.'''
+		pass
 
-		commands, logs = self.createCommand(*args)
-		self.__run__(commands, logs)
-
-	def __run__(self, commands : list[str], logs : list[str]):
-		retvalue=0
-		processes = []  #process container
-		log_f = {}	  #log container
-		error = 0   #Variable for errors
-		self.logger.info("Starting {name} on {n} references".format(name=self.softwareName, n=len(commands)))
-		for command, log in zip(commands, logs): #Loop through commands,
-			self.logger.debug(command)			## In verbose mode print the actual mauve command
-			p = Popen(command.split(" "),  stdout=PIPE, stderr=STDOUT)  ##Split command to avoid shell=True pipe stdout and stderr to stdout
-			log_f[p.stdout.fileno()] = log	  ## Store the reference to the correct log file
-			processes.append(p)
-		while processes:
-			for p in processes: ## Loop through processes
-				exitcode = p.poll()  #get exitcode for each process
-				if exitcode is not None: ## if there is no exitcode the program is still running
-
-					## When a process is finished open the log file and write stdout/stderr to log file
-					with open(log_f[p.stdout.fileno()], "w") as log:
-						print(p.stdout.read().decode('utf-8'),file=log)
-					### IF the exitcode is not 0 print a warning and ask user to read potential error messages
-					if exitcode == 11:
-						self.logger.warning("WARNING progressiveMauve finished with a exitcode: {exitcode}".format(exitcode=exitcode))
-						self.logger.debug("This progressiveMauve error is showing up for bad genomes containing short repetative contigs or sequence contains dashes".format(exitcode=exitcode))
-						retvalue=11
-					elif exitcode == -6:
-						self.logger.warning("Input sequence is not free of gaps, replace gaps with N and retry!!")
-						retvalue=6
-					elif exitcode != 0:
-						if not self.keep_going:
-							self.logger.error("Error: exitcode-{exitcode}".format(exitcode=exitcode))
-						error += 1
-						self.logger.warning("WARNING progressiveMauve finished with a non zero exitcode: {exitcode}\nThe script will terminate when all processes are finished read {log} for more info".format(log=log_f[p.stdout.fileno()],exitcode=exitcode))
-					## Remove process from container
-					processes.remove(p)
-		if retvalue == 6 or retvalue == 11: ## This is done if sequence is not free of gaps
-			return retvalue
-		elif not self.keep_going:
-			if error:  ## Error handling regarding mauve subprocesses, stop script if any of them fails
-				self.logger.error("Error: {errors} progressiveMauve processes did not run correctly check log files for more information".format(errors=error))
-				raise MauveError("Error: {errors} progressiveMauve processes did not run correctly check log files for more information".format(errors=error))
-		else:
-			retvalue=1
-		return retvalue
+	def __run__(self, command, log, *args, **kwargs):
+		p = run(command.split() if type(command) is str else command, *args, **kwargs)
+		with open(log, "W") as logFile:
+			logFile.write(p.stdout.read().decode("utf-8"))
+			logFile.write("\n")
+		self.returncode = p.returncode
+		self.handleRetValue(p.returncode)
 
 	def createCommand(self, *args):
 		'''Not implemented for the template class, check the wrapper of the
 		specific software you are intending to use.'''
 		pass
-
 	
-class Mapper:
-	def __init__():
+	def runCommand(self, *args):
+		'''Not implemented for the template class, check the wrapper of the
+		specific software you are intending to use.'''
+		pass
 
-class Mauve:
+	def handleRetValue(self, retvalue):
+		'''Not implemented for the template class, check the wrapper of the
+		specific software you are intending to use.'''
+		pass
+
+class IndexingWrapper(ProcessWrapper):
 	query : str
 	queryName : str
-	references : list[str]
-	logger : Logger
+	references : str
+	commandTemplate : str # Should contain format tags for {target}, {ref}, {output}, can contain more.
+	outFormat : str
+	logFormat : str
+	returncode : int
 	
-	def __init__(self, query, logger : Logger, references=[]):
+	def __init__(self, query : str, references : list[str], logger : Logger, outDir : str=".", kwargs : str=""):
 		self.query = query
 		self.query_name = os.path.basename(query).rsplit(".",1)[0] ## get name of file and remove ending
 		self.references = references
+		self.outDir = outDir
 		self.logger = logger
+		self.kwargs = kwargs
+		self.returncode = None
 	
-    def __call__(self, query=None, references=None):
-        
+	def __call__(self, *args):
+		''' '''
 
+		commands, logs, outputs = self.createCommand(*args)
+		self.runCommand(commands, logs)
+		
+		return outputs
+	
+	def createCommand(self) -> tuple[list[str], list[str], list[str]]:
+		outputTemplate = "{tmpdir}/{ref}_{target}.{format}"
+		logs = []
+		commands = []
+		outputs = []
+		for ref in self.references:
+			output = outputTemplate.format(tmpdir=self.outDir, ref=ref, target=self.query_name, format=self.outFormat)
+			logfile = outputTemplate.format(tmpdir=self.outDir, ref=ref, target=self.query_name, format=self.logFormat)
+
+			command = self.commandTemplate.format(target=self.query, ref=ref)
+			" ".join([command] + ["--{key} {value}".format(key=key, value=value)])
+			
+			##
+			##	
+			##
+
+			commands.append(command)
+			logs.append(logfile)
+			outputs.append(output)
+		return commands, logs, outputs
+
+
+
+# Aligner, Mapper, and Caller classes to inherit from
+class Aligner(IndexingWrapper):
+	pass
+	
+class Mapper(IndexingWrapper):
+	pass
+
+class SNPCaller(IndexingWrapper):
+	pass
+
+class Mauve(Aligner):
+	softwareName = "progressiveMauve"
+	commandTemplate = "progressiveMauve {ref} {target}"
+
+	def handleRetCode(self, returncode):
+		if returncode == 0:
+			self.logger.debug("progressiveMauve finished with exitcode 0.")
+		elif returncode == 11:
+			self.logger.warning("WARNING progressiveMauve finished with a exitcode: {returncode}".format(returncode=returncode))
+			self.logger.debug("This progressiveMauve error is showing up for bad genomes containing short repetitive contigs or sequence contains dashes.".format(returncode=returncode))
+		elif returncode == -6:
+			self.logger.warning("Input sequence is not free of gaps, replace gaps with N and retry!!")
+		else:
+			self.logger.warning("WARNING progressiveMauve finished with a non zero exitcode: {returncode}\nThe script will terminate when all processes are finished read {log} for more info".format(log=self.logFile,returncode=returncode))
+		
+"""
 	def create_command(self, aligner : Aligner | CanSNPer2, query : str=None, references : list[str]=None):
 		if query is None:
 			query = self.query
@@ -185,7 +258,7 @@ class Mauve:
 					### IF the exitcode is not 0 print a warning and ask user to read potential error messages
 					if exitcode == 11:
 						self.logger.warning("WARNING progressiveMauve finished with a exitcode: {exitcode}".format(exitcode=exitcode))
-						self.logger.debug("This progressiveMauve error is showing up for bad genomes containing short repetative contigs or sequence contains dashes".format(exitcode=exitcode))
+						self.logger.debug("This progressiveMauve error is showing up for bad genomes containing short repetitive contigs or sequence contains dashes.".format(exitcode=exitcode))
 						retvalue=11
 					elif exitcode == -6:
 						self.logger.warning("Input sequence is not free of gaps, replace gaps with N and retry!!")
@@ -206,3 +279,4 @@ class Mauve:
 		else:
 			retvalue=1
 		return retvalue
+	"""
