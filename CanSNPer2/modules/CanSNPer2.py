@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 from CanSNPer2.modules.ParseXMFA import ParseXMFA
 from CanSNPer2.modules.NewickTree import NewickTree
 from CanSNPer2.CanSNPerTree import __version__
-from CanSNPer2.modules.Wrappers import * # Mauve, Minimap2, GATK4
+from CanSNPer2.modules.Wrappers import Aligner, Aligners, Mapper, Mappers, SNPCaller, Callers # Mauve, Minimap2, GATK4
 
 
 ## import standard python libraries for subprocess and multiprocess
@@ -34,79 +34,8 @@ class CanSNPer2Error(Error):
 	"""docstring for MauveE"""
 	pass
 
-'''Declarations used only for typehinting'''
-class CanSNPer2:
-	logdir : str
-	refdir : str
-	get_references : function
-	keep_going : bool
-class Aligner:
-	tmpdir : str
-	query : str
-
-class Aligner:
-	def __init__(self, query : str, instance : CanSNPer2, tmpdir : str=None):
-
-		self.query = query
-
-		# Attribute Inheritance from instance using __getattr__, is there another way?
-		self.instance = self.instance
-
-		'''If given a tmpdir, it is used. Else, get a random number as tmpfolder name.
-		When using the same tmpdir for each process, parallel processes may overwrite each of the others work.'''
-		self.tmpdir = tmpdir if tmpdir is not None else "tmp_{}{}".format(*random.random().as_integer_ratio())
-		if not os.path.exists(self.tmpdir):
-			logger.info("Creating tmp directory /{tmpdir} for aligner {aligner}".format(tmpdir=self.tmpdir, aligner=self))
-			os.makedirs(self.tmpdir)
-
-	def __getattr__(self, key):
-		'''Overriden for soft inheritance of attributes from parent instance'''
-		if hasattr(self.instance, key):
-			return self.instance.__getattribute__(key)
-		else:
-			raise AttributeError("type object '{}' has no attribute '{}'".format( type(self), key))
-
-	def __ref__(self):
-		return "<Aligner query='{query}' at 0x{id:>016}>".format(query=self.query, id=hex(id(self))[2:])
-
-	def align(self : Aligner | CanSNPer2, references=[]):
-		'''Align sequences and run mauve as subprocess'''
-		commands,logs = self.create_mauve_command(self.query, references)
-		
-		# Removed as this functionality belongs in the use of the Aligner
-		#if not self.skip_mauve: ### If mauve command was already run before don´t run mauve return xmfa paths
-		
-		ret = self.run_mauve(commands,logs)
-		if int(ret) == 11:
-			'''This error might be caused by mauve not handling dash(-) in the sequence, change the incoming sequence and replace - with N and retry once'''
-			logger.warning("Mauve ran into an error with sequence {seq} may contain a dash, replace with N characters and retry mauve".format(seq=query))
-			query_base = os.path.basename(self.query)
-			logger.debug("sed 's/-/N/g' {query} > {tmpdir}/{query_base}.tmp".format(query=self.query,query_base=query_base,tmpdir=self.tmpdir))
-			self.xmfa_files = []
-			os.system("sed 's/-/N/g' {query} > {tmpdir}/{query_base}.tmp".format(query=self.query,query_base=query_base,tmpdir=self.tmpdir))
-			new_query = "{tmpdir}/{query}.tmp".format(query=query_base,tmpdir=self.tmpdir)
-			logger.debug("New query: {nq}".format(nq=new_query))
-			commands,logs = self.create_mauve_command(new_query,references)
-			ret = self.run_mauve(commands,logs)
-		if ret != 0:
-			return []
-		logger.info("Alignments for {query} complete!".format(query=query))
-
-		return self.xmfa_files
-
-	def __mauve__(self):
-		pass
-	
-	def __minimap2__(self):
-		pass
-	
-	def __gatk4__(self):
-		pass
-
-class SNPCaller:
-	pass
-
 class CanSNPer2(object):
+	outputTemplate = "{tmpdir}/{ref}_{target}.{format}"
 	"""docstring for CanSNPer2"""
 	def __init__(self, query, mauve_path="",tmpdir=None, refdir="references",database="CanSNPer.fdb", verbose=False,keep_going=False,**kwargs):
 		super(CanSNPer2, self).__init__()
@@ -181,90 +110,30 @@ class CanSNPer2(object):
 
 	'''ProgressiveMauve alignment functions'''
 
-	def run_mauve(self, commands,logs):
-		'''Run mauve
-			ProgressiveMauve is an alignment program for small genomes
-			this function will execute mauve commands as paralell subprocesses
+	def align(self, query, references=[], software : str=None, kwargs : dict={}):
+		'''Align sequences using subprocesses.'''
 
-			To run subprocesses securely this functino uses the Popen command includint standard pipes
-			stderr will be passed to the stdout pipe to reduce the number of log files required
+		outputTemplate = self.outputTemplate.format()
 
-			This function currently does not support any limitation of number of processes spawned,
-			modern OS will however mostly distribute subprocesses efficiently, it will also be limited by the
-			number of references supplied. A warning message will be given if the number of input references
-			exceeds the number of references in the database
-		'''
-		retvalue=0
-		processes = []  #process container
-		log_f = {}	  #log container
-		error = 0   #Variable for errors
-		logger.info("Starting progressiveMauve on {n} references".format(n=len(commands)))
-		for i in range(len(commands)): #Loop through commands,
-			command = commands[i]
-			logger.debug(command)			## In verbose mode print the actual mauve command
-			p = Popen(command.split(" "),  stdout=PIPE, stderr=STDOUT)  ##Split command to avoid shell=True pipe stdout and stderr to stdout
-			log_f[p.stdout.fileno()] = logs[i]	  ## Store the reference to the correct log file
-			processes.append(p)
-		while processes:
-			for p in processes: ## Loop through processes
-				exitcode = p.poll()  #get exitcode for each process
-				if exitcode is not None: ## if there is no exitcode the program is still running
+		aligner : Aligner = Aligners[software]
+		aligner(query, references, logger, outputTemplate, kwargs=kwargs)
 
-					## When a process is finished open the log file and write stdout/stderr to log file
-					with open(log_f[p.stdout.fileno()], "w") as log:
-						print(p.stdout.read().decode('utf-8'),file=log)
-					### IF the exitcode is not 0 print a warning and ask user to read potential error messages
-					if exitcode == 11:
-						logger.warning("WARNING progressiveMauve finished with a exitcode: {exitcode}".format(exitcode=exitcode))
-						logger.debug("This progressiveMauve error is showing up for bad genomes containing short repetative contigs or sequence contains dashes".format(exitcode=exitcode))
-						retvalue=11
-					elif exitcode == -6:
-						logger.warning("Input sequence is not free of gaps, replace gaps with N and retry!!")
-						retvalue=6
-					elif exitcode != 0:
-						if not self.keep_going:
-							logger.error("Error: exitcode-{exitcode}".format(exitcode=exitcode))
-						error += 1
-						logger.warning("WARNING progressiveMauve finished with a non zero exitcode: {exitcode}\nThe script will terminate when all processes are finished read {log} for more info".format(log=log_f[p.stdout.fileno()],exitcode=exitcode))
-					## Remove process from container
-					processes.remove(p)
-		if retvalue == 6 or retvalue == 11: ## This is done if sequence is not free of gaps
-			return retvalue
-		elif not self.keep_going:
-			if error:  ## Error handling regarding mauve subprocesses, stop script if any of them fails
-				logger.error("Error: {errors} progressiveMauve processes did not run correctly check log files for more information".format(errors=error))
-				raise MauveError("Error: {errors} progressiveMauve processes did not run correctly check log files for more information".format(errors=error))
-		else:
-			retvalue=1
-		return retvalue
+		#
+		#	Does tmpdir need to be transferred over to the aligner in order for the fixer to work?
+		#
 
-	def create_mauve_command(self,query,references=[]):
-		'''Mauve commands'''
-		commands =[]	# store execute command
-		logs = []	   # store log filepath
-		if len(references) == 0:	## If specific references are not given fetch references from the reference folder
-			references = self.get_references()
-		for ref in references:	  ## For each reference in the reference folder align to query
-			ref_name = ref.rsplit(".",1)[0] ## remove file ending
-			#self.query_name = os.path.basename(query).rsplit(".",1)[0] ## get name of file and remove ending
-			xmfa_output = "{tmpdir}/{ref}_{target}.xmfa".format(tmpdir=self.tmpdir.rstrip("/"),ref=ref_name,target=self.query_name)
-			ref_file = "{refdir}/{ref}".format(refdir=self.refdir, ref=ref)
-			log_file = "{logdir}/{ref}_{target}.mauve.log".format(logdir=self.logdir,ref=ref_name,target=self.query_name)
+		output = aligner.start()
+		aligner.wait()
 
-			'''Create run command for mauve'''
-			command = "{mauve_path}progressiveMauve --output {xmfa} {ref_fasta} {target_fasta}".format(
-							mauve_path	  = self.mauve_path,
-							xmfa			= xmfa_output,
-							ref_fasta	   = ref_file,
-							target_fasta	= query
-			)
-			commands.append(command)			## Mauve command
-			logs.append(log_file)			   ## Store log files for each alignment
-			self.xmfa_files.append(xmfa_output) ## Store the path to xmfa files as they will be used later
-		return commands,logs
+		while aligner.hickups():
+			if not aligner.fixable():
+				return []
+			else:
+				aligner.planB()
 
-	def align(self, query, references=[]):
-		'''Align sequences and run mauve as subprocess'''
+		return output
+
+		
 		commands,logs = self.create_mauve_command(query,references)
 		if not self.skip_mauve: ### If mauve command was already run before don´t run mauve return xmfa paths
 			ret = self.run_mauve(commands,logs)

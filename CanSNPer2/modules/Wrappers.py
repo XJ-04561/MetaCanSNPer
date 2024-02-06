@@ -3,10 +3,9 @@
 import os
 from logging import Logger
 from threading import Thread, Condition
-from subprocess import run, DEVNULL, PIPE
+from subprocess import run, DEVNULL, PIPE, STDOUT, CompletedProcess
 
-## import standard python libraries for subprocess and multiprocess
-from subprocess import Popen,PIPE,STDOUT
+import ErrorFixes
 
 class Error(Exception):
 	"""docstring for Error"""
@@ -18,6 +17,7 @@ class Error(Exception):
 class MauveError(Error):
 	"""docstring for MauveE"""
 	pass
+
 
 '''Declarations used only for typehinting'''
 class CanSNPer2:
@@ -31,12 +31,24 @@ class Aligner:
 
 '''More OOP handling of multiple processes'''
 class ThreadGroup:
-	# barrier : Barrier
 	threads : list[Thread]
 	commands : list[str]
+	args : list[list] | list
+	kwargs : list[dict] | dict
+	threadKwargs : dict
 
-	def __init__(self, target : function, args : list[list]=None, kwargs : list[dict]=None, n : int=None):
-		# self.barrier = Barrier(2)
+	def __init__(self, target : function, args : list[list] | list=None, kwargs : list[dict] | dict=None, n : int=None, **threadKwargs):
+		'''
+			Has multiple behaviors for arguments and keyword arguments supplied to the target function:
+				* args and kwargs are 2D: must be same length on axis 0, n is ignored.
+				* args is 1D and kwargs is 2D: must be same length on axis 0, n is ignored.
+					Each element of args goes to only one thread.
+				* args is 1D and kwargs is 1D (dict): n is ignored, length of args is used.
+					Each element of args goes to only one thread.
+					Given kwargs is used for every thread.
+				* args is 1D or 2D but has length 1 on axis 0: kwargs decides n if 2D else n is used.
+					The given 
+		'''
 		self.target = target
 
 		# Error management for developers
@@ -61,58 +73,76 @@ class ThreadGroup:
 			self.n = n
 			self.args = [[] for _ in range(self.n)]
 			self.kwargs = [{} for _ in range(self.n)]
-		self.communicator = [[] for _ in range(self.n)]
-		self.threads = [Thread(target=self.target, args=args, kwargs=kwargs) for args, kwargs in zip(self.communicator, self.args, self.kwargs)]
+		
+		self.threadKwargs = threadKwargs
 
-	def newFinished(self):
+		self.threads = [Thread(target=self.target, args=args, kwargs=kwargs, **threadKwargs) for args, kwargs in zip(self.args, self.kwargs)]
+
+	def newFinished(self) -> bool:
 		return any(not t.is_alive() for t in self.threads if t is not None)
 
 	def start(self):
 		for t in self.threads:
 			t.start()
 
-	def waitNext(self):
-		# self.barrier.wait()
-		Condition.wait_for(self.newFinished, timeout=5)
+	def waitNext(self, timeout=5) -> list[int]:
+		Condition.wait_for(self.newFinished, timeout=timeout)
+
 		# list comprehension to return all dead threads and also replace those same threads with 'None'.
 		return [i for i in range(len(self.threads)) if not self.threads[i].is_alive() if self.threads.__setitem__(i, None) is None]
 
-	def checkDone(self):
+	def finished(self) -> bool:
 		return all(t is None for t in self.threads)
 
 # Aligner and Mapper classes to inherit from
 class ProcessWrapper:
 	logger : Logger
 	softwareName : str
-	returncode : int
+	returncodes : list[list[int]]
+	previousErrors : list
 	
-	def __call__(self, *args):
+	def start(self, *args):
 		'''Not implemented for the template class, check the wrapper of the
 		specific software you are intending to use.'''
 		pass
 
-	def __run__(self, command, log, *args, **kwargs):
-		p = run(command.split() if type(command) is str else command, *args, **kwargs)
-		with open(log, "W") as logFile:
-			logFile.write(p.stdout.read().decode("utf-8"))
-			logFile.write("\n")
-		self.returncode = p.returncode
-		self.handleRetValue(p.returncode)
+	def run(self, command, log : str, pReturncodes : list[int], *args, **kwargs) -> None:
+		p : CompletedProcess = run(command.split() if type(command) is str else command, *args, **kwargs)
+		if log is not None:
+			with open(log, "w") as logFile:
+				logFile.write(p.stdout.read().decode("utf-8"))
+				logFile.write("\n")
+		pReturncodes.append(p.returncode)
+		self.handleRetCode(p.returncode)
 
 	def createCommand(self, *args):
 		'''Not implemented for the template class, check the wrapper of the
 		specific software you are intending to use.'''
 		pass
 	
-	def runCommand(self, *args):
+	def handleRetCode(self, returncode : int):
+		'''Not implemented for the template class, check the wrapper of the
+		specific software you are intending to use.'''
+		if returncode == 0:
+			self.logger.debug("{softwareName} finished with exitcode 0.".format(softwareName=self.softwareName))
+		else:
+			self.logger.warning("WARNING {softwareName} finished with a non zero exitcode: {returncode}".format(softwareName=self.softwareName, returncode=returncode))
+	
+	def hickups(self):
 		'''Not implemented for the template class, check the wrapper of the
 		specific software you are intending to use.'''
 		pass
 
-	def handleRetValue(self, retvalue):
+	def fixable(self):
 		'''Not implemented for the template class, check the wrapper of the
 		specific software you are intending to use.'''
 		pass
+
+	def planB(self):
+		'''Not implemented for the template class, check the wrapper of the
+		specific software you are intending to use.'''
+		pass
+
 
 class IndexingWrapper(ProcessWrapper):
 	query : str
@@ -121,45 +151,86 @@ class IndexingWrapper(ProcessWrapper):
 	commandTemplate : str # Should contain format tags for {target}, {ref}, {output}, can contain more.
 	outFormat : str
 	logFormat : str
-	returncode : int
+	returncodes : list[list[int]]
+	threadGroup : ThreadGroup
+	kwargs : dict
+	solutions : dict = {}
 	
-	def __init__(self, query : str, references : list[str], logger : Logger, outDir : str=".", kwargs : str=""):
+	def __init__(self, query : str, references : list[str], logger : Logger, outputTemplate : str, kwargs : dict={}):
 		self.query = query
 		self.query_name = os.path.basename(query).rsplit(".",1)[0] ## get name of file and remove ending
 		self.references = references
-		self.outDir = outDir
+		self.outputTemplate = outputTemplate
 		self.logger = logger
 		self.kwargs = kwargs
-		self.returncode = None
+		self.returncodes = [[] for _ in range(len(references))]
+		self.threadGroup = None
+		self.solutions = ErrorFixes.Indexers[self.softwareName]
 	
-	def __call__(self, *args):
+	def start(self):
 		''' '''
 
-		commands, logs, outputs = self.createCommand(*args)
-		self.runCommand(commands, logs)
+		commands, logs, outputs = self.createCommand()
+		self.threadGroup = ThreadGroup(self.run, args=zip(commands, logs, self.returncodes), stdout=PIPE, stderr=STDOUT)
+
+		self.threadGroup.start()
 		
 		return outputs
 	
+	def wait(self, timeout=5):
+		while not self.threadGroup.finished():
+			self.threadGroup.waitNext(timeout=timeout)
+	
 	def createCommand(self) -> tuple[list[str], list[str], list[str]]:
-		outputTemplate = "{tmpdir}/{ref}_{target}.{format}"
+		
 		logs = []
 		commands = []
 		outputs = []
 		for ref in self.references:
-			output = outputTemplate.format(tmpdir=self.outDir, ref=ref, target=self.query_name, format=self.outFormat)
-			logfile = outputTemplate.format(tmpdir=self.outDir, ref=ref, target=self.query_name, format=self.logFormat)
+			output = self.outputTemplate.format(ref=ref)
+			logfile = output + "{software}.log".format(software=self.softwareName)
 
-			command = self.commandTemplate.format(target=self.query, ref=ref)
-			" ".join([command] + ["--{key} {value}".format(key=key, value=value)])
-			
-			##
-			##	
-			##
+			command = self.commandTemplate.format(target=self.query, ref=ref, output=output)
+
+			'''
+			Adds on all the extra flags and arguments defined in the dict self.kwargs.
+			For flags that do not require a followup argument, set the value of the keyword as True.
+			'''
+			command = " ".join([command] + ["--{key} {value}".format(key=key, value=value if value is not True else "") for key, value in self.kwargs])
 
 			commands.append(command)
 			logs.append(logfile)
 			outputs.append(output)
 		return commands, logs, outputs
+
+	def finished(self):
+		if self.threadGroup is None:
+			raise ValueError("{classType}.threadGroup is not initialized so it cannot be status checked with {classType}.finished()".format(classType=type(self).__name__))
+		return self.threadGroup.finished()
+	
+	def hickups(self):
+		'''Checks whether any process finished with a non-zero exitcode at the latest run.'''
+		return any(e[-1]!=0 for e in self.returncodes)
+
+	def fixable(self):
+		'''Checks whether there is a known or suspected solution available for any errors that occured. If tried once,
+		then will not show up again for that process.'''
+		return any(e[-1] in self.solutions for e in self.returncodes)
+
+	def planB(self):
+		'''Runs suggested solutions for non-zero exitcodes.'''
+		current = [e[-1] if e[-1] not in e[:-1] else 0 for e in self.returncodes ]
+		errors = set(current)
+
+		for e in errors:
+			if e in self.solutions:
+				failedThreads = [i for i, e2 in enumerate(current) if e == e2]
+				self.solutions[e](self, failedThreads)
+			
+
+
+			
+
 
 
 
@@ -173,7 +244,24 @@ class Mapper(IndexingWrapper):
 class SNPCaller(IndexingWrapper):
 	pass
 
-class Mauve(Aligner):
+#
+#	Implemented Aligners, Mappers, and Callers are defined here.
+#
+
+'''
+	All that is needed to create a new implementation is to inherit from the correct software type (Listed above) and set
+	the two class attributes accordingly. See 'Timeout' and 'Sleep' for a minimalist example.
+'''
+
+class Timeout(Aligner):
+	softwareName = "timeout"
+	commandTemplate = "timeout {ref} {target}"
+
+class Sleep(Aligner):
+	softwareName = "sleep"
+	commandTemplate = "sleep {ref} {target}"
+
+class ProgressiveMauve(Aligner):
 	softwareName = "progressiveMauve"
 	commandTemplate = "progressiveMauve {ref} {target}"
 
@@ -187,96 +275,13 @@ class Mauve(Aligner):
 			self.logger.warning("Input sequence is not free of gaps, replace gaps with N and retry!!")
 		else:
 			self.logger.warning("WARNING progressiveMauve finished with a non zero exitcode: {returncode}\nThe script will terminate when all processes are finished read {log} for more info".format(log=self.logFile,returncode=returncode))
-		
-"""
-	def create_command(self, aligner : Aligner | CanSNPer2, query : str=None, references : list[str]=None):
-		if query is None:
-			query = self.query
-			query_name = self.query_name
-		else:
-			query_name = os.path.basename(query).rsplit(".", 1)[0] ## get name of file and remove ending
-			
-		if references is None:
-			references = self.references
-		
-		'''Mauve commands'''
-		commands =[]	# store execute command
-		logs = []	   # store log filepath
-		if len(references) == 0:	## If specific references are not given fetch references from the reference folder
-			references : list[str] = aligner.get_references()
-		for ref in references:	  ## For each reference in the reference folder align to query
-			ref_name = ref.rsplit(".",1)[0] ## remove file ending
-			
-			xmfa_output = "{tmpdir}/{ref}_{target}.xmfa".format(tmpdir=aligner.tmpdir.rstrip("/"),ref=ref_name,target=query_name)
-			ref_file = "{refdir}/{ref}".format(refdir=aligner.refdir, ref=ref)
-			log_file = "{logdir}/{ref}_{target}.mauve.log".format(logdir=aligner.logdir,ref=ref_name,target=query_name)
 
-			'''Create run command for mauve'''
-			command = "{mauve_path}progressiveMauve --output {xmfa} {ref_fasta} {target_fasta}".format(
-							mauve_path	  = aligner.mauve_path,
-							xmfa			= xmfa_output,
-							ref_fasta	   = ref_file,
-							target_fasta	= query
-			)
-			commands.append(command)			## Mauve command
-			logs.append(log_file)			   ## Store log files for each alignment
-			aligner.xmfa_files.append(xmfa_output) ## Store the path to xmfa files as they will be used later
-		return commands,logs
-	
-	def run_mauve(self, commands : list[str], logs : list[str]) -> int:
-		'''Run mauve
-			ProgressiveMauve is an alignment program for small genomes
-			this function will execute mauve commands as paralell subprocesses
+Aligners : dict[Aligner] = {
+	"progressiveMauve" : ProgressiveMauve
+}
+Mappers : dict[Mapper] = {
 
-			To run subprocesses securely this functino uses the Popen command includint standard pipes
-			stderr will be passed to the stdout pipe to reduce the number of log files required
+}
+Callers : dict[SNPCaller] = {
 
-			This function currently does not support any limitation of number of processes spawned,
-			modern OS will however mostly distribute subprocesses efficiently, it will also be limited by the
-			number of references supplied. A warning message will be given if the number of input references
-			exceeds the number of references in the database
-		'''
-		retvalue=0
-		processes = []  #process container
-		log_f = {}	  #log container
-		error = 0   #Variable for errors
-		self.logger.info("Starting progressiveMauve on {n} references".format(n=len(commands)))
-		for i in range(len(commands)): #Loop through commands,
-			command = commands[i]
-			self.logger.debug(command)			## In verbose mode print the actual mauve command
-			p = Popen(command.split(" "),  stdout=PIPE, stderr=STDOUT)  ##Split command to avoid shell=True pipe stdout and stderr to stdout
-			log_f[p.stdout.fileno()] = logs[i]	  ## Store the reference to the correct log file
-			processes.append(p)
-		while processes:
-			for p in processes: ## Loop through processes
-				exitcode = p.poll()  #get exitcode for each process
-				if exitcode is not None: ## if there is no exitcode the program is still running
-
-					## When a process is finished open the log file and write stdout/stderr to log file
-					with open(log_f[p.stdout.fileno()], "w") as log:
-						print(p.stdout.read().decode('utf-8'),file=log)
-					### IF the exitcode is not 0 print a warning and ask user to read potential error messages
-					if exitcode == 11:
-						self.logger.warning("WARNING progressiveMauve finished with a exitcode: {exitcode}".format(exitcode=exitcode))
-						self.logger.debug("This progressiveMauve error is showing up for bad genomes containing short repetitive contigs or sequence contains dashes.".format(exitcode=exitcode))
-						retvalue=11
-					elif exitcode == -6:
-						self.logger.warning("Input sequence is not free of gaps, replace gaps with N and retry!!")
-						retvalue=6
-					elif exitcode != 0:
-						if not self.keep_going:
-							self.logger.error("Error: exitcode-{exitcode}".format(exitcode=exitcode))
-						error += 1
-						self.logger.warning("WARNING progressiveMauve finished with a non zero exitcode: {exitcode}\nThe script will terminate when all processes are finished read {log} for more info".format(log=log_f[p.stdout.fileno()],exitcode=exitcode))
-					## Remove process from container
-					processes.remove(p)
-		if retvalue == 6 or retvalue == 11: ## This is done if sequence is not free of gaps
-			return retvalue
-		elif not self.keep_going:
-			if error:  ## Error handling regarding mauve subprocesses, stop script if any of them fails
-				self.logger.error("Error: {errors} progressiveMauve processes did not run correctly check log files for more information".format(errors=error))
-				raise MauveError("Error: {errors} progressiveMauve processes did not run correctly check log files for more information".format(errors=error))
-		else:
-			retvalue=1
-		return retvalue
-	"""
+}
