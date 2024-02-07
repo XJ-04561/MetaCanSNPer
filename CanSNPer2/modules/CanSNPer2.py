@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 from CanSNPer2.modules.ParseXMFA import ParseXMFA
 from CanSNPer2.modules.NewickTree import NewickTree
 from CanSNPer2.CanSNPerTree import __version__
+from CanSNPer2.modules.DirectoryLibrary import DirectoryLibrary
 from CanSNPer2.modules.Wrappers import Aligner, Aligners, Mapper, Mappers, SNPCaller, Callers # Mauve, Minimap2, GATK4
 
 
@@ -18,6 +19,10 @@ from CanSNPer2.modules.Wrappers import Aligner, Aligners, Mapper, Mappers, SNPCa
 from subprocess import Popen,PIPE,STDOUT
 from multiprocessing import Process, Queue
 from time import sleep,time
+try:
+	import tomllib as toml
+except ModuleNotFoundError:
+	import tomli as toml
 
 import random
 random.seed()
@@ -34,33 +39,15 @@ class CanSNPer2Error(Error):
 	"""docstring for MauveE"""
 	pass
 
-class CanSNPer2(object):
+class CanSNPer2:
 	outputTemplate = "{tmpdir}/{ref}_{target}.{format}"
 	"""docstring for CanSNPer2"""
-	def __init__(self, query, mauve_path="",tmpdir=None, refdir="references",database="CanSNPer.fdb", verbose=False,keep_going=False,**kwargs):
-		super(CanSNPer2, self).__init__()
-		self.query = query
-		self.verbose = verbose
-		self.refdir = refdir
-		self.mauve_path = mauve_path
-		self.xmfa_files = []
-		# Risky dictionary use?
-		self.export = kwargs["export"]
+	def __init__(self, tmpDir=None, refDir="references",database="CanSNPer.fdb", settingsFile=None, **kwargs):
+		
+		self.Lib = DirectoryLibrary(tmpDir=tmpDir, refDir=refDir)
+		self.settings = toml.load(open(self.Lib.get("defaultFlags.toml", "installDir") if settingsFile is None else settingsFile))
+		
 		self.database = database
-		self.min_required_hits = kwargs["min_required_hits"]
-		self.strictness = kwargs["strictness"]
-		self.rerun = kwargs["rerun"]
-
-		'''Create log and tmpdir if they do not exist'''
-		self.workdir = kwargs["workdir"]
-		if not os.path.exists(self.workdir):
-			logger.info("Creating working directory {workdir}".format(workdir=self.workdir))
-			os.makedirs(self.workdir)
-
-		try:
-			os.chdir(self.workdir)
-		except FileNotFoundError:
-			exit("The directory {workdir} could not be found!".format(workdir=self.workdir))
 
 		'''If given a tmpdir, it is used. Else, get a random number as tmpfolder name.
 		When using the same tmpdir for each process, parallel processes may overwrite each of the others work.'''

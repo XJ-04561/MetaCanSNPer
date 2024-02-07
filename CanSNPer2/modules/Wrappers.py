@@ -1,5 +1,5 @@
 
-
+from collections.abc import Callable
 import os
 from logging import Logger
 from threading import Thread, Condition
@@ -18,16 +18,16 @@ class MauveError(Error):
 	"""docstring for MauveE"""
 	pass
 
-
 '''Declarations used only for typehinting'''
 class CanSNPer2:
 	logdir : str
 	refdir : str
-	get_references : function
+	get_references : Callable
 	keep_going : bool
 class Aligner:
 	tmpdir : str
 	query : str
+
 
 '''More OOP handling of multiple processes'''
 class ThreadGroup:
@@ -37,7 +37,7 @@ class ThreadGroup:
 	kwargs : list[dict] | dict
 	threadKwargs : dict
 
-	def __init__(self, target : function, args : list[list] | list=None, kwargs : list[dict] | dict=None, n : int=None, **threadKwargs):
+	def __init__(self, target : Callable, args : list[list] | list=None, kwargs : list[dict] | dict=None, n : int=None, **threadKwargs):
 		'''
 			Has multiple behaviors for arguments and keyword arguments supplied to the target function:
 				* args and kwargs are 2D: must be same length on axis 0, n is ignored.
@@ -285,3 +285,4 @@ Mappers : dict[Mapper] = {
 Callers : dict[SNPCaller] = {
 
 }
+
