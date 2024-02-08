@@ -1,3 +1,4 @@
 [FileManagement]
-
+saveTemporaryFiles = false
 MergeNewResults = false
+referenceFormats = [".fna", ".fasta"]

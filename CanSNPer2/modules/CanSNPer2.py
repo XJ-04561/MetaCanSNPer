@@ -5,7 +5,9 @@ Copyright (C) 2019 David Sundell @ FOI bioinformatics group
 
 import os
 import logging
-logger = logging.getLogger(__name__)
+from CanSNPer2.modules.LogKeeper import createLogger
+
+LOGGER = createLogger(__name__)
 
 ## import CanSNPer2 specific modules
 from CanSNPer2.modules.ParseXMFA import ParseXMFA
@@ -41,45 +43,41 @@ class CanSNPer2Error(Error):
 
 class CanSNPer2:
 	outputTemplate = "{tmpdir}/{ref}_{target}.{format}"
+	Lib : DirectoryLibrary[str]
+	settings : dict
+
 	"""docstring for CanSNPer2"""
-	def __init__(self, tmpDir=None, refDir="references",database="CanSNPer.fdb", settingsFile=None, **kwargs):
-		
-		self.Lib = DirectoryLibrary(tmpDir=tmpDir, refDir=refDir)
-		self.settings = toml.load(open(self.Lib.get("defaultFlags.toml", "installDir") if settingsFile is None else settingsFile))
+	def __init__(self, tmpDir=None, refDir="References", database="CanSNPer.fdb", settingsFile : str=None, **kwargs):
 		
 		self.database = database
+		self.Lib = DirectoryLibrary(tmpDir=tmpDir, refDir=refDir)
+		settings : dict = toml.load(open(self.Lib.get("defaultFlags.toml", "installDir") if settingsFile is None else self.Lib.get(settingsFile, "workDir")), "rb")
+		# Settings hierarchy looks like this: ["Category"]["Flag"] -> Value
 
-		'''If given a tmpdir, it is used. Else, get a random number as tmpfolder name.
-		When using the same tmpdir for each process, parallel processes may overwrite each of the others work.'''
-		self.tmpdir = tmpdir if tmpdir is not None else "tmp_{}{}".format(*random.random().as_integer_ratio())
-		if not os.path.exists(self.tmpdir):
-			logger.info("Creating tmp directory {tmpdir}".format(tmpdir=self.tmpdir))
-			os.makedirs(self.tmpdir)
+		# Flatten hierarchy so flags are easily accessible
+		self.settings = {}
+		for flags in settings.values():
+			for flag, value in flags.items():
+				if flag in kwargs:
+					self.settings[flag] = kwargs[flag]
+				else:
+					self.settings[flag] = value
 
-		self.logdir = kwargs["logdir"]
-		if not os.path.exists(self.logdir):
-			logger.info("Creating logs directory {logdir}".format(logdir=self.logdir))
-			os.makedirs(self.logdir)
+		# Need for this is unknown, might remove later.
+		self.summarySet = set()
+		self.calledGenome = {}
 
-		self.outdir = kwargs["outdir"]
-		if not os.path.exists(self.outdir):
-			logger.info("Creating output directory {outdir}".format(outdir=self.outdir))
-			os.makedirs(self.outdir)
+	'''MetaCanSNPer set functions'''
 
-		'''Fetch other key word arguments'''
-		self.skip_mauve = kwargs["skip_mauve"]
-		self.save_tree = kwargs["save_tree"]
-		self.keep_temp = kwargs["keep_temp"]
-		self.keep_going = keep_going
-
-		if kwargs["summary"]:
-			self.summary_set = set()
-			self.called_genome = {}
-			self.summary = True
-		else:
-			self.summary = False
-
-		self.no_export = False
+	def setQuery(self, query : str):
+		self.Lib.setQuery(query)
+	
+	def setRefDir(self, references : str):
+		''''references' is either an absolut path or a path to an accepted directory.'''
+		self.Lib.setRefDir(references)
+	
+	def setOutDir(self, outDir : str):
+		self.Lib.setOutDir(outDir)
 
 	'''CanSNPer2 get functions'''
 
@@ -87,9 +85,8 @@ class CanSNPer2:
 		'''Return references to aligned files'''
 		return self.xmfa_files
 
-	def get_references(self, selected=False):
-		'''references must be available in the refdir'''
-		return [ref for ref in os.listdir(self.refdir) if ref.endswith(".fna")]
+	def getReferences(self):
+		return self.Lib.getReferences()
 
 	def get_tempfiles(self):
 		'''List all files in the tmp directory'''
@@ -97,17 +94,13 @@ class CanSNPer2:
 
 	'''ProgressiveMauve alignment functions'''
 
-	def align(self, query, references=[], software : str=None, kwargs : dict={}):
+	def align(self, software : str=None, kwargs : dict={}):
 		'''Align sequences using subprocesses.'''
 
 		outputTemplate = self.outputTemplate.format()
 
 		aligner : Aligner = Aligners[software]
-		aligner(query, references, logger, outputTemplate, kwargs=kwargs)
-
-		#
-		#	Does tmpdir need to be transferred over to the aligner in order for the fixer to work?
-		#
+		aligner(self.Lib, outputTemplate, kwargs=kwargs)
 
 		output = aligner.start()
 		aligner.wait()
@@ -120,35 +113,15 @@ class CanSNPer2:
 
 		return output
 
-		
-		commands,logs = self.create_mauve_command(query,references)
-		if not self.skip_mauve: ### If mauve command was already run before don´t run mauve return xmfa paths
-			ret = self.run_mauve(commands,logs)
-			if int(ret) == 11:
-				'''This error might be caused by mauve not handling dash(-) in the sequence, change the incoming sequence and replace - with N and retry once'''
-				logger.warning("Mauve ran into an error with sequence {seq} may contain a dash, replace with N characters and retry mauve".format(seq=query))
-				query_base = os.path.basename(query)
-				logger.debug("sed 's/-/N/g' {query} > {tmpdir}/{query_base}.tmp".format(query=query,query_base=query_base,tmpdir=self.tmpdir))
-				self.xmfa_files = []
-				os.system("sed 's/-/N/g' {query} > {tmpdir}/{query_base}.tmp".format(query=query,query_base=query_base,tmpdir=self.tmpdir))
-				new_query = "{tmpdir}/{query}.tmp".format(query=query_base,tmpdir=self.tmpdir)
-				logger.debug("New query: {nq}".format(nq=new_query))
-				commands,logs = self.create_mauve_command(new_query,references)
-				ret = self.run_mauve(commands,logs)
-			if ret != 0:
-				return []
-			logger.info("Alignments for {query} complete!".format(query=query))
-		return self.xmfa_files
-
 	'''Functions'''
 
 	def create_tree(self,SNPS,name,called_snps,save_tree,min_required_hits,strictness=0.7, summary=False):
 		'''This function uses ETE3 to color the SNP tree in the database with SNPS found in the reference database
 			and outputs a pdf file
 		'''
-		newickTree = NewickTree(self.database,name,self.outdir,min_required_hits=min_required_hits, strictness=strictness)
+		newickTree = NewickTree(self.database,name,self.Lib.outDir,min_required_hits=min_required_hits, strictness=strictness)
 		final_snp = newickTree.draw_ete3_tree(SNPS,called_snps,save_tree,summary=summary)
-		logger.info("{outdir}/{name}_tree.pdf".format(outdir =self.outdir, name=name))
+		LOGGER.info("{outdir}/{name}_tree.pdf".format(outdir =self.outdir, name=name))
 		return final_snp
 
 	def read_query_textfile_input(self,query_file):
@@ -159,12 +132,9 @@ class CanSNPer2:
 
 	def cleanup(self):
 		'''Remove files in temporary folder'''
-		logger.info("Clean up temporary files... ")
-		files = self.get_tempfiles()
-		for f in files:
-			os.remove(os.path.join(self.tmpdir,f))
-		os.rmdir(self.tmpdir)
-		logger.info("Done!")
+		LOGGER.info("Clean up temporary files... ")
+		del self.Lib
+		LOGGER.info("Done!")
 		return
 
 	# UNUSED - DELETE?
@@ -219,7 +189,7 @@ class CanSNPer2:
 				tmp_data = result_queue.get()
 				if type(tmp_data) == str and tmp_data.find('XMFA_obj_finish_worker_') != -1:
 					finish_signals['SNPS'].add(tmp_data.split('_')[-1])
-					logger.info("Output queue for 'SNPS' finished for reference {reference}".format(reference=tmp_data.split('_')[-1]))
+					LOGGER.info("Output queue for 'SNPS' finished for reference {reference}".format(reference=tmp_data.split('_')[-1]))
 				else:
 					SNPS[tmp_data[0]] = tmp_data[1]
 			#/
@@ -228,7 +198,7 @@ class CanSNPer2:
 				tmp_data = export_queue.get()
 				if type(tmp_data) == str and tmp_data.find('XMFA_obj_finish_worker_') != -1:
 					finish_signals['SNP_info'].add(tmp_data.split('_')[-1])
-					logger.info("Output queue for 'SNP_info' finished for reference {reference}".format(reference=tmp_data.split('_')[-1]))
+					LOGGER.info("Output queue for 'SNP_info' finished for reference {reference}".format(reference=tmp_data.split('_')[-1]))
 				else:
 					SNP_info.append(tmp_data)
 			#/
@@ -237,7 +207,7 @@ class CanSNPer2:
 				tmp_data = called_queue.get()
 				if type(tmp_data) == str and tmp_data.find('XMFA_obj_finish_worker_') != -1:
 					finish_signals['called_snps'].add(tmp_data.split('_')[-1])
-					logger.info("Output queue for 'called_snps' finished for reference {reference}".format(reference=tmp_data.split('_')[-1]))
+					LOGGER.info("Output queue for 'called_snps' finished for reference {reference}".format(reference=tmp_data.split('_')[-1]))
 				else:
 					called_snps.append(tmp_data)
 			#/
@@ -247,7 +217,7 @@ class CanSNPer2:
 				if len(signals) == len(xmfa_files):
 					finish_signals_called.append(queue_name)
 			if len(finish_signals) == len(finish_signals_called):
-				logger.info("All output queues finished!")
+				LOGGER.info("All output queues finished!")
 				break
 			#/
 			# check if we have computed for X amount of time, then break and assume something is wrong
@@ -255,7 +225,7 @@ class CanSNPer2:
 			toc = time()
 			time_spent = toc - tic
 			if time_spent > max_time_seconds:
-				logger.warning("Maximum time spent reached to capture queue output. This is not expected to happen and might mean that your output data is corrupted.")
+				LOGGER.warning("Maximum time spent reached to capture queue output. This is not expected to happen and might mean that your output data is corrupted.")
 				break
 			#/
 		##/
@@ -292,11 +262,11 @@ class CanSNPer2:
 
 	def run(self,database):
 		'''Run CanSNPer2'''
-		logger.info("Running CanSNPer2 version-{version}".format(version=__version__))
+		LOGGER.info("Running CanSNPer2 version-{version}".format(version=__version__))
 		if len(self.query) > 0:
 			'''Read query input file if a txt file is supplied insead of fasta files'''
 			if self.query[0].endswith(".txt"):
-				logger.info("Textfile input was found, parsing filepaths in {q} file".format(q=self.query[0]))
+				LOGGER.info("Textfile input was found, parsing filepaths in {q} file".format(q=self.query[0]))
 				self.query=self.read_query_textfile_input(self.query)
 
 			'''Main function of CanSNPer2
@@ -324,28 +294,28 @@ class CanSNPer2:
 
 					outputfile = "{outdir}/{xmfa}_snps.txt".format(outdir=self.outdir,xmfa=self.query_name)
 					if os.path.exists(outputfile) and not self.rerun:
-						logger.debug("{outputfile} already exits, skip!".format(outputfile=outputfile))
+						LOGGER.debug("{outputfile} already exits, skip!".format(outputfile=outputfile))
 						continue
-					logger.info("Running CanSNPer2 on {query}".format(query=qfile))
+					LOGGER.info("Running CanSNPer2 on {query}".format(query=qfile))
 					if not self.skip_mauve: ### If mauve command was already run before skip step
-						logger.info("Run mauve alignments")
+						LOGGER.info("Run mauve alignments")
 
 					'''For each query fasta align to all CanSNP references the reference folder
 						if skip_mauve parameter is True this the align function will only format xmfa file paths
 					'''
 					xmfa_files = self.align(q)
-					logger.debug(xmfa_files)
+					LOGGER.debug(xmfa_files)
 					if len(xmfa_files) == 0: ## if keep going is set and mauve exits with an error continue to next sequence
-						logger.debug("Mauve exited with a non zero exit status, continue with next sample!")
-						logger.warning("Mauve error skip {sample}".format(q))
+						LOGGER.debug("Mauve exited with a non zero exit status, continue with next sample!")
+						LOGGER.warning("Mauve error skip {sample}".format(q))
 						self.xmfa_files = []
 						continue
 					'''Parse Mauve XMFA output and find SNPs; returns SNPS (for the visual tree) and SNP_info (text file output)'''
-					logger.info("Find SNPs")
+					LOGGER.info("Find SNPs")
 					try:
 						SNPS,SNP_info,called_snps = self.find_snps_multiproc(xmfa_obj=parse_xmfa_obj,xmfa_files=xmfa_files,export=True)
 					except FileNotFoundError:
-						logger.warning("One or several xmfa files were not found for {qfile} continue with next file".format(qfile=qfile))
+						LOGGER.warning("One or several xmfa files were not found for {qfile} continue with next file".format(qfile=qfile))
 						self.xmfa_files = []
 						continue
 					'''If file export is requested print the result for each SNP location to file'''
@@ -353,7 +323,7 @@ class CanSNPer2:
 						outputfile = "{outdir}/{xmfa}_not_called.txt".format(outdir=self.outdir,xmfa=self.query_name)
 						outputfile2 = "{outdir}/{xmfa}_snps.txt".format(outdir=self.outdir,xmfa=self.query_name)
 
-						logger.info("Printing SNP info of non called SNPs to {file}".format(file=outputfile))
+						LOGGER.info("Printing SNP info of non called SNPs to {file}".format(file=outputfile))
 						self.csnpdict = {}
 						'''Print SNPs to tab separated file'''
 						with open(outputfile,"w") as snplist_out:
@@ -379,12 +349,12 @@ class CanSNPer2:
 										print("\t".join(self.csnpdict[snp[1]]),file=called_out)
 								print("SNP path: {path}".format(path=";".join([snp[1] for snp in called])),file=called_out)
 								print("Final SNP: {snp} found/depth: {found}/{depth}".format(snp=SNP,depth=int(final_snp[0]),found=final_snp[2][1]),file=called_out)
-						logger.info("Final SNP: {snp} found/depth: {found}/{depth}".format(snp=SNP,depth=int(final_snp[0]),found=final_snp[2][1]))
+						LOGGER.info("Final SNP: {snp} found/depth: {found}/{depth}".format(snp=SNP,depth=int(final_snp[0]),found=final_snp[2][1]))
 					else:
 						if self.export:
 							with open(outputfile2, "a") as called_out:
 								print("Final SNP: {snp}".format(snp=SNP), file=called_out)
-						logger.info(message)
+						LOGGER.info(message)
 					if self.summary and SNP != "NA":
 						self.summary_set |= set([SNP])
 						self.called_genome[SNP] = self.query_name
@@ -394,10 +364,10 @@ class CanSNPer2:
 					self.xmfa_files = []
 				except Exception as e:
 					if not self.keep_going:
-						logger.warning("An error occured during processing of {file}: {exception}".format(file=self.query_name, exception=e))
+						LOGGER.warning("An error occured during processing of {file}: {exception}".format(file=self.query_name, exception=e))
 						raise CanSNPer2Error("A file did not run correctly exit CanSNPer2 (use --keep_going to continue with next file!)")
 					else:
-						logger.debug("An error occured during processing of {file}: {exception}".format(file=self.query_name, exception=e))
+						LOGGER.debug("An error occured during processing of {file}: {exception}".format(file=self.query_name, exception=e))
 
 		if self.summary:
 			self.print_summary()
@@ -405,4 +375,4 @@ class CanSNPer2:
 		if not self.keep_temp and len(self.query) > 0: ## if keep temp is turned on do not remove away alignments also if no input files were given
 			self.cleanup()
 
-		logger.info("CanSNPer2 finished successfully, files can be found in {outdir}".format(outdir=self.outdir+"/"))
+		LOGGER.info("CanSNPer2 finished successfully, files can be found in {outdir}".format(outdir=self.outdir+"/"))

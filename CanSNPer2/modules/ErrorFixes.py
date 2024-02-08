@@ -1,6 +1,11 @@
 from Wrappers import *
 import os.path
 
+import logging
+import CanSNPer2.modules.LogKeeper as LogKeeper
+
+LOGGER = LogKeeper.createLogger(__name__)
+
 class SolutionContainer:
     def __contains__(self, key):
         try:
@@ -23,11 +28,12 @@ class SolutionContainer:
 class progressiveMauve(SolutionContainer):
     @staticmethod
     def _11(obj : ProgressiveMauve, offenders : list[int]):
-        obj.logger.debug("sed 's/-/N/g' {query} > {tmpdir}{sep}{query_base}.tmp".format(query=obj.query, query_base=obj.queryName, tmpdir=obj.tmpdir, sep=os.path.sep))
-        os.system("sed 's/-/N/g' {query} > {tmpdir}{sep}{query_base}.tmp".format(query=obj.query, query_base=obj.queryName, tmpdir=obj.tmpdir, sep=os.path.sep))
+        LOGGER.debug("sed 's/-/N/g' {query} > {tmpName}.tmp".format(query=obj.query, query_base=obj.queryName, tmpdir=obj.tmpdir, sep=os.path.sep))
+        tmpName = "{}.tmp".format(os.path.join([obj.Lib.tmpDir, obj.queryName]))
+        os.system("sed 's/-/N/g' {query} > {tmpName}".format(query=obj.Lib.getQuery(), tmpName=tmpName))
         
-        new_query = "{tmpdir}{sep}{query}.tmp".format(query=obj.query_base, tmpdir=obj.tmpdir, sep=os.path.sep)
-        obj.logger.debug("New query: {nq}".format(nq=new_query))
+        LOGGER.debug("New query: {nq}".format(nq=tmpName))
+        obj.Lib.setQuery(tmpName, abs=True)
     
 
 Indexers = {

@@ -1,0 +1,157 @@
+Hello1
+Hello1
+Hello2
+Hello1
+Hello2
+[MetaCanSNPer.test2] 2024-02-08 14:46:27,272 - ERROR: Hello2
+[MetaCanSNPer.test2] 2024-02-08 14:46:41,070 - ERROR: Hello2
+[MetaCanSNPer.test2] 2024-02-08 14:46:41,074 - ERROR: Hello1
+[MetaCanSNPer.test2] 2024-02-08 14:47:11,031 - ERROR: Hello2
+[MetaCanSNPer.test2] 2024-02-08 14:47:11,041 - ERROR: Hello1
+[MetaCanSNPer.test2] 2024-02-08 14:48:02,392 - ERROR: Hello2
+[MetaCanSNPer.__main__] 2024-02-08 14:48:02,397 - ERROR: Hello1
+[MetaCanSNPer.__main__] 2024-02-08 15:46:55,848 - DEBUG: Creating: Directories in Library at 0x000001e1130ab830:
+
+[MetaCanSNPer.__main__] 2024-02-08 15:48:10,649 - DEBUG: Creating: Directories in Library at 0x00000253e2048470:
+
+[MetaCanSNPer.__main__] 2024-02-08 15:49:08,260 - DEBUG: Creating: Directories in Library at 0x000001b5cd7a8470:
+
+[MetaCanSNPer.__main__] 2024-02-08 15:49:52,604 - DEBUG: Creating: Directories in Library at 0x000002ba7fc481a0:
+
+[MetaCanSNPer.__main__] 2024-02-08 15:50:10,390 - DEBUG: Creating: Directories in Library at 0x0000017e711881a0:
+
+[MetaCanSNPer.__main__] 2024-02-08 15:50:10,392 - DEBUG: Work dir:    '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer'
+[MetaCanSNPer.__main__] 2024-02-08 15:50:10,394 - DEBUG: Install dir: '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer\CanSNPer2\modules'
+[MetaCanSNPer.__main__] 2024-02-08 15:50:10,395 - DEBUG: User dir:    'C:\Users\fresor'
+[MetaCanSNPer.__main__] 2024-02-08 15:51:16,615 - DEBUG: Creating: Directories in Library at 0x000001cc71718350:
+
+[MetaCanSNPer.__main__] 2024-02-08 15:51:16,618 - DEBUG: Work dir:    '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer'
+[MetaCanSNPer.__main__] 2024-02-08 15:51:16,619 - DEBUG: Install dir: '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer\CanSNPer2\modules'
+[MetaCanSNPer.__main__] 2024-02-08 15:51:16,621 - DEBUG: User dir:    'C:\Users\fresor'
+[MetaCanSNPer.__main__] 2024-02-08 15:51:47,128 - DEBUG: Creating: Directories in Library at 0x000001d3e50d8260:
+
+[MetaCanSNPer.__main__] 2024-02-08 15:51:47,131 - DEBUG: Work dir:    '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer'
+[MetaCanSNPer.__main__] 2024-02-08 15:51:47,134 - DEBUG: Install dir: '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer\CanSNPer2\modules'
+[MetaCanSNPer.__main__] 2024-02-08 15:51:47,135 - DEBUG: User dir:    'C:\Users\fresor'
+[MetaCanSNPer.__main__] 2024-02-08 15:51:47,178 - DEBUG: Directories in Library at 0x000001d3e50d8260:
+  installDir          ='rwx' '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer\CanSNPer2\modules'
+  userDir             ='rwx' 'C:\Users\fresor'
+  workDir             ='rwx' '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer'
+[MetaCanSNPer.__main__] 2024-02-08 15:51:47,194 - DEBUG: Path does not exist: '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer\CanSNPer2\modules\References'
+[MetaCanSNPer.__main__] 2024-02-08 15:51:47,200 - DEBUG: Path does not exist: '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer\References'
+[MetaCanSNPer.__main__] 2024-02-08 15:51:47,202 - DEBUG: Path does not exist: 'C:\Users\fresor\References'
+[MetaCanSNPer.__main__] 2024-02-08 15:51:47,204 - WARNING: Nowhere to read references from unless references are absolute paths to readable directories. No 'References' directory with reading and execution permission in installDir, workDir, or userDir:
+Directories in Library at 0x000001d3e50d8260:
+  installDir          ='rwx' '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer\CanSNPer2\modules'
+  targetDir           ='rwx' '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer'
+  userDir             ='rwx' 'C:\Users\fresor'
+  workDir             ='rwx' '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer'
+[MetaCanSNPer.__main__] 2024-02-08 15:53:23,286 - DEBUG: Creating: Directories in Library at 0x00000174ea998260:
+
+[MetaCanSNPer.__main__] 2024-02-08 15:53:23,289 - DEBUG: Work dir:    '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer'
+[MetaCanSNPer.__main__] 2024-02-08 15:53:23,291 - DEBUG: Install dir: '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer\CanSNPer2\modules'
+[MetaCanSNPer.__main__] 2024-02-08 15:53:23,295 - DEBUG: User dir:    'C:\Users\fresor'
+[MetaCanSNPer.__main__] 2024-02-08 15:53:23,312 - DEBUG: Directories in Library at 0x00000174ea998260:
+  installDir          ='rwx' '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer\CanSNPer2\modules'
+  userDir             ='rwx' 'C:\Users\fresor'
+  workDir             ='rwx' '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer'
+[MetaCanSNPer.__main__] 2024-02-08 15:53:23,323 - DEBUG: Path does not exist: '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer\CanSNPer2\modules\References'
+[MetaCanSNPer.__main__] 2024-02-08 15:53:23,349 - DEBUG: Path does not exist: 'C:\Users\fresor\References'
+[MetaCanSNPer.__main__] 2024-02-08 15:53:23,351 - ERROR: Missing crucial permissions in created temporary folder '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer\CanSNPer2\modules\tmp_41688885075163494503599627370496' missing  permission.
+[MetaCanSNPer.__main__] 2024-02-08 15:59:24,562 - DEBUG: Creating: Directories in Library at 0x0000025f6087b800:
+
+[MetaCanSNPer.__main__] 2024-02-08 15:59:24,565 - DEBUG: Work dir:    '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer'
+[MetaCanSNPer.__main__] 2024-02-08 15:59:24,566 - DEBUG: Install dir: '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer\CanSNPer2\modules'
+[MetaCanSNPer.__main__] 2024-02-08 15:59:24,567 - DEBUG: User dir:    'C:\Users\fresor'
+[MetaCanSNPer.__main__] 2024-02-08 15:59:24,597 - DEBUG: Directories in Library at 0x0000025f6087b800:
+  installDir          ='rwx' '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer\CanSNPer2\modules'
+  userDir             ='rwx' 'C:\Users\fresor'
+  workDir             ='rwx' '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer'
+[MetaCanSNPer.__main__] 2024-02-08 15:59:24,621 - DEBUG: Path does not exist: '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer\CanSNPer2\modules\References'
+[MetaCanSNPer.__main__] 2024-02-08 15:59:24,644 - DEBUG: Path does not exist: 'C:\Users\fresor\References'
+[MetaCanSNPer.__main__] 2024-02-08 15:59:24,646 - DEBUG: Path does not exist, creating it instead: '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer\CanSNPer2\modules\tmp_16735992375655972251799813685248'
+[MetaCanSNPer.__main__] 2024-02-08 16:00:59,790 - DEBUG: Creating: Directories in Library at 0x000001fba416ba40:
+
+[MetaCanSNPer.__main__] 2024-02-08 16:00:59,794 - DEBUG: Work dir:    '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer'
+[MetaCanSNPer.__main__] 2024-02-08 16:00:59,796 - DEBUG: Install dir: '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer\CanSNPer2\modules'
+[MetaCanSNPer.__main__] 2024-02-08 16:00:59,797 - DEBUG: User dir:    'C:\Users\fresor'
+[MetaCanSNPer.__main__] 2024-02-08 16:00:59,817 - DEBUG: Directories in Library at 0x000001fba416ba40:
+  installDir          ='rwx' '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer\CanSNPer2\modules'
+  userDir             ='rwx' 'C:\Users\fresor'
+  workDir             ='rwx' '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer'
+[MetaCanSNPer.__main__] 2024-02-08 16:00:59,828 - DEBUG: Path does not exist: '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer\CanSNPer2\modules\References'
+[MetaCanSNPer.__main__] 2024-02-08 16:00:59,847 - DEBUG: Path does not exist: 'C:\Users\fresor\References'
+[MetaCanSNPer.__main__] 2024-02-08 16:00:59,855 - DEBUG: Path does not exist, creating it instead: '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer\CanSNPer2\modules\tmp_21715234184738772251799813685248'
+[MetaCanSNPer.__main__] 2024-02-08 16:04:29,421 - DEBUG: Creating: Directories in Library at 0x0000020b6dd1bbc0:
+
+[MetaCanSNPer.__main__] 2024-02-08 16:04:29,424 - DEBUG: Work dir:    '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer'
+[MetaCanSNPer.__main__] 2024-02-08 16:04:29,426 - DEBUG: Install dir: '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer\CanSNPer2\modules'
+[MetaCanSNPer.__main__] 2024-02-08 16:04:29,427 - DEBUG: User dir:    'C:\Users\fresor'
+[MetaCanSNPer.__main__] 2024-02-08 16:04:29,440 - DEBUG: Directories in Library at 0x0000020b6dd1bbc0:
+  installDir          ='rwx' '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer\CanSNPer2\modules'
+  userDir             ='rwx' 'C:\Users\fresor'
+  workDir             ='rwx' '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer'
+[MetaCanSNPer.__main__] 2024-02-08 16:04:29,449 - DEBUG: Path does not exist: '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer\CanSNPer2\modules\References'
+[MetaCanSNPer.__main__] 2024-02-08 16:04:29,463 - DEBUG: Path does not exist: 'C:\Users\fresor\References'
+[MetaCanSNPer.__main__] 2024-02-08 16:04:29,464 - DEBUG: Path does not exist, creating it instead: '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer\CanSNPer2\modules\tmp_50143467284737859007199254740992'
+[MetaCanSNPer.__main__] 2024-02-08 16:04:29,493 - DEBUG: Path does not exist, creating it instead: '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer\MetaCanSNPer\Logs'
+[MetaCanSNPer.__main__] 2024-02-08 16:04:59,905 - DEBUG: Creating: Directories in Library at 0x000001aebf12bb60:
+
+[MetaCanSNPer.__main__] 2024-02-08 16:04:59,908 - DEBUG: Work dir:    '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer'
+[MetaCanSNPer.__main__] 2024-02-08 16:04:59,909 - DEBUG: Install dir: '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer\CanSNPer2\modules'
+[MetaCanSNPer.__main__] 2024-02-08 16:04:59,911 - DEBUG: User dir:    'C:\Users\fresor'
+[MetaCanSNPer.__main__] 2024-02-08 16:04:59,926 - DEBUG: Directories in Library at 0x000001aebf12bb60:
+  installDir          ='rwx' '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer\CanSNPer2\modules'
+  userDir             ='rwx' 'C:\Users\fresor'
+  workDir             ='rwx' '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer'
+[MetaCanSNPer.__main__] 2024-02-08 16:04:59,935 - DEBUG: Path does not exist: '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer\CanSNPer2\modules\References'
+[MetaCanSNPer.__main__] 2024-02-08 16:04:59,949 - DEBUG: Path does not exist: 'C:\Users\fresor\References'
+[MetaCanSNPer.__main__] 2024-02-08 16:04:59,950 - DEBUG: Path does not exist, creating it instead: '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer\CanSNPer2\modules\tmp_6252880060403691125899906842624'
+[MetaCanSNPer.__main__] 2024-02-08 16:09:14,285 - DEBUG: Creating: Directories in Library at 0x0000022b4f23b890:
+
+[MetaCanSNPer.__main__] 2024-02-08 16:09:14,287 - DEBUG: Work dir:    '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer'
+[MetaCanSNPer.__main__] 2024-02-08 16:09:14,289 - DEBUG: Install dir: '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer\CanSNPer2\modules'
+[MetaCanSNPer.__main__] 2024-02-08 16:09:14,290 - DEBUG: User dir:    'C:\Users\fresor'
+[MetaCanSNPer.__main__] 2024-02-08 16:09:14,302 - DEBUG: Directories in Library at 0x0000022b4f23b890:
+  installDir          ='rwx' '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer\CanSNPer2\modules'
+  userDir             ='rwx' 'C:\Users\fresor'
+  workDir             ='rwx' '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer'
+[MetaCanSNPer.__main__] 2024-02-08 16:09:14,310 - DEBUG: Path does not exist: '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer\CanSNPer2\modules\References'
+[MetaCanSNPer.__main__] 2024-02-08 16:09:14,325 - DEBUG: Path does not exist: 'C:\Users\fresor\References'
+[MetaCanSNPer.__main__] 2024-02-08 16:09:14,327 - DEBUG: Path does not exist, creating it instead: '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer\CanSNPer2\modules\tmp_11218804182928474503599627370496'
+[MetaCanSNPer.__main__] 2024-02-08 16:10:36,099 - DEBUG: Creating: Directories in Library at 0x0000028e759bbc80:
+
+[MetaCanSNPer.__main__] 2024-02-08 16:10:36,102 - DEBUG: Work dir:    '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer'
+[MetaCanSNPer.__main__] 2024-02-08 16:10:36,104 - DEBUG: Install dir: '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer\CanSNPer2\modules'
+[MetaCanSNPer.__main__] 2024-02-08 16:10:36,105 - DEBUG: User dir:    'C:\Users\fresor'
+[MetaCanSNPer.__main__] 2024-02-08 16:10:36,122 - DEBUG: Directories in Library at 0x0000028e759bbc80:
+  installDir          ='rwx' '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer\CanSNPer2\modules'
+  userDir             ='rwx' 'C:\Users\fresor'
+  workDir             ='rwx' '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer'
+[MetaCanSNPer.__main__] 2024-02-08 16:10:36,153 - DEBUG: Path does not exist: '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer\CanSNPer2\modules\References'
+[MetaCanSNPer.__main__] 2024-02-08 16:10:36,169 - DEBUG: Path does not exist: 'C:\Users\fresor\References'
+[MetaCanSNPer.__main__] 2024-02-08 16:10:36,171 - DEBUG: Path does not exist, creating it instead: '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer\CanSNPer2\modules\tmp_73179180461940519007199254740992'
+[MetaCanSNPer.__main__] 2024-02-08 16:12:04,157 - DEBUG: Creating: Directories in Library at 0x000002027f00bd70:
+
+[MetaCanSNPer.__main__] 2024-02-08 16:12:04,160 - DEBUG: Work dir:    '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer'
+[MetaCanSNPer.__main__] 2024-02-08 16:12:04,162 - DEBUG: Install dir: '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer\CanSNPer2\modules'
+[MetaCanSNPer.__main__] 2024-02-08 16:12:04,164 - DEBUG: User dir:    'C:\Users\fresor'
+[MetaCanSNPer.__main__] 2024-02-08 16:12:04,180 - DEBUG: Directories in Library at 0x000002027f00bd70:
+  installDir          ='rwx' '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer\CanSNPer2\modules'
+  userDir             ='rwx' 'C:\Users\fresor'
+  workDir             ='rwx' '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer'
+[MetaCanSNPer.__main__] 2024-02-08 16:12:04,193 - DEBUG: Path does not exist: '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer\CanSNPer2\modules\References'
+[MetaCanSNPer.__main__] 2024-02-08 16:12:04,206 - DEBUG: Path does not exist: 'C:\Users\fresor\References'
+[MetaCanSNPer.__main__] 2024-02-08 16:12:04,208 - DEBUG: Path does not exist, creating it instead: '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer\CanSNPer2\modules\tmp_31499149266201174503599627370496'
+[MetaCanSNPer.__main__] 2024-02-08 16:15:17,283 - DEBUG: Creating: Directories in Library at 0x0000029177e0ba70:
+
+[MetaCanSNPer.__main__] 2024-02-08 16:15:17,285 - DEBUG: Work dir:    '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer'
+[MetaCanSNPer.__main__] 2024-02-08 16:15:17,287 - DEBUG: Install dir: '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer\CanSNPer2\modules'
+[MetaCanSNPer.__main__] 2024-02-08 16:15:17,288 - DEBUG: User dir:    'C:\Users\fresor'
+[MetaCanSNPer.__main__] 2024-02-08 16:15:17,301 - DEBUG: Directories in Library at 0x0000029177e0ba70:
+  installDir          ='rwx' '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer\CanSNPer2\modules'
+  userDir             ='rwx' 'C:\Users\fresor'
+  workDir             ='rwx' '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer'
+[MetaCanSNPer.__main__] 2024-02-08 16:15:17,308 - DEBUG: Path does not exist: '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer\CanSNPer2\modules\References'
+[MetaCanSNPer.__main__] 2024-02-08 16:15:17,319 - DEBUG: Path does not exist: 'C:\Users\fresor\References'
+[MetaCanSNPer.__main__] 2024-02-08 16:15:17,321 - DEBUG: Path does not exist, creating it instead: '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer\CanSNPer2\modules\tmp_20573997104956959007199254740992'

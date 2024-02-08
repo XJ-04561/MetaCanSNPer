@@ -1,11 +1,16 @@
 
-from collections.abc import Callable
 import os
-from logging import Logger
+import logging
+import CanSNPer2.modules.LogKeeper as LogKeeper
+
+LOGGER = LogKeeper.createLogger(__name__)
+
+from collections.abc import Callable
 from threading import Thread, Condition
 from subprocess import run, DEVNULL, PIPE, STDOUT, CompletedProcess
 
-import ErrorFixes
+import CanSNPer2.modules.ErrorFixes as ErrorFixes
+from CanSNPer2.modules.DirectoryLibrary import DirectoryLibrary
 
 class Error(Exception):
 	"""docstring for Error"""
@@ -96,7 +101,6 @@ class ThreadGroup:
 
 # Aligner and Mapper classes to inherit from
 class ProcessWrapper:
-	logger : Logger
 	softwareName : str
 	returncodes : list[list[int]]
 	previousErrors : list
@@ -124,9 +128,9 @@ class ProcessWrapper:
 		'''Not implemented for the template class, check the wrapper of the
 		specific software you are intending to use.'''
 		if returncode == 0:
-			self.logger.debug("{softwareName} finished with exitcode 0.".format(softwareName=self.softwareName))
+			LOGGER.debug("{softwareName} finished with exitcode 0.".format(softwareName=self.softwareName))
 		else:
-			self.logger.warning("WARNING {softwareName} finished with a non zero exitcode: {returncode}".format(softwareName=self.softwareName, returncode=returncode))
+			LOGGER.warning("WARNING {softwareName} finished with a non zero exitcode: {returncode}".format(softwareName=self.softwareName, returncode=returncode))
 	
 	def hickups(self):
 		'''Not implemented for the template class, check the wrapper of the
@@ -145,25 +149,22 @@ class ProcessWrapper:
 
 
 class IndexingWrapper(ProcessWrapper):
-	query : str
+	Lib : DirectoryLibrary
 	queryName : str
-	references : str
 	commandTemplate : str # Should contain format tags for {target}, {ref}, {output}, can contain more.
 	outFormat : str
 	logFormat : str
 	returncodes : list[list[int]]
 	threadGroup : ThreadGroup
 	kwargs : dict
-	solutions : dict = {}
+	solutions : dict
 	
-	def __init__(self, query : str, references : list[str], logger : Logger, outputTemplate : str, kwargs : dict={}):
-		self.query = query
-		self.query_name = os.path.basename(query).rsplit(".",1)[0] ## get name of file and remove ending
-		self.references = references
+	def __init__(self, lib : DirectoryLibrary, outputTemplate : str, kwargs : dict={}):
+		self.Lib = lib
+		self.query_name = os.path.basename(self.Lib.getQuery()).rsplit(".",1)[0] ## get name of file and remove ending
 		self.outputTemplate = outputTemplate
-		self.logger = logger
 		self.kwargs = kwargs
-		self.returncodes = [[] for _ in range(len(references))]
+		self.returncodes = [[] for _ in range(len(lib.getReferences()))]
 		self.threadGroup = None
 		self.solutions = ErrorFixes.Indexers[self.softwareName]
 	
@@ -186,11 +187,11 @@ class IndexingWrapper(ProcessWrapper):
 		logs = []
 		commands = []
 		outputs = []
-		for ref in self.references:
+		for ref in self.Lib.getReferences():
 			output = self.outputTemplate.format(ref=ref)
 			logfile = output + "{software}.log".format(software=self.softwareName)
 
-			command = self.commandTemplate.format(target=self.query, ref=ref, output=output)
+			command = self.commandTemplate.format(target=self.Lib.getQuery(), ref=ref, output=output)
 
 			'''
 			Adds on all the extra flags and arguments defined in the dict self.kwargs.
@@ -267,14 +268,14 @@ class ProgressiveMauve(Aligner):
 
 	def handleRetCode(self, returncode):
 		if returncode == 0:
-			self.logger.debug("progressiveMauve finished with exitcode 0.")
+			LOGGER.debug("progressiveMauve finished with exitcode 0.")
 		elif returncode == 11:
-			self.logger.warning("WARNING progressiveMauve finished with a exitcode: {returncode}".format(returncode=returncode))
-			self.logger.debug("This progressiveMauve error is showing up for bad genomes containing short repetitive contigs or sequence contains dashes.".format(returncode=returncode))
+			LOGGER.warning("WARNING progressiveMauve finished with a exitcode: {returncode}".format(returncode=returncode))
+			LOGGER.debug("This progressiveMauve error is showing up for bad genomes containing short repetitive contigs or sequence contains dashes.".format(returncode=returncode))
 		elif returncode == -6:
-			self.logger.warning("Input sequence is not free of gaps, replace gaps with N and retry!!")
+			LOGGER.warning("Input sequence is not free of gaps, replace gaps with N and retry!!")
 		else:
-			self.logger.warning("WARNING progressiveMauve finished with a non zero exitcode: {returncode}\nThe script will terminate when all processes are finished read {log} for more info".format(log=self.logFile,returncode=returncode))
+			LOGGER.warning("WARNING progressiveMauve finished with a non zero exitcode: {returncode}\nThe script will terminate when all processes are finished read {log} for more info".format(log=self.logFile,returncode=returncode))
 
 Aligners : dict[Aligner] = {
 	"progressiveMauve" : ProgressiveMauve

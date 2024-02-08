@@ -4,7 +4,14 @@ import os
 import shutil
 import random
 random.seed()
-from logging import Logger
+import logging
+try:
+	import CanSNPer2.modules.LogKeeper as LogKeeper
+except:
+	import LogKeeper as LogKeeper
+
+LOGGER = LogKeeper.createLogger(__name__)
+PERMS_LOOKUP = {"r":"read", "w":"write", "x":"execute"}
 
 '''Container and handler of directories and files'''
 class DirectoryLibrary:
@@ -15,17 +22,22 @@ class DirectoryLibrary:
 	targetDir : str
 	refDir : str
 	tmpDir : str
-	logDir : str
 	outDir : str
-	dirs = ["targetDir", "refDir", "tmpDir"]
+	resultDir : str
+	logDir : str
 
-	tmps : list[str]
-	references : dict[list[str]]
-	targets : list[str]
+	dirs = [
+		"workDir", "installDir", "userDir",
+		"targetDir", "refDir", "tmpDir",
+		"outDir", "resultDir", "logDir"
+	]
+
+	references : list[str]
+	query : list[str]
 
 	__cache : dict[str]
 	
-	def __init__(self, settings : dict, workDir : str=None, installDir : str=None, userDir : str=None, logger : Logger=Logger,
+	def __init__(self, settings : dict, workDir : str=None, installDir : str=None, userDir : str=None,
 			     tmpDir : str=None, refDir : str="References", outDir : str=None, **kwargs):
 		'''Needs no arguments to initialize, but keyword arguments can be used to force use directories. Keyword
 		arguments not named in the method head are caught and ignored by **kwargs.
@@ -39,52 +51,67 @@ class DirectoryLibrary:
 						and is the third place to look for references.
 		'''
 
+		LOGGER.debug("Creating: {}".format(self))
+
 		self.settings = settings
-		self.logger = logger
 
 		if workDir is None:
 			self.workDir = os.getcwd()
-		elif not os.path.exists(workDir):
-			self.workDir = workDir
-			logger.info("Creating working directory {wd}".format(wd=self.workDir))
-			os.makedirs(self.workDir)
-			os.chdir(self.workDir)
 		else:
+			self.accessible(workDir)
 			os.chdir(self.workDir)
+		
+		# Not really meant to be overriden, but implemented just in case.
 		if installDir is None:
-			self.installDir, _ = __file__.rsplit(os.path.sep)
+			self.installDir, _ = __file__.rsplit(os.path.sep, 1)
+		else:
+			self.accessible(installDir)
+			self.installDir = installDir
+		
+		# Not really meant to be overriden, but implemented just in case.
 		if userDir is None:
 			self.userDir = os.path.expanduser("~")
+		else:
+			self.accessible(userDir)
+			self.userDir = userDir
 
-		self.logger.debug("Work dir:    '{dr}'".format(self.workDir))
-		self.logger.debug("Install dir: '{dr}'".format(self.installDir))
-		self.logger.debug("User dir:    '{dr}'".format(self.userDir))
+		LOGGER.debug("Work dir:    '{}'".format(self.workDir))
+		LOGGER.debug("Install dir: '{}'".format(self.installDir))
+		LOGGER.debug("User dir:    '{}'".format(self.userDir))
 
 		self.perms = {}
-
 		for d in [self.workDir, self.installDir, self.userDir]:
-			self.__permCheck__(self, d)
+			self._permCheck(d)
 		
-		self.logger.debug("Perms for directories:\n" + "\n".join(["{}={}{}{}".format(path,*[c if perms[c] else " " for c in "rwx"]) for path, perms in self.perms]))
+		LOGGER.debug(str(self))
 
 		self.setTargetDir(self.workDir)
 		self.setRefDir(refDir)
-		self.createNewTemporary(tmpDir)
+		self.setTmpDir(tmpDir)
 		self.setOutDir(outDir)
 		
+		self.query = None
+
 		self.__cache = {}
 	
 	def __getitem__(self, key):
 		return self.__getattribute__(key)
 
+	def __repr__(self):
+		''''''
+		return "<{}.{} at 0x{:0>16}>".format(__name__, type(self).__name__, hex(id(self))[2:])
+	
 	def __str__(self):
-		return "\n".join(["{:<20}='{}{}{}' '{}'".format(d,*[c if self.perms[self[d]][c] else " " for c in "rwx"], self[d]) for d in self.dirs])
+		''''''
+		# Works nicely, don't question it.
+		return "Directories in Library at 0x{:0>16}:\n".format(hex(id(self))[2:])+"\n".join(["  {:<20}='{}{}{}' '{}'".format(d,*["?" if self[d] not in self.perms else c if self.perms[self[d]][c] else " " for c in "rwx" ], self[d]) for d in (a for a in dir(self) if a in self.dirs)])
 
 	def __del__(self):
-		if os.path.exists(self.tmpDir):
+		if os.path.exists(self.tmpDir) and (not self.settings["KeepTemporaryFiles"] if "KeepTemporaryFiles" in self.settings else True):
 			shutil.rmtree(self.tmpDir)
 	
-	def __permCheck__(self, dr):
+	def _permCheck(self, dr):
+		self.perms[dr] = {}
 		self.perms[dr]["r"] = os.access(dr, os.R_OK)
 		self.perms[dr]["w"] = os.access(dr, os.W_OK)
 		self.perms[dr]["x"] = os.access(dr, os.X_OK)
@@ -93,74 +120,95 @@ class DirectoryLibrary:
 	def newRandomName(path : str, ext : str=None):
 		newName = "tmp_{}{}{}".format(*random.random().as_integer_ratio(), "."+ext if ext is not None else "")
 		n=0
-		while os.path.exists(os.path.sep.join([path, newName])):
+		while os.path.exists(os.path.join(path, newName)):
 			newName = "tmp_{}{}{}".format(*random.random().as_integer_ratio(), "."+ext if ext is not None else "")
 			if n>1000000-1:
 				raise FileExistsError("Could not generate random file/directory name for path='{path}' after {n} attempts".format(path=path, n=n))
 				break
-		return os.path.sep.join([path, newName])
+		return os.path.join(path, newName)
 
-	def setOutDir(self, outDir : str):
-		if outDir is None:
+	'''Set-functions'''
+
+	def setOutDir(self, outDir : str, abs=False):
+		if abs is True:
+			self.access(outDir, create=True)
+		elif outDir is None:
 			if not all(self.perms[self.workDir].values()):
-				self.logger.error("No valid working directory or output directory given.\n" + str(self))
+				LOGGER.error("No valid working directory or output directory given.\n" + str(self))
 				raise PermissionError("No valid working directory or output directory given.\n" + str(self))
 			else:
-				self.outDir = os.path.sep.join([self.workDir, "CanSNPer"])
-				os.mkdir(self.outDir)
+				self.outDir = os.path.join(self.workDir, "MetaCanSNPer")
+				if not os.path.exists(self.outDir):
+					os.mkdir(self.outDir)
 		else:
-			self.__permCheck__(outDir)
-			if all(self.perms[outDir].values()):
-				self.outDir = outDir
+			self.access(os.path.join(self.workDir, outDir))
+			rOutDir = self.get(outDir, "workDir")
+			self._permCheck(rOutDir)
+			if all(self.perms[rOutDir].values()):
+				self.outDir = rOutDir
 			else:
-				raise PermissionError("Given outDir='{}' does not have read, write, and execute permissions. It has '{}{}{}'".format(outDir, *[c if self.perms[outDir][c] else " " for c in "rwx"]))
+				raise PermissionError("Given outDir='{}' does not have read, write, and execute permissions. It has '{}{}{}'".format(rOutDir, *[c if self.perms[rOutDir][c] else " " for c in "rwx"]))
 		self.setResultDir()
 		self.setLogDir()
 		
-	def setResultDir(self, name : str="Results"):
-		if self.settings["FileManagement"]["MergeNewResults"]:
-			self.resultDir = os.path.sep.join([self.outDir, name])
-			if not os.path.exists(self.resultDir):
-				os.mkdir(self.resultDir)
+	def setResultDir(self, name : str="Results", abs=False):
+		'''This method assumes that self.access(self.outDir) does not throw any errors.'''
+		if abs is True:
+			self.resultDir = name
+			self.access(self.resultDir, create=True)
+		elif "MergeNewResults" in self.settings and self.settings["MergeNewResults"]:
+			self.resultDir = os.path.join(self.outDir, name)
+			self.access(self.resultDir, create=True)
 		else:
 			n=1
-			while os.path.exists("{}-{}".format(name, str(n))):
-				n+1
-			self.resultDir = os.path.sep.join([self.outDir, "{}-{}".format(name, str(n))])
+			while os.path.exists(os.path.join(self.outDir, "{}-{}".format(name, str(n)))):
+				n+=1
+			self.resultDir = os.path.join(self.outDir, "{}-{}".format(name, str(n)))
 			os.mkdir(self.resultDir)
 	
-	def setLogDir(self, name : str="Logs"):
-		
-		self.logDir = os.path.sep.join([self.outDir, name])
-		if os.path.exists(name):
-			os.mkdir(self.logDir)
-
-	def setTargetDir(self, targetDir : str):
-		if not all(self.perms[targetDir].values()):
-			targetDir = None
-			self.logger.warning("No read+write permission in working directory, targets/queries must be absolute paths.: '{wd}'".format(wd=targetDir))
+	def setLogDir(self, name : str="Logs", abs=False):
+		if abs is True:
+			self.logDir = name
 		else:
+			self.logDir = os.path.join(self.outDir, name)
+
+		self.access(self.logDir, create=True)
+
+	def setTargetDir(self, targetDir : str, abs=True):
+		'''targetDir must be an absolute reference. abs parameter exists only for consistency among sister methods.'''
+		if self.access(targetDir, mode="r") is True:
 			self.targetDir = targetDir
 
-	def setRefDir(self, refDir : str):
-		for d in [self.workDir, self.installDir, self.userDir]:
-			if os.path.exists(os.path.sep.join([d, refDir])):
-				self.__permCheck__(self, os.path.sep.join([d, refDir]))
-		refOrder = [os.path.sep.join([d, refDir]) for d in [self.installDir, self.workDir, self.userDir]]
-		refOrder = [dr for dr in self.refOrder if self.perms[dr]["r"] and self.perms[dr]["x"]]
-		if refOrder == []:
-			self.logger.warning("Nowhere to read references from unless references are absolute paths to readable directories. No '{}' directory with reading and execution permission in installDir, workDir, or userDir:\n".format(refDir) + str(self))
+	def setRefDir(self, refDir : str, abs=False):
+		if abs is True:
+			if self.access(refDir, mode="rx") is True:
+				self.refDir = refDir
+		refOrder = []
+		for d in [self.installDir, self.workDir, self.userDir]:
+			p = os.path.join(d, refDir)
+			if self.accessible(p, mode="rx") is True:
+				refOrder.append(p)
+
+		if refOrder == [] and os.path.exists(refDir):
+			# refDir is determined to be an absolute path
+			self.refDir = refDir
+		elif refOrder == []:
+			LOGGER.warning("Nowhere to read references from unless references are absolute paths to readable directories. No '{}' directory with reading and execution permission in installDir, workDir, or userDir:\n".format(refDir) + str(self))
 			raise PermissionError("Nowhere to read references from unless references are absolute paths to readable directories. No '{}' directory with reading and execution permission in installDir, workDir, or userDir:\n".format(refDir) + str(self))
 		else:
 			self.refDir = refOrder[0]
 
-	def createNewTemporary(self, tmpDir : str=None):
+	def setTmpDir(self, tmpDir : str=None):
+		'''If no place for a temporary directory is given, will find a nice place to put one, and then create a
+		random-name temporary directory there. Temporary directory behavior is determined by the settings/flags.
+		 * Note that tmpDir is not the name of the temporary directory, but the directory in which the temporary
+		 directory will be placed.'''
 		if tmpDir is None:
 			tmpOrder = [self.installDir, self.userDir, self.workDir]
 			tmpOrder = [dr for dr in tmpOrder if all(self.perms[dr].values())]
 			
 			if tmpOrder == []:
-				self.logger.error("Nowhere to put temporary files. Missing read+write permission in any of installDir, workDir, or userDir:\n" + str(self))
+				LOGGER.error("Nowhere to put temporary files. Missing read+write+execute permission in any of installDir, workDir, or userDir:\n" + str(self))
 				raise PermissionError("Missing write/read permissions in userDir, installDir, and workDir. Specify your workDir if you are intending to use a different workDir than the shell you are currently in.")
 			
 			#	Raise-protected
@@ -168,30 +216,21 @@ class DirectoryLibrary:
 		else:
 			self.tmpDir = self.newRandomName(tmpDir)
 		
-		self.__permCheck__(self.tmpDir)
-		if not all(self.perms[self.tmpDir].values()):
-			msg = "Missing crucial permissions in created temporary folder '{dr}' missing {perms} permission.".format(
-				dr=self.tmpDir,
-				perms=" and ".join([key for key, value in self.perms[self.tmpDir].items() if value]))
-			self.logger.error(msg)
-			raise PermissionError(msg)
-
-		self.logger.info("Creating new temporary folder '{newDir}'".format(newDir=self.tmpDir))
-		try:
-			os.mkdir(self.tmpDir)
-		except Exception as e:
-			self.logger.error("Failed to create temporar directory: '{}'".format(self.tmpDir))
-			raise e
-		
-		return self.tmpDir
+		self.access(self.tmpDir, create=True)
 	
+	def setQuery(self, query : str):
+		self.query = self.get(query, "targetDir")
+		self.access(self.query, mode="r")
+	
+	'''Get-functions'''
+
 	def get(self, filename : str, hint : str=None):
 		'''Gets the absolute path to a file/directory found in one of the directories used by the Library. Hint can be
 		provided to limit search to only one of the directories in the Library.
 		If a path can not be found, it will be returned. This should be the case for a path which already is absolute.'''
 
 		if filename in self.__cache:
-			self.logger.debug("Returned cached path '{path}' for filename '{filename}'".format(path=self.__cache[filename], filename=filename))
+			LOGGER.debug("Returned cached path '{path}' for filename '{filename}'".format(path=self.__cache[filename], filename=filename))
 			return self.__cache[filename]
 
 		if hint is not None:
@@ -199,18 +238,72 @@ class DirectoryLibrary:
 			for path, dirs, files in os.walk(self[hint]):
 				for f in files:
 					if f == filename:
-						self.__cache[filename] = os.path.sep.join([path, f])
-						return os.path.sep.join([path, f])
+						self.__cache[filename] = os.path.join(path, f)
+						return os.path.join(path, f)
+				for d in dirs:
+					if d == filename:
+						self.__cache[filename] = os.path.join(path, d)
+						return os.path.join(path, d)
 					
-			self.logger.info("Looked for file: '{}' in {} but could not find it.\n{}".format(filename, hint, str(self)))
+			LOGGER.info("Looked for path: '{}' in {} but could not find it.\n{}".format(filename, hint, str(self)))
 		else:
 			# Without a hint, each directory is searched.
 			for dr in {self[drVar] for drVar in self.dirs}:
 				for path, dirs, files in os.walk(self[dr]):
 					for f in files:
 						if f == filename:
-							return os.path.sep.join([path, f])
+							return os.path.join(path, f)
+					for d in dirs:
+						if d == filename:
+							return os.path.join(path, d)
 		
-			self.logger.info("Looked for file: '{}' in all directories but could not find it.\n{}".format(filename, str(self)))
+			LOGGER.info("Looked for path: '{}' in all directories but could not find it.\n{}".format(filename, str(self)))
 
 		return filename
+	
+	def getReferences(self):
+		if len(self.references) > 0:
+			if self.references[0].startswith(self.refDir):
+				return self.references
+		
+		self.references = [ref for ref in os.listdir(self.refDir) if ref.rsplit(".")[-1].lower() in self.settings["referenceFormats"]]
+		return self.references
+	
+	def access(self, path, mode : str="rwx", create : bool=False):
+		'''Throws appropriate errors if access is not possible.'''
+		
+		if not os.path.exists(path):
+			if create:
+				LOGGER.debug("Path does not exist, creating it instead: '{}'".format(path))
+				os.makedirs(path)
+			else:
+				LOGGER.error("Path does not exist: '{}'".format(path))
+				raise FileNotFoundError("Path does not exist: '{}'".format(path))
+		self._permCheck(path)
+		if not all(self.perms[path][c] for c in mode):
+			LOGGER.error("Missing {perms} permissions for path: '{path}'".format(path=path, perms="+".join([PERMS_LOOKUP[c] for c in mode if not self.perms[path][c]])))
+			raise PermissionError("Missing {perms} permissions for path: '{path}'".format(path=path, perms="+".join([PERMS_LOOKUP[c] for c in mode if not self.perms[path][c]])))
+		
+		return True
+	
+	def accessible(self, path, mode : str="rwx", create : bool=False):
+		'''Returns True/False for the accessibility question.'''
+		
+		if not os.path.exists(path):
+			if create:
+				LOGGER.debug("Path does not exist, creating it instead: '{}'".format(path))
+				os.makedirs(path)
+			else:
+				LOGGER.debug("Path does not exist: '{}'".format(path))
+				return False
+		self._permCheck(path)
+		if not all(self.perms[path][c] for c in mode):
+			LOGGER.debug("Missing {perms} permissions for path: '{path}'".format(path=path, perms="+".join([PERMS_LOOKUP[c] for c in mode if not self.perms[path][c]])))
+			return False
+		
+		return True
+
+if __name__ == "__main__":
+	DL = DirectoryLibrary({})
+
+	print(DL)
