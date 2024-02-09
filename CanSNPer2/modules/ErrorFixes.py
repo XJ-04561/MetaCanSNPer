@@ -1,8 +1,9 @@
 from Wrappers import *
 import os.path
+from shutil import copy
 
 import logging
-import CanSNPer2.modules.LogKeeper as LogKeeper
+import LogKeeper as LogKeeper
 
 LOGGER = LogKeeper.createLogger(__name__)
 
@@ -27,10 +28,23 @@ class SolutionContainer:
 
 class progressiveMauve(SolutionContainer):
     @staticmethod
-    def _11(obj : ProgressiveMauve, offenders : list[int]):
-        LOGGER.debug("sed 's/-/N/g' {query} > {tmpName}.tmp".format(query=obj.query, query_base=obj.queryName, tmpdir=obj.tmpdir, sep=os.path.sep))
+    def _11(obj : Aligner, offenders : list[int]):
+        
         tmpName = "{}.tmp".format(os.path.join([obj.Lib.tmpDir, obj.queryName]))
-        os.system("sed 's/-/N/g' {query} > {tmpName}".format(query=obj.Lib.getQuery(), tmpName=tmpName))
+        LOGGER.debug("Fixing exitcode 11 by replacing occurrances of '-' with 'N' from '{query}' into '{tmpName}'.".format(query=obj.Lib.query, tmpName=tmpName))
+        copy(obj.Lib.query, tmpName)
+        with open(tmpName, "r+b") as f:
+            c = b" "
+            while c != b"":
+                c = f.read(1)
+                if c == b"-":
+                    f.seek(-1, 1)
+                    f.write(b"N")
+            f.close()
+
+        # Old way
+        # LOGGER.debug("sed 's/-/N/g' {query} > {tmpName}.tmp".format(query=obj.Lib.query, tmpName=tmpName))
+        # os.system("sed 's/-/N/g' {query} > {tmpName}".format(query=obj.Lib.query, tmpName=tmpName))
         
         LOGGER.debug("New query: {nq}".format(nq=tmpName))
         obj.Lib.setQuery(tmpName, abs=True)

@@ -15,6 +15,13 @@ PERMS_LOOKUP = {"r":"read", "w":"write", "x":"execute"}
 
 '''Container and handler of directories and files'''
 class DirectoryLibrary:
+	'''
+		This structure allows for defining file managing as well and making sure that directory and file path
+		information is simply passed around by handing around the same 'Library'.
+	'''
+
+	__lib__ : dict
+
 	workDir : str
 	installDir : str
 	userDir : str
@@ -34,6 +41,12 @@ class DirectoryLibrary:
 
 	references : list[str]
 	query : list[str]
+	
+	# Dictionary keys are tuples of (reference, query)
+	# Dictionary values are the absolute paths to the file.
+	aligned : dict[tuple[str, str], str]
+	maps : dict[tuple[str, str], str]
+	SNPs : dict[tuple[str, str], str]
 
 	__cache : dict[str]
 	
@@ -91,6 +104,10 @@ class DirectoryLibrary:
 		self.setOutDir(outDir)
 		
 		self.query = None
+
+		self.aligned = {}
+		self.maps = {}
+		self.SNPs = {}
 
 		self.__cache = {}
 	
@@ -218,11 +235,18 @@ class DirectoryLibrary:
 		
 		self.access(self.tmpDir, create=True)
 	
-	def setQuery(self, query : str):
-		self.query = self.get(query, "targetDir")
-		self.access(self.query, mode="r")
+	def setQuery(self, query : str, abs : bool=True):
+		if abs is not True:
+			self.query = self.get(query, "targetDir")
+			self.access(self.query, mode="r")
+		else:
+			self.query = query
+			self.access(self.query, mode="r")
 	
 	'''Get-functions'''
+
+	def create(self, *paths): # Unsure if needed.
+		os.makedirs( os.path.join(*paths))
 
 	def get(self, filename : str, hint : str=None):
 		'''Gets the absolute path to a file/directory found in one of the directories used by the Library. Hint can be

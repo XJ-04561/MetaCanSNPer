@@ -5,17 +5,33 @@ Copyright (C) 2019 David Sundell @ FOI bioinformatics group
 
 import os
 import logging
-from CanSNPer2.modules.LogKeeper import createLogger
+try:
+	from CanSNPer2.modules.LogKeeper import createLogger
 
-LOGGER = createLogger(__name__)
+	LOGGER = createLogger(__name__)
 
-## import CanSNPer2 specific modules
-from CanSNPer2.modules.ParseXMFA import ParseXMFA
-from CanSNPer2.modules.NewickTree import NewickTree
-from CanSNPer2.CanSNPerTree import __version__
-from CanSNPer2.modules.DirectoryLibrary import DirectoryLibrary
-from CanSNPer2.modules.Wrappers import Aligner, Aligners, Mapper, Mappers, SNPCaller, Callers # Mauve, Minimap2, GATK4
+	## import CanSNPer2 specific modules
+	from CanSNPer2.modules.ParseXMFA import ParseXMFA
+	from CanSNPer2.modules.NewickTree import NewickTree
+	from CanSNPer2.CanSNPerTree import __version__
+	from CanSNPer2.modules.DirectoryLibrary import DirectoryLibrary
+	from CanSNPer2.modules.Wrappers import Aligner, Mapper, SNPCaller
+	import CanSNPer2.modules.Aligners as Aligners
+	import CanSNPer2.modules.Mappers as Mappers
+	import CanSNPer2.modules.SNPCallers as SNPCallers
+except:
+	from LogKeeper import createLogger
 
+	LOGGER = createLogger(__name__)
+
+	## import CanSNPer2 specific modules
+	from ParseXMFA import ParseXMFA
+	from NewickTree import NewickTree
+	from DirectoryLibrary import DirectoryLibrary
+	from Wrappers import Aligner, Mapper, SNPCaller
+	import Aligners
+	import Mappers
+	import SNPCallers
 
 ## import standard python libraries for subprocess and multiprocess
 from subprocess import Popen,PIPE,STDOUT
@@ -42,7 +58,7 @@ class CanSNPer2Error(Error):
 	pass
 
 class CanSNPer2:
-	outputTemplate = "{tmpdir}/{ref}_{target}.{format}"
+	outputTemplate = "{ref}_{target}.{format}"
 	Lib : DirectoryLibrary[str]
 	settings : dict
 
@@ -97,21 +113,32 @@ class CanSNPer2:
 	def align(self, software : str=None, kwargs : dict={}):
 		'''Align sequences using subprocesses.'''
 
-		outputTemplate = self.outputTemplate.format()
-
-		aligner : Aligner = Aligners[software]
-		aligner(self.Lib, outputTemplate, kwargs=kwargs)
+		aligner : Aligner = Aligners.get(software) # Fetch the object class of the specified aligner software.
+		aligner(self.Lib, self.outputTemplate, kwargs=kwargs)
 
 		output = aligner.start()
-		aligner.wait()
 
+		# Start aligning
+		while not aligner.finished():
+			finished = aligner.waitNext()
+			for i in finished:
+				key, path = output[i][0]
+				if key not in self.Lib.aligned and aligner.returncodes[i][-1] == 0:
+					self.Lib.aligned[key] = path
+
+		# Check that error did not occur.
 		while aligner.hickups():
 			if not aligner.fixable():
 				return []
 			else:
 				aligner.planB()
-
-		return output
+			
+			while not aligner.finished():
+				finished = aligner.waitNext()
+				for i in finished:
+					key, path = output[i][0]
+					if aligner.returncodes[i][-1] == 0:
+						self.Lib.aligned[key] = path
 
 	'''Functions'''
 
@@ -124,10 +151,10 @@ class CanSNPer2:
 		LOGGER.info("{outdir}/{name}_tree.pdf".format(outdir =self.outdir, name=name))
 		return final_snp
 
-	def read_query_textfile_input(self,query_file):
+	def readQueriesFrom(self, queryFile : str):
 		'''If query input is a text file, parse file'''
-		with open(query_file, "r") as f:
-			query = [query.strip() for query in f]
+		with open(queryFile, "r") as f:
+			query = [query.strip() for query in f if len(query.strip())]
 		return query
 
 	def cleanup(self):

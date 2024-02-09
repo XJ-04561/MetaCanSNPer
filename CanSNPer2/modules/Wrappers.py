@@ -1,7 +1,7 @@
 
 import os
 import logging
-import CanSNPer2.modules.LogKeeper as LogKeeper
+import LogKeeper as LogKeeper
 
 LOGGER = LogKeeper.createLogger(__name__)
 
@@ -9,8 +9,8 @@ from collections.abc import Callable
 from threading import Thread, Condition
 from subprocess import run, DEVNULL, PIPE, STDOUT, CompletedProcess
 
-import CanSNPer2.modules.ErrorFixes as ErrorFixes
-from CanSNPer2.modules.DirectoryLibrary import DirectoryLibrary
+import ErrorFixes as ErrorFixes
+from DirectoryLibrary import DirectoryLibrary
 
 class Error(Exception):
 	"""docstring for Error"""
@@ -84,13 +84,14 @@ class ThreadGroup:
 		self.threads = [Thread(target=self.target, args=args, kwargs=kwargs, **threadKwargs) for args, kwargs in zip(self.args, self.kwargs)]
 
 	def newFinished(self) -> bool:
-		return any(not t.is_alive() for t in self.threads if t is not None)
+		'''Returns True if any thread in self.threads is dead. Also returns True if all threads '''
+		return any(not t.is_alive() for t in self.threads if t is not None) or all(t is None for t in self.threads)
 
 	def start(self):
 		for t in self.threads:
 			t.start()
 
-	def waitNext(self, timeout=5) -> list[int]:
+	def waitNext(self, timeout=None) -> list[int]:
 		Condition.wait_for(self.newFinished, timeout=timeout)
 
 		# list comprehension to return all dead threads and also replace those same threads with 'None'.
@@ -111,26 +112,37 @@ class ProcessWrapper:
 		pass
 
 	def run(self, command, log : str, pReturncodes : list[int], *args, **kwargs) -> None:
+		try:
+			n=[i for i in range(len(self.returncodes)) if self.returncodes[i] is pReturncodes]
+		except:
+			n="?"
+		
+		LOGGER.debug("Thread {n} - Running command: {command}".format(n=n, command=command))
 		p : CompletedProcess = run(command.split() if type(command) is str else command, *args, **kwargs)
+		LOGGER.debug("Thread {n} - Returned with exitcode: {exitcode}".format(n=n, exitcode=p.returncode))
+
 		if log is not None:
+			LOGGER.debug("Thread {n} - Logging output to: {logpath}".format(n=n, logpath=log))
 			with open(log, "w") as logFile:
 				logFile.write(p.stdout.read().decode("utf-8"))
 				logFile.write("\n")
 		pReturncodes.append(p.returncode)
-		self.handleRetCode(p.returncode)
+		self.handleRetCode(p.returncode, prefix="Thread {n} - ".format(n=n))
+
+		LOGGER.debug("Thread {n} - Finished!".format(n=n))
 
 	def createCommand(self, *args):
 		'''Not implemented for the template class, check the wrapper of the
 		specific software you are intending to use.'''
 		pass
 	
-	def handleRetCode(self, returncode : int):
+	def handleRetCode(self, returncode : int, prefix : str=""):
 		'''Not implemented for the template class, check the wrapper of the
 		specific software you are intending to use.'''
 		if returncode == 0:
-			LOGGER.debug("{softwareName} finished with exitcode 0.".format(softwareName=self.softwareName))
+			LOGGER.debug("{prefix}{softwareName} finished with exitcode 0.".format(prefix=prefix, softwareName=self.softwareName))
 		else:
-			LOGGER.warning("WARNING {softwareName} finished with a non zero exitcode: {returncode}".format(softwareName=self.softwareName, returncode=returncode))
+			LOGGER.warning("{prefix}WARNING {softwareName} finished with a non zero exitcode: {returncode}".format(prefix=prefix, softwareName=self.softwareName, returncode=returncode))
 	
 	def hickups(self):
 		'''Not implemented for the template class, check the wrapper of the
@@ -147,7 +159,6 @@ class ProcessWrapper:
 		specific software you are intending to use.'''
 		pass
 
-
 class IndexingWrapper(ProcessWrapper):
 	Lib : DirectoryLibrary
 	queryName : str
@@ -161,15 +172,18 @@ class IndexingWrapper(ProcessWrapper):
 	
 	def __init__(self, lib : DirectoryLibrary, outputTemplate : str, kwargs : dict={}):
 		self.Lib = lib
-		self.query_name = os.path.basename(self.Lib.getQuery()).rsplit(".",1)[0] ## get name of file and remove ending
+		self.queryName = os.path.basename(self.Lib.getQuery()).rsplit(".",1)[0] ## get name of file and remove ending
 		self.outputTemplate = outputTemplate
 		self.kwargs = kwargs
 		self.returncodes = [[] for _ in range(len(lib.getReferences()))]
 		self.threadGroup = None
 		self.solutions = ErrorFixes.Indexers[self.softwareName]
+		
+		if not os.path.exists(os.path.join(self.Lib.tmpDir, self.softwareName)):
+			os.mkdir(os.path.join(self.Lib.tmpDir, self.softwareName))
 	
-	def start(self):
-		''' '''
+	def start(self) -> list[tuple[str,str],str]:
+		'''Starts alignment processes in new threads. Returns information of the output of the processes, but does not ensure the processes have finished.'''
 
 		commands, logs, outputs = self.createCommand()
 		self.threadGroup = ThreadGroup(self.run, args=zip(commands, logs, self.returncodes), stdout=PIPE, stderr=STDOUT)
@@ -178,18 +192,23 @@ class IndexingWrapper(ProcessWrapper):
 		
 		return outputs
 	
+	def waitNext(self, timeout=None):
+		return self.threadGroup.waitNext(timeout=timeout)
+
 	def wait(self, timeout=5):
 		while not self.threadGroup.finished():
 			self.threadGroup.waitNext(timeout=timeout)
 	
-	def createCommand(self) -> tuple[list[str], list[str], list[str]]:
+	def createCommand(self) -> tuple[list[str], list[str], list[tuple[tuple[str,str],str]]]:
 		
 		logs = []
 		commands = []
 		outputs = []
 		for ref in self.Lib.getReferences():
-			output = self.outputTemplate.format(ref=ref)
-			logfile = output + "{software}.log".format(software=self.softwareName)
+			refName = os.path.basename(ref).rsplit(".", 1)[1]
+			output = self.outputTemplate.format(ref=refName)
+			logfile = os.path.join(self.Lib.logDir, output + ".{software}.log".format(software=self.softwareName))
+			output = os.path.join(self.Lib.tmpDir, self.softwareName, output)
 
 			command = self.commandTemplate.format(target=self.Lib.getQuery(), ref=ref, output=output)
 
@@ -201,7 +220,7 @@ class IndexingWrapper(ProcessWrapper):
 
 			commands.append(command)
 			logs.append(logfile)
-			outputs.append(output)
+			outputs.append(((self.queryName, refName), output))
 		return commands, logs, outputs
 
 	def finished(self):
@@ -230,12 +249,11 @@ class IndexingWrapper(ProcessWrapper):
 			
 
 
-			
 
+'''
+	Aligner, Mapper, and Caller classes to inherit from
+'''
 
-
-
-# Aligner, Mapper, and Caller classes to inherit from
 class Aligner(IndexingWrapper):
 	pass
 	
@@ -244,46 +262,3 @@ class Mapper(IndexingWrapper):
 
 class SNPCaller(IndexingWrapper):
 	pass
-
-#
-#	Implemented Aligners, Mappers, and Callers are defined here.
-#
-
-'''
-	All that is needed to create a new implementation is to inherit from the correct software type (Listed above) and set
-	the two class attributes accordingly. See 'Timeout' and 'Sleep' for a minimalist example.
-'''
-
-class Timeout(Aligner):
-	softwareName = "timeout"
-	commandTemplate = "timeout {ref} {target}"
-
-class Sleep(Aligner):
-	softwareName = "sleep"
-	commandTemplate = "sleep {ref} {target}"
-
-class ProgressiveMauve(Aligner):
-	softwareName = "progressiveMauve"
-	commandTemplate = "progressiveMauve {ref} {target}"
-
-	def handleRetCode(self, returncode):
-		if returncode == 0:
-			LOGGER.debug("progressiveMauve finished with exitcode 0.")
-		elif returncode == 11:
-			LOGGER.warning("WARNING progressiveMauve finished with a exitcode: {returncode}".format(returncode=returncode))
-			LOGGER.debug("This progressiveMauve error is showing up for bad genomes containing short repetitive contigs or sequence contains dashes.".format(returncode=returncode))
-		elif returncode == -6:
-			LOGGER.warning("Input sequence is not free of gaps, replace gaps with N and retry!!")
-		else:
-			LOGGER.warning("WARNING progressiveMauve finished with a non zero exitcode: {returncode}\nThe script will terminate when all processes are finished read {log} for more info".format(log=self.logFile,returncode=returncode))
-
-Aligners : dict[Aligner] = {
-	"progressiveMauve" : ProgressiveMauve
-}
-Mappers : dict[Mapper] = {
-
-}
-Callers : dict[SNPCaller] = {
-
-}
-

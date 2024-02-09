@@ -5,7 +5,10 @@ ParseXMFA is a script that parse xmfa files and extract all SNPs
 '''
 
 #__name__="ParseXMFA"
-from CanSNPer2.modules.DatabaseConnection import XMFAFunctions
+try:
+	from CanSNPer2.modules.DatabaseConnection import XMFAFunctions
+except:
+	from DatabaseConnection import XMFAFunctions
 import os
 import logging
 logger = logging.getLogger(__name__)

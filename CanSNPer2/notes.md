@@ -6,3 +6,5 @@
       * Should absolute pathing be the first attempt?
 
  * Make sure that SNP data or pre-mapped/aligned data can be given.
+ * One program takes all references or just one at a time?
+ * 
