@@ -247,6 +247,29 @@ class CanSNPdbFunctions(DatabaseConnection):
 			database = self
 		links = database.query(QUERY).fetchall()
 		return links
+	
+	def get_snps(self, reference):
+		'''Returns a list of all SNPs and their positions.
+		Keyword arguments:
+		returns: results as a dictionary with tuple SNP for each position {pos: (pos, refBase, TargetBase, SNPid)}
+				 and a list of positions sorted ASC
+		'''
+		snp_string = """SELECT genome, position, derived_base, ancestral_base, snp_id
+										FROM snp_annotation
+										LEFT JOIN snp_references on (snp_references.id = snp_annotation.genome_i)
+										WHERE genome = ?
+									"""
+		# res = self.query(snp_string, (reference,),getres=True)
+		# for strain, pos,tbase,rbase,SNP in res.fetchall():
+		# 	SNPs[pos] = tuple([pos,rbase, tbase,SNP])
+		SNPs = self.get_results(snp_string,reference)
+		if len(SNPs) == 0:
+			logger.error("No SNPs could be found in database check your database connection!")
+			logger.debug(snp_string)
+			raise ValueError("No SNP's was found in the database for reference: {reference}".format(reference=reference))
+		snp_positions = list(SNPs.keys())
+		snp_positions.sort()
+		return SNPs,snp_positions
 
 	'''
 		Add functions of class

@@ -11,7 +11,8 @@ try:
 	LOGGER = createLogger(__name__)
 
 	## import CanSNPer2 specific modules
-	from CanSNPer2.modules.ParseXMFA import ParseXMFA
+	from CanSNPer2.modules.ParseXMFA2 import ParseXMFA
+	from CanSNPer2.modules.DatabaseConnection import CanSNPdbFunctions
 	from CanSNPer2.modules.NewickTree import NewickTree
 	from CanSNPer2.CanSNPerTree import __version__
 	from CanSNPer2.modules.DirectoryLibrary import DirectoryLibrary
@@ -25,7 +26,8 @@ except:
 	LOGGER = createLogger(__name__)
 
 	## import CanSNPer2 specific modules
-	from ParseXMFA import ParseXMFA
+	from ParseXMFA2 import ParseXMFA
+	from DatabaseConnection import CanSNPdbFunctions
 	from NewickTree import NewickTree
 	from DirectoryLibrary import DirectoryLibrary
 	from Wrappers import Aligner, Mapper, SNPCaller
@@ -40,7 +42,10 @@ from time import sleep,time
 try:
 	import tomllib as toml
 except ModuleNotFoundError:
-	import tomli as toml
+	try:
+		import tomli as toml
+	except:
+		raise ModuleNotFoundError("TOML-reading module not found. For Python 3.5> it should be included as 'tomllib', if older than 2.5, then install 'tomli'.")
 
 import random
 random.seed()
@@ -59,13 +64,15 @@ class CanSNPer2Error(Error):
 
 class CanSNPer2:
 	outputTemplate = "{ref}_{target}.{format}"
+	databaseName : str
+	database : CanSNPdbFunctions
 	Lib : DirectoryLibrary[str]
 	settings : dict
 
 	"""docstring for CanSNPer2"""
 	def __init__(self, tmpDir=None, refDir="References", database="CanSNPer.fdb", settingsFile : str=None, **kwargs):
 		
-		self.database = database
+		self.databaseName = database
 		self.Lib = DirectoryLibrary(tmpDir=tmpDir, refDir=refDir)
 		settings : dict = toml.load(open(self.Lib.get("defaultFlags.toml", "installDir") if settingsFile is None else self.Lib.get(settingsFile, "workDir")), "rb")
 		# Settings hierarchy looks like this: ["Category"]["Flag"] -> Value
@@ -83,6 +90,15 @@ class CanSNPer2:
 		self.summarySet = set()
 		self.calledGenome = {}
 
+	'''Database functions'''
+
+	def setDatabase(self, database : str):
+		path = self.Lib.get(database, "databaseDir")
+		self.databaseName = path
+
+	def connectDatabase(self):
+		self.database = CanSNPdbFunctions(self.databaseName)
+
 	'''MetaCanSNPer set functions'''
 
 	def setQuery(self, query : str):
@@ -95,50 +111,83 @@ class CanSNPer2:
 	def setOutDir(self, outDir : str):
 		self.Lib.setOutDir(outDir)
 
-	'''CanSNPer2 get functions'''
+	'''MetaCanSNPer get functions'''
 
-	def get_xmfa(self):
-		'''Return references to aligned files'''
-		return self.xmfa_files
+	def getTmps(self):
+		'''Returns a dictionary of all files in and under the temporary directory, where the keys are the extensions of
+		the files, and the values are lists of the paths to all files with that extension.'''
+		files = []
+		for dirpath, dirnames, filenames in os.walk(self.Lib.tmpDir):
+			files.extend([os.path.join(dirpath, f) for f in filenames])
+		formats = [f.rsplit(".")[-1] for f in files]
+		return {format:[f for f in files if f.endswith(format)] for format in formats}
 
 	def getReferences(self):
-		return self.Lib.getReferences()
+		localReferences = self.Lib.getReferences()
+		localReferenceIDs = map(lambda f : os.path.basename(f).rsplit(".")[0], localReferences)
+		for ref, refID in self.database.get_genomes():
+			# refID should be the genbank ID of the given genome.
+			if refID in localReferenceIDs:
+				# genome exists in the filesystem.
+			else:
 
-	def get_tempfiles(self):
-		'''List all files in the tmp directory'''
-		return [ref for ref in os.listdir(self.tmpdir)]
+		## DownloadGenomes - THIS DOES WHAT YOU NEED
 
-	'''ProgressiveMauve alignment functions'''
 
-	def align(self, software : str=None, kwargs : dict={}):
+	
+	def getQuery(self):
+		return self.Lib.query
+
+	'''Indexing methods'''
+
+	def createIndex(self, software : str=None, kwargs : dict={}):
 		'''Align sequences using subprocesses.'''
 
-		aligner : Aligner = Aligners.get(software) # Fetch the object class of the specified aligner software.
-		aligner(self.Lib, self.outputTemplate, kwargs=kwargs)
+		LOGGER.debug("Checking for Aligner named '{}'".format( software))
+		indexer : Aligner = Aligners.get(software) # Fetch the object class of the specified aligner software.
+		if indexer is None:
+			LOGGER.debug("Checking for Mapper named '{}'".format( software))
+			indexer : Mapper = Mappers.get(software) # Fetch the object class of the specified Mapper software.
+		else:
+			# No Aligner or Mapper found that is implemented yet.
+			LOGGER.error("No software defined for name '{}'".format( software))
+			raise NotImplementedError("No software defined for name '{}'".format( software))
+		
+		indexer(self.Lib, self.outputTemplate, kwargs=kwargs)
 
-		output = aligner.start()
+		output = indexer.start()
 
 		# Start aligning
-		while not aligner.finished():
-			finished = aligner.waitNext()
+		while not indexer.finished():
+			finished = indexer.waitNext()
 			for i in finished:
 				key, path = output[i][0]
-				if key not in self.Lib.aligned and aligner.returncodes[i][-1] == 0:
-					self.Lib.aligned[key] = path
+				if key not in self.Lib.indexed and indexer.returncodes[i][-1] == 0:
+					self.Lib.indexed[key] = path
 
 		# Check that error did not occur.
-		while aligner.hickups():
-			if not aligner.fixable():
+		while indexer.hickups():
+			if not indexer.fixable():
+				# Error does not have a known solution that has worked during this run.
 				return []
 			else:
-				aligner.planB()
+				# Error has a possible fix, implement the fix.
+				indexer.planB()
 			
-			while not aligner.finished():
-				finished = aligner.waitNext()
+			# Run the alignment just like before, but hopefully fixed.
+			while not indexer.finished():
+				finished = indexer.waitNext()
 				for i in finished:
 					key, path = output[i][0]
-					if aligner.returncodes[i][-1] == 0:
-						self.Lib.aligned[key] = path
+					if indexer.returncodes[i][-1] == 0:
+						self.Lib.indexed[key] = path
+
+	def callSNPs(self, snps : dict[str]):
+
+		for ref, refID in self.database.get_genomes():
+			SNPs, snpList = self.database.get_snps(reference=ref)
+
+
 
 	'''Functions'''
 

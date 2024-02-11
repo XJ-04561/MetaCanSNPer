@@ -32,11 +32,13 @@ class DirectoryLibrary:
 	outDir : str
 	resultDir : str
 	logDir : str
+	databaseDir : str
 
 	dirs = [
 		"workDir", "installDir", "userDir",
 		"targetDir", "refDir", "tmpDir",
-		"outDir", "resultDir", "logDir"
+		"outDir", "resultDir", "logDir",
+		"databaseDir"
 	]
 
 	references : list[str]
@@ -44,16 +46,17 @@ class DirectoryLibrary:
 	
 	# Dictionary keys are tuples of (reference, query)
 	# Dictionary values are the absolute paths to the file.
-	aligned : dict[tuple[str, str], str]
+	indexed : dict[tuple[str, str], str]
 	maps : dict[tuple[str, str], str]
 	SNPs : dict[tuple[str, str], str]
 
 	__cache : dict[str]
 	
 	def __init__(self, settings : dict, workDir : str=None, installDir : str=None, userDir : str=None,
-			     tmpDir : str=None, refDir : str="References", outDir : str=None, **kwargs):
-		'''Needs no arguments to initialize, but keyword arguments can be used to force use directories. Keyword
-		arguments not named in the method head are caught and ignored by **kwargs.
+			     tmpDir : str=None, refDir : str=os.path.join("References", "Francisella_Tularensis"),
+				 databaseDir : str="Databases", outDir : str=None):
+		'''Needs only a settings dictionary implementing all keys specified in the 'defaultFlags.toml' that should be in
+		the installation directory, but keyword arguments can be used to force use directories.
 		
 		workDir		-	Will be used to find queries/targets, and is the second directory to be searched for references
 		
@@ -100,12 +103,13 @@ class DirectoryLibrary:
 
 		self.setTargetDir(self.workDir)
 		self.setRefDir(refDir)
+		self.setDatabaseDir()
 		self.setTmpDir(tmpDir)
 		self.setOutDir(outDir)
 		
 		self.query = None
 
-		self.aligned = {}
+		self.indexed = {}
 		self.maps = {}
 		self.SNPs = {}
 
@@ -215,6 +219,26 @@ class DirectoryLibrary:
 		else:
 			self.refDir = refOrder[0]
 
+	def setDatabaseDir(self, databaseDir : str, abs : bool=False):
+		if abs is True:
+			if self.access(databaseDir, mode="rx") is True:
+				self.databaseDir = databaseDir
+		databaseOrder = []
+		for d in [self.installDir, self.workDir, self.userDir]:
+			p = os.path.join(d, databaseDir)
+			if self.accessible(p, mode="rx") is True:
+				databaseOrder.append(p)
+
+		if databaseOrder == [] and os.path.exists(databaseDir):
+			# databaseDir is determined to be an absolute path
+			self.databaseDir = databaseDir
+		elif databaseOrder == []:
+			LOGGER.warning("Nowhere to read databases from unless databases are absolute paths to readable directories. No '{}' directory with reading and execution permission in installDir, workDir, or userDir:\n".format(databaseDir) + str(self))
+			raise PermissionError("Nowhere to read databases from unless databases are absolute paths to readable directories. No '{}' directory with reading and execution permission in installDir, workDir, or userDir:\n".format(databaseDir) + str(self))
+		else:
+			self.databaseDir = databaseOrder[0]
+		
+
 	def setTmpDir(self, tmpDir : str=None):
 		'''If no place for a temporary directory is given, will find a nice place to put one, and then create a
 		random-name temporary directory there. Temporary directory behavior is determined by the settings/flags.
@@ -286,11 +310,8 @@ class DirectoryLibrary:
 		return filename
 	
 	def getReferences(self):
-		if len(self.references) > 0:
-			if self.references[0].startswith(self.refDir):
-				return self.references
-		
-		self.references = [ref for ref in os.listdir(self.refDir) if ref.rsplit(".")[-1].lower() in self.settings["referenceFormats"]]
+		'''Forcefully recreates list of reference files found in the currently set reference directory and returns it.'''
+		self.references = [os.path.join(root, ref) for root, _, refs in os.walk(self.refDir) for ref in refs if ref.rsplit(".")[-1].lower() in self.settings["referenceFormats"]]
 		return self.references
 	
 	def access(self, path, mode : str="rwx", create : bool=False):
