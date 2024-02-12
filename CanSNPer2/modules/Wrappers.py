@@ -165,9 +165,12 @@ class IndexingWrapper(ProcessWrapper):
 	commandTemplate : str # Should contain format tags for {target}, {ref}, {output}, can contain more.
 	outFormat : str
 	logFormat : str
+	kwargs : dict
+	boolFlags : list[str] = []
+	valueFlags : list[str] = []
+
 	returncodes : list[list[int]]
 	threadGroup : ThreadGroup
-	kwargs : dict
 	solutions : dict
 	
 	def __init__(self, lib : DirectoryLibrary, outputTemplate : str, kwargs : dict={}):
@@ -210,7 +213,12 @@ class IndexingWrapper(ProcessWrapper):
 			logfile = os.path.join(self.Lib.logDir, output + ".{software}.log".format(software=self.softwareName))
 			output = os.path.join(self.Lib.tmpDir, self.softwareName, output)
 
-			command = self.commandTemplate.format(target=self.Lib.getQuery(), ref=ref, output=output)
+			command = self.commandTemplate.format(
+				target=self.Lib.getQuery(),
+				ref=ref,
+				output=output,
+				options=" ".join([flag for flag in self.boolFlags if flag in self.kwargs and self.kwargs[flag] is True]+
+				[x for flag in self.valueFlags if flag in self.kwargs for x in [flag, self.kwargs[flag]]])) # Creates list of ["--flag1", "arg1", "--flag2", "arg2", ..., "--flagN", "argN"]
 
 			'''
 			Adds on all the extra flags and arguments defined in the dict self.kwargs.
@@ -246,8 +254,6 @@ class IndexingWrapper(ProcessWrapper):
 			if e in self.solutions:
 				failedThreads = [i for i, e2 in enumerate(current) if e == e2]
 				self.solutions[e](self, failedThreads)
-			
-
 
 
 '''

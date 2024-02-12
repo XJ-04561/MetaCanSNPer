@@ -133,8 +133,6 @@ class CanSNPer2:
 
 		## DownloadGenomes - THIS DOES WHAT YOU NEED
 
-
-	
 	def getQuery(self):
 		return self.Lib.query
 
