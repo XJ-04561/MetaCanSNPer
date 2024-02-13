@@ -1,0 +1,5 @@
+{
+    "python.analysis.extraPaths": [
+        "./CanSNPer2/modules"
+    ]
+}

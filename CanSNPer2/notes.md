@@ -13,3 +13,24 @@
       * Should absolute pathing be the first attempt?
  * One program takes all references or just one at a time?
  * "Download" client separate from CanSNPer
+
+[STRUCTURE]
+
+* modules/
+*   CanSNPer2.py
+*   DirectoryLibrary.py
+*   DownloadReferences.py
+*   Wrappers.py
+*   Aligners.py
+*   Mappers.py
+*   SNPCallers.py
+*   ParseXMFA2.py
+*   LogKeeper.py
+*   ErrorFixes.py
+*   DatabaseConnection.py
+* defaultFlags.toml
+* Databases/
+*   francisella_tularensis.db
+* References/
+* 
+* 

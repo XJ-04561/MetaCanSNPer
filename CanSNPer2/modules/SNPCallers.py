@@ -13,12 +13,19 @@ from Wrappers import SNPCaller
 
 class Timeout(SNPCaller):
 	softwareName = "timeout"
-	commandTemplate = "timeout {ref} {target}"
+	commandTemplate = "timeout {ref} {target} > {output}"
 
 class Sleep(SNPCaller):
 	softwareName = "sleep"
-	commandTemplate = "sleep {ref} {target}"
+	commandTemplate = "sleep {ref} {target} > {output}"
 
+class GATK_Mutect2(SNPCaller):
+	softwareName = "gatk_Mutect2"
+	commandTemplate = "gatk Mutect2 -R {ref} -I {target} --alleles {ref}.vcf -O {out}.vcf.gz"
+
+class GATK_HaplotypeCaller(SNPCaller):
+	softwareName = "gatk_HaplotypeCaller"
+	commandTemplate = "gatk --java-options '-Xmx4g' HaplotypeCaller -R {ref} -I {target} -alleles {ref}.vcf -O {out}.vcf.gz"
 
 def get(softwareName) -> SNPCaller:
 	for c in SNPCaller.__subclasses__():

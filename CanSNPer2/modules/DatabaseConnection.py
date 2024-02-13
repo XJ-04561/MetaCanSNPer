@@ -219,6 +219,18 @@ class CanSNPdbFunctions(DatabaseConnection):
 			genomeDict[genome] = id
 		return genomeDict
 
+	def getReferences(self, limit : int=0) -> list[tuple[str,str,str,str,str]]:
+		'''Get the list of references in the database'''
+		## This is a many to many relation, so all genomes has to be put in a set for each taxonomy id
+		genomeDict = []
+		QUERY = '''SELECT id, genome, strain, genbank_id, refseq_id, assembly_name FROM {table}'''.format(table="snp_references")
+		if limit > 0:
+			QUERY += " LIMIT {limit}".format(limit=limit)
+		#print(QUERY)
+		for id, genome, strain, genbank_id, refseq_id, assembly_name in self.database.query(QUERY).fetchall():
+			genomeDict.insert( id-1, (genome, strain, genbank_id, refseq_id, assembly_name))
+		return genomeDict
+
 	def get_all(self, database=False, table=False,columns="*"):
 		'''Get full table from table'''
 		if not database:

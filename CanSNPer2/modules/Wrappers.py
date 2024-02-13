@@ -1,16 +1,25 @@
 
 import os
 import logging
-import LogKeeper as LogKeeper
+try:
+	import CanSNPer2.modules.LogKeeper as LogKeeper
 
-LOGGER = LogKeeper.createLogger(__name__)
+	LOGGER = LogKeeper.createLogger(__name__)
+	import CanSNPer2.modules.ErrorFixes as ErrorFixes
+	from CanSNPer2.modules.DirectoryLibrary import DirectoryLibrary
+	from CanSNPer2.modules.DatabaseConnection import CanSNPdbFunctions
+except:
+	import LogKeeper as LogKeeper
+
+	LOGGER = LogKeeper.createLogger(__name__)
+	from DatabaseConnection import CanSNPdbFunctions
+	from DirectoryLibrary import DirectoryLibrary
+	import ErrorFixes as ErrorFixes
 
 from collections.abc import Callable
 from threading import Thread, Condition
 from subprocess import run, DEVNULL, PIPE, STDOUT, CompletedProcess
 
-import ErrorFixes as ErrorFixes
-from DirectoryLibrary import DirectoryLibrary
 
 class Error(Exception):
 	"""docstring for Error"""
@@ -144,6 +153,11 @@ class ProcessWrapper:
 		else:
 			LOGGER.warning("{prefix}WARNING {softwareName} finished with a non zero exitcode: {returncode}".format(prefix=prefix, softwareName=self.softwareName, returncode=returncode))
 	
+	def preProcess(self):
+		'''Not implemented for the template class, check the wrapper of the
+		specific software you are intending to use.'''
+		pass
+
 	def hickups(self):
 		'''Not implemented for the template class, check the wrapper of the
 		specific software you are intending to use.'''
@@ -168,14 +182,16 @@ class IndexingWrapper(ProcessWrapper):
 	kwargs : dict
 	boolFlags : list[str] = []
 	valueFlags : list[str] = []
+	format : str
 
 	returncodes : list[list[int]]
 	threadGroup : ThreadGroup
 	solutions : dict
 	
-	def __init__(self, lib : DirectoryLibrary, outputTemplate : str, kwargs : dict={}):
+	def __init__(self, lib : DirectoryLibrary, database : CanSNPdbFunctions, outputTemplate : str, kwargs : dict={}):
 		self.Lib = lib
-		self.queryName = os.path.basename(self.Lib.getQuery()).rsplit(".",1)[0] ## get name of file and remove ending
+		self.database = database
+		self.queryName = os.path.splitext(os.path.basename(self.Lib.getQuery()))[0] ## get name of file and remove ending
 		self.outputTemplate = outputTemplate
 		self.kwargs = kwargs
 		self.returncodes = [[] for _ in range(len(lib.getReferences()))]
@@ -207,15 +223,15 @@ class IndexingWrapper(ProcessWrapper):
 		logs = []
 		commands = []
 		outputs = []
-		for ref in self.Lib.getReferences():
-			refName = os.path.basename(ref).rsplit(".", 1)[1]
-			output = self.outputTemplate.format(ref=refName)
+		for ref, refPath in self.Lib.getReferences():
+			refName, refFormat = os.path.splitext(os.path.basename(refPath))
+			output = self.outputTemplate.format(target=self.queryName, ref=refName, format=self.format)
 			logfile = os.path.join(self.Lib.logDir, output + ".{software}.log".format(software=self.softwareName))
 			output = os.path.join(self.Lib.tmpDir, self.softwareName, output)
 
 			command = self.commandTemplate.format(
-				target=self.Lib.getQuery(),
-				ref=ref,
+				target=self.Lib.query,
+				ref=refPath,
 				output=output,
 				options=" ".join([flag for flag in self.boolFlags if flag in self.kwargs and self.kwargs[flag] is True]+
 				[x for flag in self.valueFlags if flag in self.kwargs for x in [flag, self.kwargs[flag]]])) # Creates list of ["--flag1", "arg1", "--flag2", "arg2", ..., "--flagN", "argN"]

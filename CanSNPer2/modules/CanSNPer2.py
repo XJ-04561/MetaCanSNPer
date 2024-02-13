@@ -73,7 +73,7 @@ class CanSNPer2:
 	def __init__(self, tmpDir=None, refDir="References", database="CanSNPer.fdb", settingsFile : str=None, **kwargs):
 		
 		self.databaseName = database
-		self.Lib = DirectoryLibrary(tmpDir=tmpDir, refDir=refDir)
+		self.Lib = DirectoryLibrary(tmpDir=tmpDir, refDir=os.path.join(refDir, os.path.splitext(database)[0]))
 		settings : dict = toml.load(open(self.Lib.get("defaultFlags.toml", "installDir") if settingsFile is None else self.Lib.get(settingsFile, "workDir")), "rb")
 		# Settings hierarchy looks like this: ["Category"]["Flag"] -> Value
 
@@ -89,6 +89,8 @@ class CanSNPer2:
 		# Need for this is unknown, might remove later.
 		self.summarySet = set()
 		self.calledGenome = {}
+
+		self.Lib.references = self.getReferences()
 
 	'''Database functions'''
 
@@ -123,15 +125,8 @@ class CanSNPer2:
 		return {format:[f for f in files if f.endswith(format)] for format in formats}
 
 	def getReferences(self):
-		localReferences = self.Lib.getReferences()
-		localReferenceIDs = map(lambda f : os.path.basename(f).rsplit(".")[0], localReferences)
-		for ref, refID in self.database.get_genomes():
-			# refID should be the genbank ID of the given genome.
-			if refID in localReferenceIDs:
-				# genome exists in the filesystem.
-			else:
-
-		## DownloadGenomes - THIS DOES WHAT YOU NEED
+		'''Fetch names of reference genomes in connected database. Download any reference genomes not present locally.'''
+		return self.Lib.getReferences( self.database.getReferences().values())
 
 	def getQuery(self):
 		return self.Lib.query
@@ -142,16 +137,20 @@ class CanSNPer2:
 		'''Align sequences using subprocesses.'''
 
 		LOGGER.debug("Checking for Aligner named '{}'".format( software))
-		indexer : Aligner = Aligners.get(software) # Fetch the object class of the specified aligner software.
-		if indexer is None:
+		indexerType : Aligner = Aligners.get(software) # Fetch the object class of the specified aligner software.
+		if indexerType is None:
 			LOGGER.debug("Checking for Mapper named '{}'".format( software))
-			indexer : Mapper = Mappers.get(software) # Fetch the object class of the specified Mapper software.
+			indexerType : Mapper = Mappers.get(software) # Fetch the object class of the specified Mapper software.
 		else:
 			# No Aligner or Mapper found that is implemented yet.
 			LOGGER.error("No software defined for name '{}'".format( software))
 			raise NotImplementedError("No software defined for name '{}'".format( software))
 		
-		indexer(self.Lib, self.outputTemplate, kwargs=kwargs)
+		LOGGER.debug("Creating Indexer '{}' of type '{}'".format( software, indexerType))
+		indexer = indexerType(self.Lib, self.database, self.outputTemplate, kwargs=kwargs)
+
+		LOGGER.debug("Checking for pre-processing for indexer.".format( software, indexerType))
+		indexer.preProcess()
 
 		output = indexer.start()
 
@@ -180,11 +179,13 @@ class CanSNPer2:
 					if indexer.returncodes[i][-1] == 0:
 						self.Lib.indexed[key] = path
 
-	def callSNPs(self, snps : dict[str]):
-
-		for ref, refID in self.database.get_genomes():
-			SNPs, snpList = self.database.get_snps(reference=ref)
-
+	def callSNPs(self, softwareName : str):
+		''''''
+		snpCallerType : SNPCaller = SNPCallers.get(softwareName)
+		snpCallerType
+		for refName in self.Lib.getReferences():
+			SNPs, snpList = self.database.get_snps(reference=refName)
+			
 
 
 	'''Functions'''

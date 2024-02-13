@@ -22,6 +22,8 @@ class Sleep(Mapper):
 class Minimap2(Mapper):
 	softwareName = "minimap2"
 	commandTemplate = "minimap2 {options} {ref} {target} > {output}"
+	format = "sam"
+
 	boolFlags = [
 		# Indexing options
 

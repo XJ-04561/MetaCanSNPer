@@ -22,6 +22,7 @@ class Sleep(Aligner):
 class ProgressiveMauve(Aligner):
 	softwareName = "progressiveMauve"
 	commandTemplate = "progressiveMauve {options} {ref} {target} > {output}"
+	format = "xmfa"
 
 	'''This is probably not needed.'''
 	boolFlags = [

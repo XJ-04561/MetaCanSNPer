@@ -7,8 +7,10 @@ random.seed()
 import logging
 try:
 	import CanSNPer2.modules.LogKeeper as LogKeeper
+	import CanSNPer2.modules.DownloadReferences as DownloadReferences
 except:
 	import LogKeeper as LogKeeper
+	import DownloadReferences as DownloadReferences
 
 LOGGER = LogKeeper.createLogger(__name__)
 PERMS_LOOKUP = {"r":"read", "w":"write", "x":"execute"}
@@ -41,7 +43,6 @@ class DirectoryLibrary:
 		"databaseDir"
 	]
 
-	references : list[str]
 	query : list[str]
 	
 	# Dictionary keys are tuples of (reference, query)
@@ -202,12 +203,12 @@ class DirectoryLibrary:
 
 	def setRefDir(self, refDir : str, abs=False):
 		if abs is True:
-			if self.access(refDir, mode="rx") is True:
+			if self.access(refDir, mode="rx", create=True) is True:
 				self.refDir = refDir
 		refOrder = []
 		for d in [self.installDir, self.workDir, self.userDir]:
 			p = os.path.join(d, refDir)
-			if self.accessible(p, mode="rx") is True:
+			if self.accessible(p, mode="rx", create=True) is True:
 				refOrder.append(p)
 
 		if refOrder == [] and os.path.exists(refDir):
@@ -309,10 +310,17 @@ class DirectoryLibrary:
 
 		return filename
 	
-	def getReferences(self):
-		'''Forcefully recreates list of reference files found in the currently set reference directory and returns it.'''
-		self.references = [os.path.join(root, ref) for root, _, refs in os.walk(self.refDir) for ref in refs if ref.rsplit(".")[-1].lower() in self.settings["referenceFormats"]]
-		return self.references
+	def getReferences(self, references : list[str,str,str,str,str]):
+		'''Returns list of references.'''
+		references = {}
+		for genome, strain, genbank_id, refseq_id, assembly_name in references:
+			filename = DownloadReferences.download(genbank_id, refseq_id, assembly_name, dst=self.Lib.refDir)
+			if not os.path.exists(filename):
+				msg = "Could not download reference genome: {genbank_id='{genbank_id}', refseq_id='{refseq_id}' assembly_name='{assembly_name}'}".format(genbank_id=genbank_id, refseq_id=refseq_id, assembly_name=assembly_name)
+				LOGGER.error(msg)
+				raise FileNotFoundError(msg)
+			references[genome] = filename
+		return references
 	
 	def access(self, path, mode : str="rwx", create : bool=False):
 		'''Throws appropriate errors if access is not possible.'''
