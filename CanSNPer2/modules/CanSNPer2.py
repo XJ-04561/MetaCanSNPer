@@ -16,7 +16,7 @@ try:
 	from CanSNPer2.modules.NewickTree import NewickTree
 	from CanSNPer2.CanSNPerTree import __version__
 	from CanSNPer2.modules.DirectoryLibrary import DirectoryLibrary
-	from CanSNPer2.modules.Wrappers import Aligner, Mapper, SNPCaller
+	from CanSNPer2.modules.Wrappers import Aligner, Mapper, SNPCaller, IndexingWrapper
 	import CanSNPer2.modules.Aligners as Aligners
 	import CanSNPer2.modules.Mappers as Mappers
 	import CanSNPer2.modules.SNPCallers as SNPCallers
@@ -30,7 +30,7 @@ except:
 	from DatabaseConnection import CanSNPdbFunctions
 	from NewickTree import NewickTree
 	from DirectoryLibrary import DirectoryLibrary
-	from Wrappers import Aligner, Mapper, SNPCaller
+	from Wrappers import Aligner, Mapper, SNPCaller, IndexingWrapper
 	import Aligners
 	import Mappers
 	import SNPCallers
@@ -126,39 +126,47 @@ class CanSNPer2:
 
 	def getReferences(self):
 		'''Fetch names of reference genomes in connected database. Download any reference genomes not present locally.'''
-		return self.Lib.getReferences( self.database.getReferences().values())
+		self.setReferences()
+		return self.Lib.getReferences()
+	
+	def setReferences(self):
+		self.Lib.setReferences(self.database.getReferences().values())
 
 	def getQuery(self):
 		return self.Lib.query
 
 	'''Indexing methods'''
 
-	def createIndex(self, software : str=None, kwargs : dict={}):
+	def createIndex(self, softwareName : str, kwargs : dict={}):
 		'''Align sequences using subprocesses.'''
 
-		LOGGER.debug("Checking for Aligner named '{}'".format( software))
-		indexerType : Aligner = Aligners.get(software) # Fetch the object class of the specified aligner software.
+		LOGGER.debug("Checking for Aligner named '{}'".format( softwareName))
+		indexerType : type = Aligners.get(softwareName) # Fetch the object class of the specified aligner software.
 		if indexerType is None:
-			LOGGER.debug("Checking for Mapper named '{}'".format( software))
-			indexerType : Mapper = Mappers.get(software) # Fetch the object class of the specified Mapper software.
+			LOGGER.debug("Checking for Mapper named '{}'".format( softwareName))
+			indexerType : type = Mappers.get(softwareName) # Fetch the object class of the specified Mapper software.
 		else:
 			# No Aligner or Mapper found that is implemented yet.
-			LOGGER.error("No software defined for name '{}'".format( software))
-			raise NotImplementedError("No software defined for name '{}'".format( software))
+			LOGGER.error("No software defined for name '{}'".format( softwareName))
+			raise NotImplementedError("No software defined for name '{}'".format( softwareName))
 		
-		LOGGER.debug("Creating Indexer '{}' of type '{}'".format( software, indexerType))
-		indexer = indexerType(self.Lib, self.database, self.outputTemplate, kwargs=kwargs)
+		LOGGER.info("Checking if all references in the database have been downloaded. Downloads them if they haven't.")
+		self.setReferences()
 
-		LOGGER.debug("Checking for pre-processing for indexer.".format( software, indexerType))
+		LOGGER.info("Creating Indexer '{}' of type '{}'".format( softwareName, indexerType.__name__))
+		indexer : IndexingWrapper= indexerType(self.Lib, self.database, self.outputTemplate, kwargs=kwargs)
+
+		LOGGER.info("Checking for pre-processing for indexer.")
 		indexer.preProcess()
 
+		LOGGER.info("Starting indexing.")
 		output = indexer.start()
 
 		# Start aligning
 		while not indexer.finished():
 			finished = indexer.waitNext()
 			for i in finished:
-				key, path = output[i][0]
+				key, path = output[i]
 				if key not in self.Lib.indexed and indexer.returncodes[i][-1] == 0:
 					self.Lib.indexed[key] = path
 
@@ -178,14 +186,53 @@ class CanSNPer2:
 					key, path = output[i][0]
 					if indexer.returncodes[i][-1] == 0:
 						self.Lib.indexed[key] = path
+	
 
-	def callSNPs(self, softwareName : str):
+	def callSNPs(self, softwareName : str, kwargs : dict={}):
 		''''''
-		snpCallerType : SNPCaller = SNPCallers.get(softwareName)
-		snpCallerType
-		for refName in self.Lib.getReferences():
-			SNPs, snpList = self.database.get_snps(reference=refName)
+		SNPCallerType : SNPCaller = SNPCallers.get(softwareName)
+
+		LOGGER.info("Loading SNPs from database.")
+		references = {}
+		for genome, refPath in self.Lib.getReferences().items():
+			SNPs, snpList = self.database.get_snps(reference=genome)
+			references[refPath] = SNPs
+			LOGGER.info("Loaded {n} SNPs for genome {genome}.".format(n=len(snpList), genome=genome))
+		LOGGER.info("Loaded a total of {n} SNPs.".format(n=sum(len(SNPs) for SNPs in references.values())))
+		
+		LOGGER.info("Creating SNPCaller '{}' of type '{}'".format( softwareName, SNPCallerType.__name__))
+		snpCaller : SNPCaller = SNPCallerType(self.Lib, self.database, self.outputTemplate, kwargs=kwargs)
+		
+		LOGGER.info("Checking for pre-processing for SNPCaller.")
+		snpCaller.preProcess(references)
+
+		# Start aligning
+		output = snpCaller.start()
+
+
+		while not snpCaller.finished():
+			finished = snpCaller.waitNext()
+			for i in finished:
+				key, path = output[i]
+				if key not in self.Lib.SNPs and snpCaller.returncodes[i][-1] == 0:
+					self.Lib.SNPs[key] = path
+
+		# Check that error did not occur.
+		while snpCaller.hickups():
+			if not snpCaller.fixable():
+				# Error does not have a known solution that has worked during this run.
+				return []
+			else:
+				# Error has a possible fix, implement the fix.
+				snpCaller.planB()
 			
+			# Run the alignment just like before, but hopefully fixed.
+			while not snpCaller.finished():
+				finished = snpCaller.waitNext()
+				for i in finished:
+					key, path = output[i][0]
+					if snpCaller.returncodes[i][-1] == 0:
+						self.Lib.SNPs[key] = path
 
 
 	'''Functions'''
@@ -211,34 +258,25 @@ class CanSNPer2:
 		del self.Lib
 		LOGGER.info("Done!")
 		return
-
-	# UNUSED - DELETE?
-	def parse_xmfa(XMFA_obj, xmfa_file,results=[]):
-		'''Process xmfa file using ParseXMFA object'''
-		XMFA_obj.run(xmfa_file)
-		results.put(XMFA_obj.get_snps())
-		export_results.put(XMFA_obj.get_snp_info())
-		called_snps.put(XMFA_obj.get_called_snps())
-		return results
 	
-	def find_snps(self,XMFA_obj,xmfa_file,results=[],export_results=[],called_snps=[]):
-		'''Align sequences to references and return SNPs'''
-		# execute snp calling
-		XMFA_obj.run(xmfa_file)
-		#/
-		# stream output into Queues (if the complete job output is put in then the queue gets filled when having "large" outputs. It has to be streamed to the queue so that the queue can simultanously be cleared)
-		for result in XMFA_obj.get_snps().items(): # returns dictionary
-			results.put(result)
-		for result in XMFA_obj.get_snp_info(): # returns array
-			export_results.put(result)
-		for result in XMFA_obj.get_called_snps(): # returns array
-			called_snps.put(result)
-		#/
-		# when finished, put a "stop-signal"
-		results.put('XMFA_obj_finish_worker_'+XMFA_obj.reference)
-		export_results.put('XMFA_obj_finish_worker_'+XMFA_obj.reference)
-		called_snps.put('XMFA_obj_finish_worker_'+XMFA_obj.reference)
-		#/
+	# def find_snps(self,XMFA_obj,xmfa_file,results=[],export_results=[],called_snps=[]):
+	# 	'''Align sequences to references and return SNPs'''
+	# 	# execute snp calling
+	# 	XMFA_obj.run(xmfa_file)
+	# 	#/
+	# 	# stream output into Queues (if the complete job output is put in then the queue gets filled when having "large" outputs. It has to be streamed to the queue so that the queue can simultanously be cleared)
+	# 	for result in XMFA_obj.get_snps().items(): # returns dictionary
+	# 		results.put(result)
+	# 	for result in XMFA_obj.get_snp_info(): # returns array
+	# 		export_results.put(result)
+	# 	for result in XMFA_obj.get_called_snps(): # returns array
+	# 		called_snps.put(result)
+	# 	#/
+	# 	# when finished, put a "stop-signal"
+	# 	results.put('XMFA_obj_finish_worker_'+XMFA_obj.reference)
+	# 	export_results.put('XMFA_obj_finish_worker_'+XMFA_obj.reference)
+	# 	called_snps.put('XMFA_obj_finish_worker_'+XMFA_obj.reference)
+	# 	#/
 
 	def find_snps_multiproc(self,xmfa_obj,xmfa_files,export=False):
 		'''function to run genomes in paralell'''

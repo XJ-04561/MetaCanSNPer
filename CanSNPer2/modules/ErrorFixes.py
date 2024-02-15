@@ -48,8 +48,9 @@ class progressiveMauve(SolutionContainer):
         
         LOGGER.debug("New query: {nq}".format(nq=tmpName))
         obj.Lib.setQuery(tmpName, abs=True)
-    
 
-Indexers = {
-    "progressiveMauve" : progressiveMauve
-}
+def get(softwareName) -> SolutionContainer:
+	for c in SolutionContainer.__subclasses__():
+		if c.__name__ == softwareName:
+			return c
+	return None

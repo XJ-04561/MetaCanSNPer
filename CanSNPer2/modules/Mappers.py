@@ -13,16 +13,24 @@ from Wrappers import Mapper
 
 class Timeout(Mapper):
 	softwareName = "timeout"
-	commandTemplate = "timeout {ref} {target}"
+	commandTemplate = "timeout {0[options]} {0[ref]} {0[query]} > {0[output]}"
 
 class Sleep(Mapper):
 	softwareName = "sleep"
-	commandTemplate = "sleep {ref} {target}"
+	commandTemplate = "sleep {0[options]} {0[ref]} {0[query]} > {0[output]}"
 
 class Minimap2(Mapper):
 	softwareName = "minimap2"
-	commandTemplate = "minimap2 {options} {ref} {target} > {output}"
-	format = "sam"
+	commandTemplate = "minimap2 {0[options]} {0[ref]} {0[query]} > {0[output]}"
+
+	def __init__(self, *args, **kwargs):
+		super().__init__(*args, **kwargs)
+		if "-a" in kwargs and kwargs["a"] is True:
+			self.outFormat = "sam"
+		elif "-a" in kwargs and kwargs["a"] is True:
+			self.outFormat = "bam"
+		else:
+			self.outFormat = "paf"
 
 	boolFlags = [
 		# Indexing options

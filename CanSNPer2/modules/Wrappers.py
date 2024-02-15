@@ -32,17 +32,6 @@ class MauveError(Error):
 	"""docstring for MauveE"""
 	pass
 
-'''Declarations used only for typehinting'''
-class CanSNPer2:
-	logdir : str
-	refdir : str
-	get_references : Callable
-	keep_going : bool
-class Aligner:
-	tmpdir : str
-	query : str
-
-
 '''More OOP handling of multiple processes'''
 class ThreadGroup:
 	threads : list[Thread]
@@ -114,6 +103,7 @@ class ProcessWrapper:
 	softwareName : str
 	returncodes : list[list[int]]
 	previousErrors : list
+	category : str
 	
 	def start(self, *args):
 		'''Not implemented for the template class, check the wrapper of the
@@ -178,6 +168,7 @@ class IndexingWrapper(ProcessWrapper):
 	queryName : str
 	commandTemplate : str # Should contain format tags for {target}, {ref}, {output}, can contain more.
 	outFormat : str
+	# inFormat : str
 	logFormat : str
 	kwargs : dict
 	boolFlags : list[str] = []
@@ -193,15 +184,26 @@ class IndexingWrapper(ProcessWrapper):
 		self.database = database
 		self.queryName = os.path.splitext(os.path.basename(self.Lib.getQuery()))[0] ## get name of file and remove ending
 		self.outputTemplate = outputTemplate
+		# self.inFormat = inFormat
 		self.kwargs = kwargs
 		self.returncodes = [[] for _ in range(len(lib.getReferences()))]
 		self.threadGroup = None
-		self.solutions = ErrorFixes.Indexers[self.softwareName]
+		self.solutions : ErrorFixes.SolutionContainer = ErrorFixes.get(self.softwareName)
 		
 		if not os.path.exists(os.path.join(self.Lib.tmpDir, self.softwareName)):
 			os.mkdir(os.path.join(self.Lib.tmpDir, self.softwareName))
+
+		self.formatDict = {
+			"tmpDir" : self.Lib.tmpDir,
+			"refDir" : self.Lib.refDir,
+			"query" : self.Lib.query,
+			"queryName" : self.queryName,
+			# "inFormat" : self.inFormat,
+			"options" : " ".join([flag for flag in self.boolFlags if flag in self.kwargs and self.kwargs[flag] is True]+
+			[x for flag in self.valueFlags if flag in self.kwargs for x in [flag, self.kwargs[flag]]]) # Creates list of ["--flag1", "arg1", "--flag2", "arg2", ..., "--flagN", "argN"]
+		}
 	
-	def start(self) -> list[tuple[str,str],str]:
+	def start(self) -> list[tuple[tuple[str,str],str]]:
 		'''Starts alignment processes in new threads. Returns information of the output of the processes, but does not ensure the processes have finished.'''
 
 		commands, logs, outputs = self.createCommand()
@@ -225,16 +227,24 @@ class IndexingWrapper(ProcessWrapper):
 		outputs = []
 		for ref, refPath in self.Lib.getReferences():
 			refName, refFormat = os.path.splitext(os.path.basename(refPath))
-			output = self.outputTemplate.format(target=self.queryName, ref=refName, format=self.format)
-			logfile = os.path.join(self.Lib.logDir, output + ".{software}.log".format(software=self.softwareName))
-			output = os.path.join(self.Lib.tmpDir, self.softwareName, output)
 
-			command = self.commandTemplate.format(
-				target=self.Lib.query,
-				ref=refPath,
-				output=output,
-				options=" ".join([flag for flag in self.boolFlags if flag in self.kwargs and self.kwargs[flag] is True]+
-				[x for flag in self.valueFlags if flag in self.kwargs for x in [flag, self.kwargs[flag]]])) # Creates list of ["--flag1", "arg1", "--flag2", "arg2", ..., "--flagN", "argN"]
+			output = self.outputTemplate.format(target=self.queryName, ref=refName, format=self.outFormat)
+			logfile = os.path.join(self.Lib.logDir, output + ".{software}.log".format(software=self.softwareName))
+			output = os.path.join(self.Lib.tmpDir, self.category, output)
+
+			os.mkdir(os.path.join(self.Lib.tmpDir, self.softwareName))
+
+			'''Not every command needs all information, but the format function is supplied with a dictionary that has
+			everything that could ever be needed.'''
+			
+			self.formatDict["refName"] = refName
+			self.formatDict["refPath"] = refPath
+			self.formatDict["indexPath"] = self.Lib.indexed[(self.queryName, refName)] if (self.queryName, refName) in self.Lib.indexed else None
+			self.formatDict["SNPs"] = self.Lib.SNPs[refName] if refName in self.Lib.SNPs else None
+			self.formatDict["output"] = output
+			self.formatDict["logfile"] = logfile
+
+			command = self.commandTemplate.format(self.formatDict)
 
 			'''
 			Adds on all the extra flags and arguments defined in the dict self.kwargs.
@@ -277,10 +287,13 @@ class IndexingWrapper(ProcessWrapper):
 '''
 
 class Aligner(IndexingWrapper):
+	category = "Indexes"
 	pass
 	
 class Mapper(IndexingWrapper):
+	category = "Indexes"
 	pass
 
 class SNPCaller(IndexingWrapper):
+	category = "SNPs"
 	pass

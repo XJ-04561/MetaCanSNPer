@@ -1,7 +1,7 @@
 
 [CURRENT]
 
-1. Implement minimap2 and GATK4
+1. Feed VCF data into the newick tree.
 
 [QOL]
 

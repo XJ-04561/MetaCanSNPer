@@ -13,16 +13,16 @@ from Wrappers import Aligner
 
 class Timeout(Aligner):
 	softwareName = "timeout"
-	commandTemplate = "timeout {options} {ref} {target} > {output}"
+	commandTemplate = "timeout {0[options]} {0[ref]} {0[query]} > {0[output]}"
 
 class Sleep(Aligner):
 	softwareName = "sleep"
-	commandTemplate = "sleep {options} {ref} {target} > {output}"
+	commandTemplate = "sleep {0[options]} {0[ref]} {0[query]} > {0[output]}"
 
 class ProgressiveMauve(Aligner):
 	softwareName = "progressiveMauve"
-	commandTemplate = "progressiveMauve {options} {ref} {target} > {output}"
-	format = "xmfa"
+	commandTemplate = "progressiveMauve {0[options]} {0[ref]} {0[query]} > {0[output]}"
+	outFormat = "xmfa"
 
 	'''This is probably not needed.'''
 	boolFlags = [

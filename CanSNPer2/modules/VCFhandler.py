@@ -1,6 +1,7 @@
 
+import time
 
-VCFHeader = """##fileformat=VCFv4.3
+EXAMPLE_VCF_HEADER = """##fileformat=VCFv4.3
 ##fileDate={dateYYYYMMDD}
 ##source=MetaCanSNPer
 ##reference={referenceFile}
@@ -20,4 +21,27 @@ VCFHeader = """##fileformat=VCFv4.3
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT
 """
 
-VCFRow = "{}	{}	{}	{}	{}	{}	{}	{}	{}"
+VCF_HEADER = """##fileformat=VCFv4.3
+##fileDate={dateYYYYMMDD}
+##source=MetaCanSNPer
+##reference={referenceFile}
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT
+"""
+
+VCF_ROW =       "{CHROM}	{POS}	{ID}	{REF}	{ALT}	{QUAL}	{FILTER}	{INFO}	{FORMAT}"
+
+DEFAULT_FORMAT = "BQ:DP:MQ:"
+
+class OpenVCF:
+	def __init__(self, filename : str, mode : str, referenceFile, newline : str="\n"):
+		self.fileHandler = open(filename, mode=mode)
+		self.newline = newline
+
+		if mode == "w":
+			self.fileHandler.write(VCF_HEADER.format(dateYYYYMMDD="{:0>4}{:0>2}{:0>2}".format(*(time.localtime()[:3])), referenceFile=referenceFile))
+	
+	def append(self, CHROM : str=".", POS : str=".", ID : str=".", REF : str=".", ALT : str=".", QUAL : str=".", FILTER : str=".", INFO : str=".", FORMAT : str="."):
+		self.fileHandler.write( VCF_ROW.format(CHROM, POS, ID, REF, ALT, QUAL, FILTER, INFO, FORMAT)+self.newline)
+	
+	def close(self):
+		self.fileHandler.close()

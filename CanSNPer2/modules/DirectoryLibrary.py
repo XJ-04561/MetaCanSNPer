@@ -111,7 +111,6 @@ class DirectoryLibrary:
 		self.query = None
 
 		self.indexed = {}
-		self.maps = {}
 		self.SNPs = {}
 
 		self.__cache = {}
@@ -259,6 +258,8 @@ class DirectoryLibrary:
 			self.tmpDir = self.newRandomName(tmpDir)
 		
 		self.access(self.tmpDir, create=True)
+		self.access(os.path.join(self.tmpDir, "Indexes"), create=True)
+		self.access(os.path.join(self.tmpDir, "SNPs"), create=True)
 	
 	def setQuery(self, query : str, abs : bool=True):
 		if abs is not True:
@@ -267,11 +268,29 @@ class DirectoryLibrary:
 		else:
 			self.query = query
 			self.access(self.query, mode="r")
+		self.setCurrentTargets(self.query)
+	
+	def setReferences(self, references : list[str,str,str,str,str]):
+		self.references = {}
+		for genome, strain, genbank_id, refseq_id, assembly_name in references:
+			filename = DownloadReferences.download(genbank_id, refseq_id, assembly_name, dst=self.Lib.refDir)
+			if not os.path.exists(filename):
+				msg = "Could not download reference genome: {genbank_id='{genbank_id}', refseq_id='{refseq_id}' assembly_name='{assembly_name}'}".format(genbank_id=genbank_id, refseq_id=refseq_id, assembly_name=assembly_name)
+				LOGGER.error(msg)
+				raise FileNotFoundError(msg)
+			self.references[genome] = filename
+
+	def setIndexes(self, indexes : dict[tuple[str,str],str]):
+		for (q,r),iP in indexes.items():
+			self.access(iP)
+		self.indexes = indexes
+	
+	def setSNPs(self, SNPs : dict[str,str]):
+		for r,SNP in SNPs.items():
+			self.access(SNP, mode="r")
+		self.SNPs = SNPs
 	
 	'''Get-functions'''
-
-	def create(self, *paths): # Unsure if needed.
-		os.makedirs( os.path.join(*paths))
 
 	def get(self, filename : str, hint : str=None):
 		'''Gets the absolute path to a file/directory found in one of the directories used by the Library. Hint can be
@@ -310,17 +329,10 @@ class DirectoryLibrary:
 
 		return filename
 	
-	def getReferences(self, references : list[str,str,str,str,str]):
-		'''Returns list of references.'''
-		references = {}
-		for genome, strain, genbank_id, refseq_id, assembly_name in references:
-			filename = DownloadReferences.download(genbank_id, refseq_id, assembly_name, dst=self.Lib.refDir)
-			if not os.path.exists(filename):
-				msg = "Could not download reference genome: {genbank_id='{genbank_id}', refseq_id='{refseq_id}' assembly_name='{assembly_name}'}".format(genbank_id=genbank_id, refseq_id=refseq_id, assembly_name=assembly_name)
-				LOGGER.error(msg)
-				raise FileNotFoundError(msg)
-			references[genome] = filename
-		return references
+	def getReferences(self) -> dict[str,str]:
+		'''Returns current list of references as a dictionary {GENOME_NAME : REFERENCE_PATH}'''
+		
+		return self.references
 	
 	def access(self, path, mode : str="rwx", create : bool=False):
 		'''Throws appropriate errors if access is not possible.'''
