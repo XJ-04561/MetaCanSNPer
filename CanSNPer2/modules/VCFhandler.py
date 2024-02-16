@@ -1,4 +1,5 @@
 
+import numpy as np
 import time
 
 EXAMPLE_VCF_HEADER = """##fileformat=VCFv4.3
@@ -7,17 +8,17 @@ EXAMPLE_VCF_HEADER = """##fileformat=VCFv4.3
 ##reference={referenceFile}
 ##contig=<ID={ID},length={length},assembly={assembly},md5={md5},species="{species}",taxonomy="{taxonomy}">
 ##phasing={phasing}
+##INFO=<ID=NS,Number=1,Type=Integer,Description="Number of Samples With Data">
 ##INFO=<ID=DP,Number=1,Type=Integer,Description="Total Depth">
 ##INFO=<ID=AF,Number=A,Type=Float,Description="Allele Frequency">
 ##INFO=<ID=AA,Number=1,Type=String,Description="Ancestral Allele">
-##INFO=<ID=DB,Number=0,Type=Flag,Description="dbSNP membership, build 129">
-##INFO=<ID=H2,Number=0,Type=Flag,Description="HapMap2 membership">
 ##FILTER=<ID=q10,Description="Quality below 10">
 ##FILTER=<ID=s50,Description="Less than 50% of samples have data">
 ##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
 ##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype Quality">
 ##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Read Depth">
-##FORMAT=<ID=HQ,Number=2,Type=Integer,Description="Haplotype Quality">
+##FORMAT=<ID=BQ,Number=1,Type=Integer,Description="RMS base quality at this position">
+##FORMAT=<ID=MQ,Number=2,Type=Integer,Description="RMS mapping quality, e.g. MQ=52">
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT
 """
 
@@ -30,16 +31,51 @@ VCF_HEADER = """##fileformat=VCFv4.3
 
 VCF_ROW =       "{CHROM}	{POS}	{ID}	{REF}	{ALT}	{QUAL}	{FILTER}	{INFO}	{FORMAT}"
 
-DEFAULT_FORMAT = "BQ:DP:MQ:"
+DEFAULT_FORMAT = "GT:GQ:DP:BQ:MQ"
 
+'''Concerns about future-proofing: diploid genomes give more than one result-column per sample. Looks like: 0|1:[...]
+where | separates the base call for each chromosomal pair.'''
 class OpenVCF:
+	meta : list[str]
+	header : list[str] # Header for the VCF, contains names of samples and other columns
+	positions : np.ndarray[int] # List of positions of the SNPs
+	SNPsinfo : np.ndarray[str] # A lookup for information about the SNP at that position
+	samples : np.ndarray[np.ndarray] # A 3D table of the data. axis 0 separates positions, axis 1 separates samples, axis 2 separates data
+	columnIndex : dict[str, int]= {
+		"CHROM" : 0,
+		"POS" : 1,
+		"ID" : 2,
+		"REF" : 3,
+		"ALT" : 4,
+		"QUAL" : 5,
+		"FILTER" : 6,
+		"INFO" : 7,
+		"FORMAT" : 8
+	}
+
 	def __init__(self, filename : str, mode : str, referenceFile, newline : str="\n"):
 		self.fileHandler = open(filename, mode=mode)
 		self.newline = newline
 
 		if mode == "w":
-			self.fileHandler.write(VCF_HEADER.format(dateYYYYMMDD="{:0>4}{:0>2}{:0>2}".format(*(time.localtime()[:3])), referenceFile=referenceFile))
-	
+			self.header = VCF_HEADER.format(dateYYYYMMDD="{:0>4}{:0>2}{:0>2}".format(*(time.localtime()[:3])), referenceFile=referenceFile)
+			self.fileHandler.write(self.header)
+		elif mode == "r":
+			self.meta = []
+			row = self.fileHandler.readline()
+			while row[:2] == "##":
+				self.meta.append(row)
+				row = self.fileHandler.readline()
+			if row[:1] == "#":
+				self.header = row[1:].strip().split("\t")
+			self.positions
+			self.SNPsinfo
+			self.samples
+			for row in self.fileHandler:
+				CHROM, POS, ID, REF, ALT, QUAL, FILTER, INFO, FORMAT, SAMPLES = row.strip().split("\t")
+			
+
+
 	def append(self, CHROM : str=".", POS : str=".", ID : str=".", REF : str=".", ALT : str=".", QUAL : str=".", FILTER : str=".", INFO : str=".", FORMAT : str="."):
 		self.fileHandler.write( VCF_ROW.format(CHROM, POS, ID, REF, ALT, QUAL, FILTER, INFO, FORMAT)+self.newline)
 	

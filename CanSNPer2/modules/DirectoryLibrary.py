@@ -7,10 +7,10 @@ random.seed()
 import logging
 try:
 	import CanSNPer2.modules.LogKeeper as LogKeeper
-	import CanSNPer2.modules.DownloadReferences as DownloadReferences
+	from CanSNPer2.modules.DownloadReferences import DownloadQueue
 except:
 	import LogKeeper as LogKeeper
-	import DownloadReferences as DownloadReferences
+	from DownloadReferences import DownloadQueue
 
 LOGGER = LogKeeper.createLogger(__name__)
 PERMS_LOOKUP = {"r":"read", "w":"write", "x":"execute"}

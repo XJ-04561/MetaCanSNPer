@@ -9,7 +9,14 @@ import os
 import re
 import mmap
 import logging
-logger = logging.getLogger(__name__)
+try:
+	import CanSNPer2.modules.LogKeeper as LogKeeper
+	import CanSNPer2.modules.VCFhandler as OpenVCF
+except:
+	import LogKeeper as LogKeeper
+	import VCFhandler as OpenVCF
+
+LOGGER = logging.getLogger(__name__)
 
 reference_genomes = ["FSC200","SCHUS4.1","SCHUS4.2","OSU18","LVS","FTNF002-00"]
 
@@ -65,7 +72,7 @@ class Map:
 					break
 				else:
 					return self._filepos[i] + pos - r.start + len(self._newline)*(pos - r.start)//LINEWIDTH
-		return -1
+		return "-"
 
 	def find(self, pos : int):
 		'''Return where in the associated file object that this position corresponds to.'''
@@ -73,32 +80,35 @@ class Map:
 	
 
 
-class ParseXMFA(object):
-	entryHeader : re.Pattern = re.compile(b"^[>] [0-9]+:(?P<start>[0-9]+)-(?P<stop>[0-9]+) - .*", re.MULTILINE)
+class ParseXMFA:
+	entryHeader : re.Pattern = re.compile(b"^[>] (?P<seqID>[0-9]+):(?P<start>[0-9]+)-(?P<stop>[0-9]+) - .*", re.MULTILINE)
+	reference : int
 	filename : str
 	_mmap : mmap.mmap
-	coverage : Map
+	coverage : list[Map]
 
-	def __init__(self, filename : str=None, mode : str="r"):
+	def __init__(self, filename : str=None, mode : str="r", reference : int=1):
 		if filename is not None:
-			self.open(filename, mode)
+			self.open(filename, mode, reference)
 			self.mapBlocks()
 	
 	def __contains__(self, item):
-		return item in self.coverage
+		return any(item in map for map in self.coverage)
 	
 	def __getitem__(self, key : list[int]|int):
 		offset = self.index(key)
 		if type(offset) is list:
-			return [self._mmap[o] for o in offset]
+			return map(self._mmap.__getitem__, offset)
 		else:
 			return self._mmap[offset]
 				
-	def open(self, filename, mode : str):
+	def open(self, filename, mode : str, reference : int):
 		self.filename = filename
+		self.reference = reference
 		self.file = open(self.filename, "r+b") # Makes the file writeable, but we do not intend to edit it
 		self.file.readline()
-		self.coverage = Map(self.file.newlines)
+		self.newlines = self.file.newlines
+		self.coverage = {}
 		self.file.seek(0)
 
 		if mode == "rw":
@@ -111,20 +121,45 @@ class ParseXMFA(object):
 			raise ValueError("'{}' is not a valid mode for opening files.".format(mode))
 	
 	def mapBlocks(self):
+		'''Can handle multiple alignments'''
+		block = {}
 		for m in self.entryHeader.finditer():
-			filepos = m.end()+2
 			ntRange = range(int(m.group("start")), int(m.group("stop")))
-			self.coverage += filepos, ntRange
-		
+			filepos = m.end()+len(self.newlines)
+			if int(m.group("seqID")) in block:
+				if self.reference not in block:
+					LOGGER.error("XMFA file must only have blocks that match the given reference sequence.")
+					raise ValueError("XMFA file must only have blocks that match the given reference sequence.")
+				for i in block:
+					if i != self.reference:
+						if i not in self.coverage: self.coverage[i] = Map(self.newlines)
+						self.coverage[i] += block[i][0], block[self.reference][1]
+						
+				self.block = {}
+			else:
+				block[int(m.group("seqID"))] = (filepos, ntRange)
+	
 	def index(self, pos : int, *mPos : int):
 		'''Takes more than 0 integer positions in the sequence covered by the XMFA and returns the byte position(s) in
 		the XMFA file that correspond to the given position in the aligned sequence. If only one position is given the
 		return type is int. If more than one positions are ggiven, a list of byte positions is returned.'''
 		if len(mPos) == 0:
-			return self.coverage[pos]
+			return [map[pos] for map in self.coverage]
 		else:
-			return [self.coverage[p] for p in [pos]+mPos]
+			return [[map[p] for map in self.coverage] for p in [pos]+mPos]
 
 if __name__=="__main__":
-	parser = ParseXMFA(os.path.join("CanSNPer2", "test.xmfa"))
+	import argparse
+	aparse = argparse.ArgumentParser()
+	aparse.add_argument("XMFAfile", metavar="XMFAfile", help="Alignment .XMFA file to load.")
+	aparse.add_argument("SNPfile", metavar="SNPfile", help="A .vcf file of the SNPs to be called.")
+	aparse.add_argument("--refIndex", metavar="refIndex", help="The sequence index of the reference genome in the .XMFA file.")
+
+	args = aparse.parse_args()
+
+	parser = ParseXMFA(filename=args.XMFAfile, reference=args.refIndex)
+
+	snpFile = OpenVCF(args.SNPfile, "r")
+	
+	map(lambda *args: [args[0], int(args[1]) if args[1] != "." else args[1], *(args[2:])], snpFile)
 	
