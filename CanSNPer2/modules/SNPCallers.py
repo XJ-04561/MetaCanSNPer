@@ -29,7 +29,7 @@ class Sleep(SNPCaller):
 
 class GATK_Mutect2(SNPCaller):
 	softwareName = "gatk_Mutect2"
-	commandTemplate = "gatk Mutect2 -R {0[refPath]} -I {0[indexPath]} --alleles {0[SNPs]} -O {0[output]}"
+	commandTemplate = "gatk Mutect2 -R {0[refPath]} -I {0[indexPath]} -L {0[SNPs]} --alleles {0[SNPs]} -O {0[output]} > {0[logFile]}"
 
 	def preProcess(self, data, force : bool=False):
 		SNPFiles = {}
@@ -42,7 +42,7 @@ class GATK_Mutect2(SNPCaller):
 				positions.sort()
 				for pos in positions:
 					p, ref, alt, id = POS=SNPs[pos]
-					f.append(POS=p, ID=id, REF=ref, ALT=alt)
+					f.append(CHROM=, POS=p, ID=id, REF=ref, ALT=alt)
 				f.save()
 			SNPFiles[os.splitext(os.path.basename(reference))[1]] = filename
 		self.Lib.setSNPs(SNPFiles)

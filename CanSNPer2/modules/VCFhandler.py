@@ -26,10 +26,10 @@ VCF_HEADER = """##fileformat=VCFv4.3
 ##fileDate={dateYYYYMMDD}
 ##source=MetaCanSNPer
 ##reference={referenceFile}
-#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
 """
 
-VCF_ROW =       "{CHROM}	{POS}	{ID}	{REF}	{ALT}	{QUAL}	{FILTER}	{INFO}	{FORMAT}"
+VCF_ROW =       "{CHROM}	{POS}	{ID}	{REF}	{ALT}	{QUAL}	{FILTER}	{INFO}"
 
 DEFAULT_FORMAT = "GT:GQ:DP:BQ:MQ"
 

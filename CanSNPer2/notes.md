@@ -1,9 +1,12 @@
 
-[CURRENT]
+## CURRENT
 
-1. Feed VCF data into the newick tree.
+1. Determine SNP in VCF
+2. Feed VCF data into the newick tree.
 
-[QOL]
+## QOL
+
+ * Mutect2 needs a proper --tmp-dir set or it will throw warnings
 
  * Cache the hash of query
  * Should all directory lookups follow the same hierarchy?
@@ -14,7 +17,7 @@
  * One program takes all references or just one at a time?
  * "Download" client separate from CanSNPer
 
-[STRUCTURE]
+## STRUCTURE
 
 * modules/
 *   CanSNPer2.py
@@ -34,3 +37,8 @@
 * References/
 * 
 * 
+
+## DUMP
+
+ * Minimap2
+    * @RG PL: [CAPILLARY, DNBSEQ (MGI/BGI), ELEMENT, HELICOS, ILLUMINA, IONTORRENT, LS454, ONT (Oxford Nanopore), PACBIO (Pacific Bio-sciences), SINGULAR, SOLID, and ULTIMA]

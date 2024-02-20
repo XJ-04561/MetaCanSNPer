@@ -11,6 +11,7 @@ try:
 except:
 	import LogKeeper as LogKeeper
 	from DownloadReferences import DownloadQueue
+import PyVCF as vcf
 
 LOGGER = LogKeeper.createLogger(__name__)
 PERMS_LOOKUP = {"r":"read", "w":"write", "x":"execute"}
@@ -45,11 +46,12 @@ class DirectoryLibrary:
 
 	query : list[str]
 	
-	# Dictionary keys are tuples of (reference, query)
-	# Dictionary values are the absolute paths to the file.
+	
 	indexed : dict[tuple[str, str], str]
 	maps : dict[tuple[str, str], str]
 	SNPs : dict[tuple[str, str], str]
+	'''Dictionary keys are tuples of (reference, query).
+	Dictionary values are the absolute paths to the file.'''
 
 	__cache : dict[str]
 	
@@ -273,7 +275,7 @@ class DirectoryLibrary:
 	def setReferences(self, references : list[str,str,str,str,str]):
 		self.references = {}
 		for genome, strain, genbank_id, refseq_id, assembly_name in references:
-			filename = DownloadReferences.download(genbank_id, refseq_id, assembly_name, dst=self.Lib.refDir)
+			filename = DownloadReferences.download(genbank_id, refseq_id, assembly_name, dst=self.refDir)
 			if not os.path.exists(filename):
 				msg = "Could not download reference genome: {genbank_id='{genbank_id}', refseq_id='{refseq_id}' assembly_name='{assembly_name}'}".format(genbank_id=genbank_id, refseq_id=refseq_id, assembly_name=assembly_name)
 				LOGGER.error(msg)
@@ -334,6 +336,23 @@ class DirectoryLibrary:
 		
 		return self.references
 	
+	def gatherSNPdata(self) -> dict[tuple[str,str],tuple[int,str,str,list[str],int,dict[str,int|str|list[float]|bool],dict[str,dict[str,int|str|list[int,int]]]]]:
+		'''Returns: {
+			(reference, query) : (POS, ID, REF, ALT, QUAL, INFO, samples),
+			...
+		}
+		Where:
+			POS		= number	, ID		= name	, REF		= seq,
+			ALT		= [seq, ]	, QUAL		= number, INFO		= {"XY" : value, ...},
+			samples	= {sampleName : {"XY" : value, }, }
+		'''
+		SNPs = {}
+		for (reference, query), path in self.SNPs.items():
+			reader = vcf.Reader(filename=path)
+			SNPs[(reference, query)] = [(entry.POS+1, entry.ID, entry.REF, entry.ALT, entry.QUAL, entry.INFO, {sample.sample:{key:sample.data.__getattribute__(key) for key in dir(sample.data) if key.isupper()} for sample in entry.samples}) for entry in reader]
+		
+		return SNPs
+
 	def access(self, path, mode : str="rwx", create : bool=False):
 		'''Throws appropriate errors if access is not possible.'''
 		

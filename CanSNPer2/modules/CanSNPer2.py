@@ -105,6 +105,7 @@ class CanSNPer2:
 
 	def setQuery(self, query : str):
 		self.Lib.setQuery(query)
+		self.queryName, self.queryFormat = os.path.splitext(os.path.basename(self.Lib.query)) ## get name of file and remove ending
 	
 	def setRefDir(self, references : str):
 		''''references' is either an absolut path or a path to an accepted directory.'''
@@ -130,7 +131,7 @@ class CanSNPer2:
 		return self.Lib.getReferences()
 	
 	def setReferences(self):
-		self.Lib.setReferences(self.database.getReferences().values())
+		self.Lib.setReferences(self.database.getReferences())
 
 	def getQuery(self):
 		return self.Lib.query
@@ -234,16 +235,79 @@ class CanSNPer2:
 					if snpCaller.returncodes[i][-1] == 0:
 						self.Lib.SNPs[key] = path
 
+	def traverseTree(self, SNPs : dict[tuple[str,str],str], calledSNPs):
+		'''If save tree is requested print tree using ETE3 prints a pdf tree output'''
+
+
+		SNP = "NA" ## Default message if SNP cannot be confirmed
+		final_snp,message,called = self.create_tree(SNPs, self.query_name, calledSNPs,min_required_hits=self.min_required_hits,strictness=self.strictness)
+		if final_snp:
+			SNP = final_snp[1]
+			if not final_snp[2][0]:  ## if snp was never confirmed print NA
+				SNP = "NA"
+			if self.export:
+				with open(outputfile2, "w") as called_out:
+					if True:
+						print("\t".join(["Name","Reference","Pos","Ancestral base","Derived base", "Target base"]),file=called_out)
+						for snp in called:
+							print("\t".join(self.csnpdict[snp[1]]),file=called_out)
+					print("SNP path: {path}".format(path=";".join([snp[1] for snp in called])),file=called_out)
+					print("Final SNP: {snp} found/depth: {found}/{depth}".format(snp=SNP,depth=int(final_snp[0]),found=final_snp[2][1]),file=called_out)
+			LOGGER.info("Final SNP: {snp} found/depth: {found}/{depth}".format(snp=SNP,depth=int(final_snp[0]),found=final_snp[2][1]))
+		else:
+			if self.export:
+				with open(outputfile2, "a") as called_out:
+					print("Final SNP: {snp}".format(snp=SNP), file=called_out)
+			LOGGER.info(message)
+		if self.summary and SNP != "NA":
+			self.summary_set |= set([SNP])
+			self.called_genome[SNP] = self.query_name
+		if self.export:
+			print("{query}: {SNP}".format(query=self.query_name, SNP=SNP))
+		'''Clean references to aligned xmfa files between queries if several was supplied'''
+		self.xmfa_files = []
+
+		if self.summary:
+			self.print_summary()
+		'''Finally clean up temporary folder when all alignments and trees has been printed!'''
+		if not self.keep_temp and len(self.query) > 0: ## if keep temp is turned on do not remove away alignments also if no input files were given
+			self.cleanup()
+
+		LOGGER.info("CanSNPer2 finished successfully, files can be found in {outdir}".format(outdir=self.outdir+"/"))
 
 	'''Functions'''
 
-	def create_tree(self,SNPS,name,called_snps,save_tree,min_required_hits,strictness=0.7, summary=False):
+	def saveSNPdata(self):
+		self.Lib.SNPs
+		notCalledFilename = os.path.join(self.Lib.resultDir, self.Lib.queryName+"_not_called.tsv")
+		calledFilename = os.path.join(self.Lib.resultDir, self.Lib.queryName+"_snps.tsv")
+
+		SNPs = self.Lib.gatherSNPdata()
+
+		LOGGER.info("Printing SNP info of non called SNPs to {file}".format(file=notCalledFilename))
+		called = []
+		notCalled = []
+		for (reference, query), SNPinfo in SNPs.items():
+			'''Print SNPs to tab separated file'''
+			
+			called.append("\t".join(["Name","Reference","Pos","Ancestral base","Derived base", "Target base"]))
+			notCalled.append("\t".join(["Name","Reference","Pos","Ancestral base","Derived base", "Target base"]))
+			for POS, ID, REF, ALT, QUAL, INFO, samples in SNPinfo:
+				
+		with open(calledFilename, "w") as f:
+			f.write("\t".join(["Name","Reference","Pos","Ancestral base","Derived base", "Target base"]))
+
+		with open(notCalledFilename, "w") as f:
+			f.write("\t".join(["Name","Reference","Pos","Ancestral base","Derived base", "Target base"]))
+
+
+	def create_tree(self,SNPS,name,called_snps,min_required_hits,strictness=0.7, summary=False):
 		'''This function uses ETE3 to color the SNP tree in the database with SNPS found in the reference database
 			and outputs a pdf file
 		'''
 		newickTree = NewickTree(self.database,name,self.Lib.outDir,min_required_hits=min_required_hits, strictness=strictness)
-		final_snp = newickTree.draw_ete3_tree(SNPS,called_snps,save_tree,summary=summary)
-		LOGGER.info("{outdir}/{name}_tree.pdf".format(outdir =self.outdir, name=name))
+		final_snp = newickTree.draw_ete3_tree(SNPS,called_snps,self.settings["saveTree"],summary=summary)
+		LOGGER.info("{outdir}/{name}_tree.pdf".format(outdir=self.outdir, name=name))
 		return final_snp
 
 	def readQueriesFrom(self, queryFile : str):
