@@ -21,16 +21,11 @@ class Sleep(Mapper):
 
 class Minimap2(Mapper):
 	softwareName = "minimap2"
-	commandTemplate = "minimap2 {0[options]} {0[ref]} {0[query]} > {0[output]}"
+	commandTemplate = "minimap2 -ax {0[preset]} {0[options]} -R '@RG\tID:{0[queryName]}\tSM:{0[queryName]}' --junc-bed '{0[refPath]}.bed' --sam-hit-only '{0[refPath]}' {0[query]} | samtools sort -T '{0[tmpDir]}' -o {0[output]} && samtools index {0[output]} samtools"
+	outFormat = "sam"
 
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
-		if "-a" in kwargs and kwargs["a"] is True:
-			self.outFormat = "sam"
-		elif "-a" in kwargs and kwargs["a"] is True:
-			self.outFormat = "bam"
-		else:
-			self.outFormat = "paf"
 
 	boolFlags = [
 		# Indexing options
@@ -157,6 +152,35 @@ class Minimap2(Mapper):
 			# ava-pb    PacBio CLR all-vs-all overlap mapping (-Hk19 -Xw5 -e0 -m100).
 			# ava-ont   Oxford Nanopore all-vs-all overlap mapping (-k15 -Xw5 -e0 -m100 -r2k).
 	]
+
+	def preProcess(self, references, snps):
+		# Create bed-file of only the SNP locations + padding
+		pad = self.settings["RegionPadding"]
+		for genome, (refPath,*_) in self.Lib.getReferences().items():
+			f = open(refPath+".bed", "w")
+			# Write a header maybe??
+			for pos in sorted(self.Lib.SNPs):
+				f.write("{}\t{}\t{}\n".format(start=pos-pad-2, end=pos+pad))
+			f.close()
+		if "Preset" in self.settings:
+			self.formatDict["preset"] = self.settings["Preset"]
+			'''Valid presets:
+			map-ont		Align noisy long reads of ~10% error rate to a reference genome. This is the default mode.
+			map-hifi	Align PacBio high-fidelity (HiFi) reads to a reference genome (-k19 -w19 -U50,500 -g10k -A1 -B4 -O6,26 -E2,1 -s200).
+			map-pb		Align older PacBio continuous long (CLR) reads to a reference genome (-Hk19).
+			asm5		Long assembly to reference mapping (-k19 -w19 -U50,500 --rmq -r100k -g10k -A1 -B19 -O39,81 -E3,1 -s200 -z200 -N50). Typically, the alignment will not extend to regions with 5% or higher sequence divergence. Only use this preset if the average divergence is far below 5%.
+			asm10		Long assembly to reference mapping (-k19 -w19 -U50,500 --rmq -r100k -g10k -A1 -B9 -O16,41 -E2,1 -s200 -z200 -N50). Up to 10% sequence divergence.
+			asm20		Long assembly to reference mapping (-k19 -w10 -U50,500 --rmq -r100k -g10k -A1 -B4 -O6,26 -E2,1 -s200 -z200 -N50). Up to 20% sequence divergence.
+			splice		Long-read spliced alignment (-k15 -w5 --splice -g2k -G200k -A1 -B2 -O2,32 -E1,0 -b0 -C9 -z200 -ub --junc-bonus=9 --cap-sw-mem=0 --splice-flank=yes). In the splice mode, 1) long deletions are taken as introns and represented as the ‘N’ CIGAR operator; 2) long insertions are disabled; 3) deletion and insertion gap costs are different during chaining; 4) the computation of the ‘ms’ tag ignores introns to demote hits to pseudogenes.
+			splice:hq	Long-read splice alignment for PacBio CCS reads (-xsplice -C5 -O6,24 -B4).
+			sr			Short single-end reads without splicing (-k21 -w11 --sr --frag=yes -A2 -B8 -O12,32 -E2,1 -b0 -r100 -p.5 -N20 -f1000,5000 -n2 -m20 -s40 -g100 -2K50m --heap-sort=yes --secondary=no).
+			ava-pb		PacBio CLR all-vs-all overlap mapping (-Hk19 -Xw5 -e0 -m100).
+			ava-ont		Oxford Nanopore all-vs-all overlap mapping (-k15 -Xw5 -e0 -m100 -r2k). 
+			'''
+		else:
+			LOGGER.error("No preset for minimap2 set!")
+			raise ValueError("No preset for minimap2 set!")
+		
 
 def get(softwareName) -> Mapper:
 	for c in Mapper.__subclasses__():

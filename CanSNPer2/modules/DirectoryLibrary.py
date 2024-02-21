@@ -280,7 +280,7 @@ class DirectoryLibrary:
 				msg = "Could not download reference genome: {genbank_id='{genbank_id}', refseq_id='{refseq_id}' assembly_name='{assembly_name}'}".format(genbank_id=genbank_id, refseq_id=refseq_id, assembly_name=assembly_name)
 				LOGGER.error(msg)
 				raise FileNotFoundError(msg)
-			self.references[genome] = filename
+			self.references[genome] = filename, strain, genbank_id, refseq_id, assembly_name
 
 	def setIndexes(self, indexes : dict[tuple[str,str],str]):
 		for (q,r),iP in indexes.items():
@@ -331,8 +331,9 @@ class DirectoryLibrary:
 
 		return filename
 	
-	def getReferences(self) -> dict[str,str]:
-		'''Returns current list of references as a dictionary {GENOME_NAME : REFERENCE_PATH}'''
+	def getReferences(self) -> dict[str,(str, str, str, str, str)]:
+		'''Returns current list of references as a dictionary:
+			{GENOME_NAME : (REFERENCE_PATH, STRAIN, GENBANK_ID, REFSEQ_ID, ASSEMBLY_NAME)}'''
 		
 		return self.references
 	

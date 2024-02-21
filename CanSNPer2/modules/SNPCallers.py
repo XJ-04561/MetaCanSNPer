@@ -1,18 +1,25 @@
 
 import os
-import logging
+import time
 try:
 	import LogKeeper as LogKeeper
 
 	LOGGER = LogKeeper.createLogger(__name__)
 	from Wrappers import SNPCaller
-	from VCFhandler import OpenVCF, DEFAULT_FORMAT
 except:	
 	import CanSNPer2.modules.LogKeeper as LogKeeper
 
 	LOGGER = LogKeeper.createLogger(__name__)
 	from CanSNPer2.modules.Wrappers import SNPCaller
-	from CanSNPer2.modules.VCFhandler import OpenVCF, DEFAULT_FORMAT
+
+VCF_HEADER = """##fileformat=VCFv4.3
+##fileDate={dateYYYYMMDD}
+##source=MetaCanSNPer
+##reference={refPath}
+##contig=<ID=0,URL={refPath}>
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
+"""
+VCF_ROW =       "{CHROM}	{POS}	{ID}	{REF}	{ALT}	{QUAL}	{FILTER}	{INFO}"
 
 '''
 	All that is needed to create a new implementation is to inherit from the correct software type ('Aligner' in this case) and set
@@ -29,23 +36,32 @@ class Sleep(SNPCaller):
 
 class GATK_Mutect2(SNPCaller):
 	softwareName = "gatk_Mutect2"
-	commandTemplate = "gatk Mutect2 -R {0[refPath]} -I {0[indexPath]} -L {0[SNPs]} --alleles {0[SNPs]} -O {0[output]} > {0[logFile]}"
+	commandTemplate = "gatk IndexFeatureFile -I '{0[SNPs]}' && gatk Mutect2 -R {0[refPath]} -I {0[indexPath]} -L {0[SNPs]} --alleles {0[SNPs]} -O {0[output]} > {0[logFile]}"
 
 	def preProcess(self, data, force : bool=False):
+		
+		# Create VCF files that contain the to-be called SNPs
+
 		SNPFiles = {}
-		for reference, SNPs in data:
-			filename = "{ref}.vcf".format(ref=reference)
+		for genome, SNPs in data:
+			refPath, strain, genkbank_id, refseq_id, assembly_name = self.Lib.references[genome] # dadsadasd
+			# accession = open(refPath, "r").readline()[1:].split()[0]
+			filename = "{ref}.vcf".format(ref=refPath)
 			if force is True or not os.path.exists(filename):
 				
-				f = openVCF(filename, "w", os.path.basename(reference))
+				vcfFile = open(filename, "w")
+				vcfFile.write(VCF_HEADER.format(dateYYYYMMDD="{:0>4}{:0>2}{:0>2}".format(*(time.localtime()[:3])), refPath=refPath))
 				positions = list(SNPs.keys())
 				positions.sort()
 				for pos in positions:
-					p, ref, alt, id = POS=SNPs[pos]
-					f.append(CHROM=, POS=p, ID=id, REF=ref, ALT=alt)
-				f.save()
-			SNPFiles[os.splitext(os.path.basename(reference))[1]] = filename
-		self.Lib.setSNPs(SNPFiles)
+					p, ref, alt, id =SNPs[pos]
+					# CHROM has to be the same as the accession id that is in the reference file.
+					vcfFile.write(VCF_ROW.format(CHROM="0", POS=p, ID=id, REF=ref, ALT=alt)+"\n")
+				vcfFile.close()
+				self.commandTemplate = "gatk IndexFeatureFile -I '{0[SNPs]}' && " + self.commandTemplate
+				
+			SNPFiles[genome] = filename
+		self.Lib.setSNPfiles(SNPFiles)
 
 class GATK_HaplotypeCaller(SNPCaller):
 	softwareName = "gatk_HaplotypeCaller"

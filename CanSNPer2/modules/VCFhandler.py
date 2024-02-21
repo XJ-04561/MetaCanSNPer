@@ -25,7 +25,8 @@ EXAMPLE_VCF_HEADER = """##fileformat=VCFv4.3
 VCF_HEADER = """##fileformat=VCFv4.3
 ##fileDate={dateYYYYMMDD}
 ##source=MetaCanSNPer
-##reference={referenceFile}
+##reference={refPath}
+##contig=<ID=0,URL={refPath}>
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
 """
 
@@ -58,7 +59,7 @@ class OpenVCF:
 		self.newline = newline
 
 		if mode == "w":
-			self.header = VCF_HEADER.format(dateYYYYMMDD="{:0>4}{:0>2}{:0>2}".format(*(time.localtime()[:3])), referenceFile=referenceFile)
+			self.header = VCF_HEADER.format(dateYYYYMMDD="{:0>4}{:0>2}{:0>2}".format(*(time.localtime()[:3])), refPath=referenceFile)
 			self.fileHandler.write(self.header)
 		elif mode == "r":
 			self.meta = []

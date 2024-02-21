@@ -86,6 +86,8 @@ class CanSNPer2:
 				else:
 					self.settings[flag] = value
 
+		self.SNPs = {}
+
 		# Need for this is unknown, might remove later.
 		self.summarySet = set()
 		self.calledGenome = {}
@@ -113,6 +115,13 @@ class CanSNPer2:
 	
 	def setOutDir(self, outDir : str):
 		self.Lib.setOutDir(outDir)
+	
+	def setReferences(self):
+		self.Lib.setReferences(self.database.getReferences())
+	
+	def setSNPs(self):
+		for genome in self.getReferences():
+			self.SNPs[genome] = self.database.get_snps(reference=genome)[0]
 
 	'''MetaCanSNPer get functions'''
 
@@ -129,9 +138,6 @@ class CanSNPer2:
 		'''Fetch names of reference genomes in connected database. Download any reference genomes not present locally.'''
 		self.setReferences()
 		return self.Lib.getReferences()
-	
-	def setReferences(self):
-		self.Lib.setReferences(self.database.getReferences())
 
 	def getQuery(self):
 		return self.Lib.query
@@ -152,7 +158,6 @@ class CanSNPer2:
 			raise NotImplementedError("No software defined for name '{}'".format( softwareName))
 		
 		LOGGER.info("Checking if all references in the database have been downloaded. Downloads them if they haven't.")
-		self.setReferences()
 
 		LOGGER.info("Creating Indexer '{}' of type '{}'".format( softwareName, indexerType.__name__))
 		indexer : IndexingWrapper= indexerType(self.Lib, self.database, self.outputTemplate, kwargs=kwargs)
@@ -195,9 +200,9 @@ class CanSNPer2:
 
 		LOGGER.info("Loading SNPs from database.")
 		references = {}
-		for genome, refPath in self.Lib.getReferences().items():
+		for genome, reference in self.Lib.getReferences().items():
 			SNPs, snpList = self.database.get_snps(reference=genome)
-			references[refPath] = SNPs
+			references[genome] = SNPs
 			LOGGER.info("Loaded {n} SNPs for genome {genome}.".format(n=len(snpList), genome=genome))
 		LOGGER.info("Loaded a total of {n} SNPs.".format(n=sum(len(SNPs) for SNPs in references.values())))
 		
