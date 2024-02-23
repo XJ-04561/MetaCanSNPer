@@ -1,6 +1,7 @@
 
 
 import os
+from functools import cached_property, cache
 import shutil
 import random
 random.seed()
@@ -11,10 +12,59 @@ try:
 except:
 	import LogKeeper as LogKeeper
 	from DownloadReferences import DownloadQueue
-import PyVCF as vcf
+import vcf as vcf
 
 LOGGER = LogKeeper.createLogger(__name__)
 PERMS_LOOKUP = {"r":"read", "w":"write", "x":"execute"}
+PERMS_LOOKUP_OS = {"r":os.R_OK, "w":os.W_OK, "x":os.X_OK}
+MAX_RESULTS = 10**9
+
+''' Functions '''
+
+def findValidPath(self, paths, mode="r") -> str:
+	for d in paths:
+		if all(os.access(d, PERMS_LOOKUP_OS[c]) for c in mode):
+			return d
+	return None
+
+
+class DirectoryGroup:
+	_roots : list[str]
+
+	def __init__(self, *paths : tuple[str], purpose="r"):
+		self.defaultPurpose = purpose
+		for p in paths:
+			if not os.path.exists(p):
+				os.makedirs(p)
+		self._roots = [*paths]
+	
+	def __contains__(self, path : str):
+		for r in self._roots:
+			if os.path.exists(os.path.join(r, path)):
+				return True
+		return False
+
+	def __str__(self) -> str:
+		return "{}\t: {}".format(self._roots, [c if os.access(r, PERMS_LOOKUP_OS[c]) else " " for r in self._roots for c in "rwx"])
+
+	def __getitem__(self, path : str, purpose=None) -> str:
+		if purpose is None:
+			purpose = self.defaultPurpose
+		for r in self._roots:
+			if not os.path.exists(os.path.join(r, path)):
+				self.create(path)
+			
+			if os.access(os.path.join(r, path), PERMS_LOOKUP_OS[purpose]):
+				return os.path.join(r, path)
+		return None
+	
+	def create(self, path : str):
+		'''Should not be used to create files, only directories!'''
+		for r in self._roots:
+			if os.access(r, os.W_OK):
+				os.makedirs(os.path.join(r, os.path.dirname(path)))
+		return None
+		
 
 '''Container and handler of directories and files'''
 class DirectoryLibrary:
@@ -29,13 +79,30 @@ class DirectoryLibrary:
 	installDir : str
 	userDir : str
 
-	targetDir : str
-	refDir : str
-	tmpDir : str
-	outDir : str
+	@cached_property
+	def workDir(self):
+		return os.curdir
+	@cached_property
+	def installDir(self):
+		return os.path.dirname(__file__)
+	@cached_property
+	def userDir(self):
+		return os.path.expanduser("~")
+
+	targetDir : DirectoryGroup
+	refDir : DirectoryGroup
+	databaseDir : DirectoryGroup
+	tmpDir : DirectoryGroup
+	outDir : DirectoryGroup
 	resultDir : str
 	logDir : str
-	databaseDir : str
+
+	@property
+	def resultDir(self):
+		return self.outDir["Results"]
+	@property
+	def logDir(self):
+		return self.outDir["Logs"]
 
 	dirs = [
 		"workDir", "installDir", "userDir",
@@ -45,74 +112,46 @@ class DirectoryLibrary:
 	]
 
 	query : list[str]
-	
-	
 	indexed : dict[tuple[str, str], str]
 	maps : dict[tuple[str, str], str]
 	SNPs : dict[tuple[str, str], str]
+
 	'''Dictionary keys are tuples of (reference, query).
 	Dictionary values are the absolute paths to the file.'''
 
 	__cache : dict[str]
 	
 	def __init__(self, settings : dict, workDir : str=None, installDir : str=None, userDir : str=None,
-			     tmpDir : str=None, refDir : str=os.path.join("References", "Francisella_Tularensis"),
+			     targetDir : str=None, tmpDir : str=None, refDir : str=os.path.join("References", "Francisella_Tularensis"),
 				 databaseDir : str="Databases", outDir : str=None):
 		'''Needs only a settings dictionary implementing all keys specified in the 'defaultFlags.toml' that should be in
 		the installation directory, but keyword arguments can be used to force use directories.
-		
-		workDir		-	Will be used to find queries/targets, and is the second directory to be searched for references
-		
-		installDir	-	Will be used to store temporarily generated outputs, data, and converted data, and is the first
-						place to look for references.
-
-		userDir		-	Will be used as a backup place for temporary storage if permissions don't allow the installDir,
-						and is the third place to look for references.
 		'''
 
 		LOGGER.debug("Creating: {}".format(self))
 
 		self.settings = settings
 
-		if workDir is None:
-			self.workDir = os.getcwd()
-		else:
-			self.accessible(workDir)
+		if workDir is not None:
 			os.chdir(self.workDir)
 		
-		# Not really meant to be overriden, but implemented just in case.
-		if installDir is None:
-			self.installDir, _ = __file__.rsplit(os.path.sep, 1)
-		else:
-			self.accessible(installDir)
-			self.installDir = installDir
-		
-		# Not really meant to be overriden, but implemented just in case.
-		if userDir is None:
-			self.userDir = os.path.expanduser("~")
-		else:
-			self.accessible(userDir)
-			self.userDir = userDir
-
 		LOGGER.debug("Work dir:    '{}'".format(self.workDir))
 		LOGGER.debug("Install dir: '{}'".format(self.installDir))
 		LOGGER.debug("User dir:    '{}'".format(self.userDir))
-
-		self.perms = {}
-		for d in [self.workDir, self.installDir, self.userDir]:
-			self._permCheck(d)
 		
-		LOGGER.debug(str(self))
+		# Use a list of directories in order of priority, unless being forced via flags
+		self.targetDir = DirectoryGroup(*[self.workDir, self.installDir, self.userDir] if targetDir is None else targetDir)
+		self.refDir = DirectoryGroup(*[os.path.join(d, "References") for d in [self.installDir, self.userDir, self.workDir]] if refDir is None else refDir)
+		self.databaseDir = DirectoryGroup(*[os.path.join(d, "Databases") for d in [self.installDir, self.userDir, self.workDir]] if databaseDir is None else databaseDir)
+		self.tmpDir = DirectoryGroup(*[self.newRandomName(d) for d in [self.userDir, self.workDir, self.installDir]] if tmpDir is None else tmpDir)
+		self.outDir = DirectoryGroup(*[self.workDir, self.userDir] if outDir is None else outDir)
 
-		self.setTargetDir(self.workDir)
-		self.setRefDir(refDir)
-		self.setDatabaseDir()
-		self.setTmpDir(tmpDir)
-		self.setOutDir(outDir)
+		LOGGER.debug(str(self))
 		
 		self.query = None
 
 		self.indexed = {}
+		self.maps = {}
 		self.SNPs = {}
 
 		self.__cache = {}
@@ -151,126 +190,43 @@ class DirectoryLibrary:
 		return os.path.join(path, newName)
 
 	'''Set-functions'''
-
-	def setOutDir(self, outDir : str, abs=False):
-		if abs is True:
-			self.access(outDir, create=True)
-		elif outDir is None:
-			if not all(self.perms[self.workDir].values()):
-				LOGGER.error("No valid working directory or output directory given.\n" + str(self))
-				raise PermissionError("No valid working directory or output directory given.\n" + str(self))
-			else:
-				self.outDir = os.path.join(self.workDir, "MetaCanSNPer")
-				if not os.path.exists(self.outDir):
-					os.mkdir(self.outDir)
+	def setTargetDir(self, targetDir : str):
+		if os.path.isabs(targetDir):
+			self.targetDir = DirectoryGroup(targetDir, purpose="w")
 		else:
-			self.access(os.path.join(self.workDir, outDir))
-			rOutDir = self.get(outDir, "workDir")
-			self._permCheck(rOutDir)
-			if all(self.perms[rOutDir].values()):
-				self.outDir = rOutDir
-			else:
-				raise PermissionError("Given outDir='{}' does not have read, write, and execute permissions. It has '{}{}{}'".format(rOutDir, *[c if self.perms[rOutDir][c] else " " for c in "rwx"]))
-		self.setResultDir()
-		self.setLogDir()
-		
-	def setResultDir(self, name : str="Results", abs=False):
-		'''This method assumes that self.access(self.outDir) does not throw any errors.'''
-		if abs is True:
-			self.resultDir = name
-			self.access(self.resultDir, create=True)
-		elif "MergeNewResults" in self.settings and self.settings["MergeNewResults"]:
-			self.resultDir = os.path.join(self.outDir, name)
-			self.access(self.resultDir, create=True)
-		else:
-			n=1
-			while os.path.exists(os.path.join(self.outDir, "{}-{}".format(name, str(n)))):
-				n+=1
-			self.resultDir = os.path.join(self.outDir, "{}-{}".format(name, str(n)))
-			os.mkdir(self.resultDir)
+			self.targetDir = DirectoryGroup(*[os.path.join(d, targetDir) for d in [self.workDir, self.installDir, self.userDir]], purpose="r")
 	
-	def setLogDir(self, name : str="Logs", abs=False):
-		if abs is True:
-			self.logDir = name
+	def setRefDir(self, refDir : str):
+		if os.path.isabs(refDir):
+			self.refDir = DirectoryGroup(refDir, purpose="w")
 		else:
-			self.logDir = os.path.join(self.outDir, name)
-
-		self.access(self.logDir, create=True)
-
-	def setTargetDir(self, targetDir : str, abs=True):
-		'''targetDir must be an absolute reference. abs parameter exists only for consistency among sister methods.'''
-		if self.access(targetDir, mode="r") is True:
-			self.targetDir = targetDir
-
-	def setRefDir(self, refDir : str, abs=False):
-		if abs is True:
-			if self.access(refDir, mode="rx", create=True) is True:
-				self.refDir = refDir
-		refOrder = []
-		for d in [self.installDir, self.workDir, self.userDir]:
-			p = os.path.join(d, refDir)
-			if self.accessible(p, mode="rx", create=True) is True:
-				refOrder.append(p)
-
-		if refOrder == [] and os.path.exists(refDir):
-			# refDir is determined to be an absolute path
-			self.refDir = refDir
-		elif refOrder == []:
-			LOGGER.warning("Nowhere to read references from unless references are absolute paths to readable directories. No '{}' directory with reading and execution permission in installDir, workDir, or userDir:\n".format(refDir) + str(self))
-			raise PermissionError("Nowhere to read references from unless references are absolute paths to readable directories. No '{}' directory with reading and execution permission in installDir, workDir, or userDir:\n".format(refDir) + str(self))
-		else:
-			self.refDir = refOrder[0]
-
-	def setDatabaseDir(self, databaseDir : str, abs : bool=False):
-		if abs is True:
-			if self.access(databaseDir, mode="rx") is True:
-				self.databaseDir = databaseDir
-		databaseOrder = []
-		for d in [self.installDir, self.workDir, self.userDir]:
-			p = os.path.join(d, databaseDir)
-			if self.accessible(p, mode="rx") is True:
-				databaseOrder.append(p)
-
-		if databaseOrder == [] and os.path.exists(databaseDir):
-			# databaseDir is determined to be an absolute path
-			self.databaseDir = databaseDir
-		elif databaseOrder == []:
-			LOGGER.warning("Nowhere to read databases from unless databases are absolute paths to readable directories. No '{}' directory with reading and execution permission in installDir, workDir, or userDir:\n".format(databaseDir) + str(self))
-			raise PermissionError("Nowhere to read databases from unless databases are absolute paths to readable directories. No '{}' directory with reading and execution permission in installDir, workDir, or userDir:\n".format(databaseDir) + str(self))
-		else:
-			self.databaseDir = databaseOrder[0]
-		
-
-	def setTmpDir(self, tmpDir : str=None):
-		'''If no place for a temporary directory is given, will find a nice place to put one, and then create a
-		random-name temporary directory there. Temporary directory behavior is determined by the settings/flags.
-		 * Note that tmpDir is not the name of the temporary directory, but the directory in which the temporary
-		 directory will be placed.'''
-		if tmpDir is None:
-			tmpOrder = [self.installDir, self.userDir, self.workDir]
-			tmpOrder = [dr for dr in tmpOrder if all(self.perms[dr].values())]
-			
-			if tmpOrder == []:
-				LOGGER.error("Nowhere to put temporary files. Missing read+write+execute permission in any of installDir, workDir, or userDir:\n" + str(self))
-				raise PermissionError("Missing write/read permissions in userDir, installDir, and workDir. Specify your workDir if you are intending to use a different workDir than the shell you are currently in.")
-			
-			#	Raise-protected
-			self.tmpDir = self.newRandomName(tmpOrder[0])
-		else:
-			self.tmpDir = self.newRandomName(tmpDir)
-		
-		self.access(self.tmpDir, create=True)
-		self.access(os.path.join(self.tmpDir, "Indexes"), create=True)
-		self.access(os.path.join(self.tmpDir, "SNPs"), create=True)
+			self.refDir = DirectoryGroup(*[os.path.join(d, refDir) for d in [self.installDir, self.userDir, self.workDir]], purpose="r")
 	
+	def setDatabaseDir(self, databaseDir : str):
+		if os.path.isabs(databaseDir):
+			self.databaseDir = DirectoryGroup(databaseDir, purpose="w")
+		else:
+			self.databaseDir = DirectoryGroup(*[os.path.join(d, databaseDir) for d in [self.installDir, self.userDir, self.workDir]], purpose="r")
+
+	def setTmpDir(self, tmpDir : str):
+		if os.path.isabs(tmpDir):
+			self.tmpDir = DirectoryGroup(tmpDir, purpose="w")
+		else:
+			self.tmpDir = DirectoryGroup(*[os.path.join(d, tmpDir) for d in [self.userDir, self.workDir, self.installDir]], purpose="w")
+	
+	def setOutDir(self, outDir : str):
+		if os.path.isabs(outDir):
+			self.outDir = DirectoryGroup(outDir, purpose="w")
+		else:
+			self.outDir = DirectoryGroup(*[os.path.join(d, outDir) for d in [self.workDir, self.userDir]], purpose="w")
+	
+
 	def setQuery(self, query : str, abs : bool=True):
-		if abs is not True:
-			self.query = self.get(query, "targetDir")
-			self.access(self.query, mode="r")
-		else:
+		if os.path.isabs(query):
 			self.query = query
 			self.access(self.query, mode="r")
-		self.setCurrentTargets(self.query)
+		else:
+			self.query = self.targetDir[query]
 	
 	def setReferences(self, references : list[str,str,str,str,str]):
 		self.references = {}
@@ -303,7 +259,9 @@ class DirectoryLibrary:
 			LOGGER.debug("Returned cached path '{path}' for filename '{filename}'".format(path=self.__cache[filename], filename=filename))
 			return self.__cache[filename]
 
-		if hint is not None:
+		if os.path.isabs(filename):
+			return filename
+		elif hint is not None:
 			# directory hint has been provided
 			for path, dirs, files in os.walk(self[hint]):
 				for f in files:
@@ -328,8 +286,6 @@ class DirectoryLibrary:
 							return os.path.join(path, d)
 		
 			LOGGER.info("Looked for path: '{}' in all directories but could not find it.\n{}".format(filename, str(self)))
-
-		return filename
 	
 	def getReferences(self) -> dict[str,(str, str, str, str, str)]:
 		'''Returns current list of references as a dictionary:
