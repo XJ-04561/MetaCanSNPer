@@ -12,7 +12,7 @@ try:
 
 	## import CanSNPer2 specific modules
 	from CanSNPer2.modules.ParseXMFA2 import ParseXMFA
-	from CanSNPer2.modules.DatabaseConnection import CanSNPdbFunctions
+	from CanSNPer2.modules.Databases import DatabaseReader
 	from CanSNPer2.modules.NewickTree import NewickTree
 	from CanSNPer2.CanSNPerTree import __version__
 	from CanSNPer2.modules.DirectoryLibrary import DirectoryLibrary
@@ -27,7 +27,7 @@ except:
 
 	## import CanSNPer2 specific modules
 	from ParseXMFA2 import ParseXMFA
-	from DatabaseConnection import CanSNPdbFunctions
+	from Databases import DatabaseReader
 	from NewickTree import NewickTree
 	from DirectoryLibrary import DirectoryLibrary
 	from Wrappers import Aligner, Mapper, SNPCaller, IndexingWrapper
@@ -65,14 +65,14 @@ class CanSNPer2Error(Error):
 class CanSNPer2:
 	outputTemplate = "{ref}_{target}.{format}"
 	databaseName : str
-	database : CanSNPdbFunctions
+	database : DatabaseReader
 	Lib : DirectoryLibrary[str]
 	settings : dict
 
 	"""docstring for CanSNPer2"""
 	def __init__(self, tmpDir=None, refDir="References", database="CanSNPer.fdb", settingsFile : str=None, **kwargs):
 		
-		self.databaseName = database
+		self.setDatabase(database)
 		self.Lib = DirectoryLibrary(tmpDir=tmpDir, refDir=os.path.join(refDir, os.path.splitext(database)[0]))
 		settings : dict = toml.load(open(self.Lib.get("defaultFlags.toml", "installDir") if settingsFile is None else self.Lib.get(settingsFile, "workDir")), "rb")
 		# Settings hierarchy looks like this: ["Category"]["Flag"] -> Value
@@ -86,58 +86,55 @@ class CanSNPer2:
 				else:
 					self.settings[flag] = value
 
-		self.SNPs = {}
-
 		# Need for this is unknown, might remove later.
 		self.summarySet = set()
 		self.calledGenome = {}
 
-		self.Lib.references = self.getReferences()
-
 	'''Database functions'''
 
 	def setDatabase(self, database : str):
-		path = self.Lib.get(database, "databaseDir")
-		self.databaseName = path
+		if database in self.Lib.databaseDir:
+			path = self.Lib.databaseDir[database]
+			self.databaseName = path
+			self.connectDatabase()
 
 	def connectDatabase(self):
-		self.database = CanSNPdbFunctions(self.databaseName)
+		self.database = DatabaseReader(self.databaseName)
 
-	'''MetaCanSNPer set functions'''
+	'''MetaCanSNPer set directories'''
+	
+	def setTargetDir(self, path : str):		self.Lib.setTargetDir(path)
+	def setRefDir(self, path : str):		self.Lib.setRefDir(path)
+	def setDatabaseDir(self, path : str):	self.Lib.setDatabaseDir(path)
+	def setTmpDir(self, path : str):		self.Lib.setTmpDir(path)
+	def setOutDir(self, path : str):		self.Lib.setOutDir(path)
+
+	# Setting the same docstring for each 'set*Dir' function
+	setTargetDir.__doc__ = setRefDir.__doc__ = setDatabaseDir.__doc__ = setTmpDir.__doc__ = setOutDir.__doc__ = """
+	'path' can be relative or absolute. Check the docstring for the DirectoryLibrary to see where the relative
+	path will start from.
+	"""
+
+	'''MetaCanSNPer set values'''
 
 	def setQuery(self, query : str):
 		self.Lib.setQuery(query)
 		self.queryName, self.queryFormat = os.path.splitext(os.path.basename(self.Lib.query)) ## get name of file and remove ending
-	
-	def setRefDir(self, references : str):
-		''''references' is either an absolut path or a path to an accepted directory.'''
-		self.Lib.setRefDir(references)
-	
-	def setOutDir(self, outDir : str):
-		self.Lib.setOutDir(outDir)
-	
-	def setReferences(self):
-		self.Lib.setReferences(self.database.getReferences())
-	
-	def setSNPs(self):
-		for genome in self.getReferences():
-			self.SNPs[genome] = self.database.get_snps(reference=genome)[0]
 
 	'''MetaCanSNPer get functions'''
 
-	def getTmps(self):
-		'''Returns a dictionary of all files in and under the temporary directory, where the keys are the extensions of
-		the files, and the values are lists of the paths to all files with that extension.'''
-		files = []
-		for dirpath, dirnames, filenames in os.walk(self.Lib.tmpDir):
-			files.extend([os.path.join(dirpath, f) for f in filenames])
-		formats = [f.rsplit(".")[-1] for f in files]
-		return {format:[f for f in files if f.endswith(format)] for format in formats}
+	# def getTmps(self):
+	# 	'''Returns a dictionary of all files in and under the temporary directory, where the keys are the extensions of
+	# 	the files, and the values are lists of the paths to all files with that extension.'''
+	# 	files = []
+	# 	for dirpath, dirnames, filenames in os.walk(self.Lib.tmpDir):
+	# 		files.extend([os.path.join(dirpath, f) for f in filenames])
+	# 	formats = [f.rsplit(".")[-1] for f in files]
+	# 	return {format:[f for f in files if f.endswith(format)] for format in formats}
 
 	def getReferences(self):
 		'''Fetch names of reference genomes in connected database. Download any reference genomes not present locally.'''
-		self.setReferences()
-		return self.Lib.getReferences()
+		return self.database.references
 
 	def getQuery(self):
 		return self.Lib.query
@@ -239,72 +236,76 @@ class CanSNPer2:
 					key, path = output[i][0]
 					if snpCaller.returncodes[i][-1] == 0:
 						self.Lib.SNPs[key] = path
+		
+		self.SNPresults = snpCaller.retrieveResults()
 
-	def traverseTree(self, SNPs : dict[tuple[str,str],str], calledSNPs):
-		'''If save tree is requested print tree using ETE3 prints a pdf tree output'''
+	def traverseTree(self):
+		'''Depth-first tree search.'''
+		nodeID = 2
+		snpID = self.database.nodes[nodeID]
+		path = [snpID]
 
-
-		SNP = "NA" ## Default message if SNP cannot be confirmed
-		final_snp,message,called = self.create_tree(SNPs, self.query_name, calledSNPs,min_required_hits=self.min_required_hits,strictness=self.strictness)
-		if final_snp:
-			SNP = final_snp[1]
-			if not final_snp[2][0]:  ## if snp was never confirmed print NA
-				SNP = "NA"
-			if self.export:
-				with open(outputfile2, "w") as called_out:
-					if True:
-						print("\t".join(["Name","Reference","Pos","Ancestral base","Derived base", "Target base"]),file=called_out)
-						for snp in called:
-							print("\t".join(self.csnpdict[snp[1]]),file=called_out)
-					print("SNP path: {path}".format(path=";".join([snp[1] for snp in called])),file=called_out)
-					print("Final SNP: {snp} found/depth: {found}/{depth}".format(snp=SNP,depth=int(final_snp[0]),found=final_snp[2][1]),file=called_out)
-			LOGGER.info("Final SNP: {snp} found/depth: {found}/{depth}".format(snp=SNP,depth=int(final_snp[0]),found=final_snp[2][1]))
-		else:
-			if self.export:
-				with open(outputfile2, "a") as called_out:
-					print("Final SNP: {snp}".format(snp=SNP), file=called_out)
-			LOGGER.info(message)
-		if self.summary and SNP != "NA":
-			self.summary_set |= set([SNP])
-			self.called_genome[SNP] = self.query_name
-		if self.export:
-			print("{query}: {SNP}".format(query=self.query_name, SNP=SNP))
-		'''Clean references to aligned xmfa files between queries if several was supplied'''
-		self.xmfa_files = []
-
-		if self.summary:
-			self.print_summary()
-		'''Finally clean up temporary folder when all alignments and trees has been printed!'''
-		if not self.keep_temp and len(self.query) > 0: ## if keep temp is turned on do not remove away alignments also if no input files were given
-			self.cleanup()
-
-		LOGGER.info("CanSNPer2 finished successfully, files can be found in {outdir}".format(outdir=self.outdir+"/"))
+		while nodeID in self.database.tree:
+			for childID in self.database.tree[nodeID]:
+				childSNPID = self.database.nodes[childID]
+				if self.database.SNPsByID[childSNPID][2]  == self.SNPresults[childSNPID]:
+					nodeID = childID
+					break
+			if nodeID != childID:
+				# Node is not a leaf, but no children are matches for the target.
+				break
+			path.append(childSNPID)
+		
+		return path
 
 	'''Functions'''
 
-	def saveSNPdata(self):
-		self.Lib.SNPs
-		notCalledFilename = os.path.join(self.Lib.resultDir, self.Lib.queryName+"_not_called.tsv")
-		calledFilename = os.path.join(self.Lib.resultDir, self.Lib.queryName+"_snps.tsv")
+	def saveResults(self, session : str="Results"):
+		path = self.traverseTree()
 
-		SNPs = self.Lib.gatherSNPdata()
+		pathFile = open(os.path.join(self.Lib.resultDir, self.Lib.queryName+"_path.tsv"), "w")
+		finalFile = open(os.path.join(self.Lib.resultDir, self.Lib.queryName+"_final.tsv"), "w")
 
-		LOGGER.info("Printing SNP info of non called SNPs to {file}".format(file=notCalledFilename))
-		called = []
-		notCalled = []
-		for (reference, query), SNPinfo in SNPs.items():
+		pathFile.write("\t".join(path))
+		finalFile.write(path[-1])
+		
+		pathFile.close()
+		finalFile.close()
+
+
+	def saveSNPdata(self, session : str="Result"):
+		""""""
+		called = open(os.path.join(self.Lib.resultDir, self.Lib.queryName+"_snps.tsv"), "w")
+		notCalled = open(os.path.join(self.Lib.resultDir, self.Lib.queryName+"_not_called.tsv"), "w")
+		noCoverage = open(os.path.join(self.Lib.resultDir, self.Lib.queryName+"_no_coverage.tsv"), "w")
+		unique = open(os.path.join(self.Lib.resultDir, self.Lib.queryName+"_unique.tsv"), "w")
+
+		header = "\t".join(["Name","Reference","Pos","Ancestral base","Derived base", "Target base\n"])
+		entryTemplate = "{name}\t{reference}\t{pos}\t{ancestral}\t{derived}\t{target}\n"
+
+		called.write(header)
+		notCalled.write(header)
+		noCoverage.write(header)
+		unique.write(header)
+
+		for genomeID, genome, genbankID, refseqID, assemblyName in self.database.references:
 			'''Print SNPs to tab separated file'''
-			
-			called.append("\t".join(["Name","Reference","Pos","Ancestral base","Derived base", "Target base"]))
-			notCalled.append("\t".join(["Name","Reference","Pos","Ancestral base","Derived base", "Target base"]))
-			for POS, ID, REF, ALT, QUAL, INFO, samples in SNPinfo:
-				
-		with open(calledFilename, "w") as f:
-			f.write("\t".join(["Name","Reference","Pos","Ancestral base","Derived base", "Target base"]))
-
-		with open(notCalledFilename, "w") as f:
-			f.write("\t".join(["Name","Reference","Pos","Ancestral base","Derived base", "Target base"]))
-
+			for snpID, position, ancestral, derived in self.database.SNPsByGenome[genome]:
+				N : str = self.SNPresults[snpID]
+				entry = entryTemplate.format(name=snpID, reference=genome, pos=position,
+				 							 ancestral=ancestral, derived=derived, target=N)
+				if derived == N:
+					called.write(entry)
+				elif ancestral == N:
+					notCalled.write(entry)
+				elif N.isalpha():
+					unique.write(entry)
+				else:
+					noCoverage.write(entry)
+		called.close()
+		notCalled.close()
+		noCoverage.close()
+		unique.close()
 
 	def create_tree(self,SNPS,name,called_snps,min_required_hits,strictness=0.7, summary=False):
 		'''This function uses ETE3 to color the SNP tree in the database with SNPS found in the reference database

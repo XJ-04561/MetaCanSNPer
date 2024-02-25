@@ -27,6 +27,15 @@ def findValidPath(self, paths, mode="r") -> str:
 			return d
 	return None
 
+def newRandomName(path : str, ext : str=None):
+	newName = "tmp_{}{}{}".format(*random.random().as_integer_ratio(), "."+ext if ext is not None else "")
+	n=0
+	while os.path.exists(os.path.join(path, newName)):
+		newName = "tmp_{}{}{}".format(*random.random().as_integer_ratio(), "."+ext if ext is not None else "")
+		if n>1000000-1:
+			raise FileExistsError("Could not generate random file/directory name for path='{path}' after {n} attempts".format(path=path, n=n))
+			break
+	return os.path.join(path, newName)
 
 class DirectoryGroup:
 	_roots : list[str]
@@ -112,10 +121,15 @@ class DirectoryLibrary:
 	]
 
 	query : list[str]
+	queryName : str
+	@cached_property
+	def queryName(self):
+		return os.path.splitext(os.path.basename(self.query))
+	
 	indexed : dict[tuple[str, str], str]
 	maps : dict[tuple[str, str], str]
 	SNPs : dict[tuple[str, str], str]
-
+	
 	'''Dictionary keys are tuples of (reference, query).
 	Dictionary values are the absolute paths to the file.'''
 
@@ -171,40 +185,24 @@ class DirectoryLibrary:
 	def __del__(self):
 		if os.path.exists(self.tmpDir) and (not self.settings["KeepTemporaryFiles"] if "KeepTemporaryFiles" in self.settings else True):
 			shutil.rmtree(self.tmpDir)
-	
-	def _permCheck(self, dr):
-		self.perms[dr] = {}
-		self.perms[dr]["r"] = os.access(dr, os.R_OK)
-		self.perms[dr]["w"] = os.access(dr, os.W_OK)
-		self.perms[dr]["x"] = os.access(dr, os.X_OK)
-	
-	@staticmethod
-	def newRandomName(path : str, ext : str=None):
-		newName = "tmp_{}{}{}".format(*random.random().as_integer_ratio(), "."+ext if ext is not None else "")
-		n=0
-		while os.path.exists(os.path.join(path, newName)):
-			newName = "tmp_{}{}{}".format(*random.random().as_integer_ratio(), "."+ext if ext is not None else "")
-			if n>1000000-1:
-				raise FileExistsError("Could not generate random file/directory name for path='{path}' after {n} attempts".format(path=path, n=n))
-				break
-		return os.path.join(path, newName)
 
-	'''Set-functions'''
+	'''Set-Pathing'''
+
 	def setTargetDir(self, targetDir : str):
 		if os.path.isabs(targetDir):
-			self.targetDir = DirectoryGroup(targetDir, purpose="w")
+			self.targetDir = DirectoryGroup(targetDir, purpose="r")
 		else:
 			self.targetDir = DirectoryGroup(*[os.path.join(d, targetDir) for d in [self.workDir, self.installDir, self.userDir]], purpose="r")
 	
 	def setRefDir(self, refDir : str):
 		if os.path.isabs(refDir):
-			self.refDir = DirectoryGroup(refDir, purpose="w")
+			self.refDir = DirectoryGroup(refDir, purpose="r")
 		else:
 			self.refDir = DirectoryGroup(*[os.path.join(d, refDir) for d in [self.installDir, self.userDir, self.workDir]], purpose="r")
 	
 	def setDatabaseDir(self, databaseDir : str):
 		if os.path.isabs(databaseDir):
-			self.databaseDir = DirectoryGroup(databaseDir, purpose="w")
+			self.databaseDir = DirectoryGroup(databaseDir, purpose="r")
 		else:
 			self.databaseDir = DirectoryGroup(*[os.path.join(d, databaseDir) for d in [self.installDir, self.userDir, self.workDir]], purpose="r")
 
@@ -220,8 +218,9 @@ class DirectoryLibrary:
 		else:
 			self.outDir = DirectoryGroup(*[os.path.join(d, outDir) for d in [self.workDir, self.userDir]], purpose="w")
 	
+	'''Set-Values'''
 
-	def setQuery(self, query : str, abs : bool=True):
+	def setQuery(self, query : str):
 		if os.path.isabs(query):
 			self.query = query
 			self.access(self.query, mode="r")
@@ -247,45 +246,43 @@ class DirectoryLibrary:
 		for r,SNP in SNPs.items():
 			self.access(SNP, mode="r")
 		self.SNPs = SNPs
-	
-	'''Get-functions'''
-
-	def get(self, filename : str, hint : str=None):
-		'''Gets the absolute path to a file/directory found in one of the directories used by the Library. Hint can be
-		provided to limit search to only one of the directories in the Library.
-		If a path can not be found, it will be returned. This should be the case for a path which already is absolute.'''
-
-		if filename in self.__cache:
-			LOGGER.debug("Returned cached path '{path}' for filename '{filename}'".format(path=self.__cache[filename], filename=filename))
-			return self.__cache[filename]
-
-		if os.path.isabs(filename):
-			return filename
-		elif hint is not None:
-			# directory hint has been provided
-			for path, dirs, files in os.walk(self[hint]):
-				for f in files:
-					if f == filename:
-						self.__cache[filename] = os.path.join(path, f)
-						return os.path.join(path, f)
-				for d in dirs:
-					if d == filename:
-						self.__cache[filename] = os.path.join(path, d)
-						return os.path.join(path, d)
-					
-			LOGGER.info("Looked for path: '{}' in {} but could not find it.\n{}".format(filename, hint, str(self)))
-		else:
-			# Without a hint, each directory is searched.
-			for dr in {self[drVar] for drVar in self.dirs}:
-				for path, dirs, files in os.walk(self[dr]):
-					for f in files:
-						if f == filename:
-							return os.path.join(path, f)
-					for d in dirs:
-						if d == filename:
-							return os.path.join(path, d)
 		
-			LOGGER.info("Looked for path: '{}' in all directories but could not find it.\n{}".format(filename, str(self)))
+	# def get(self, filename : str, hint : str=None):
+	# 	'''Gets the absolute path to a file/directory found in one of the directories used by the Library. Hint can be
+	# 	provided to limit search to only one of the directories in the Library.
+	# 	If a path can not be found, it will be returned. This should be the case for a path which already is absolute.'''
+
+	# 	if filename in self.__cache:
+	# 		LOGGER.debug("Returned cached path '{path}' for filename '{filename}'".format(path=self.__cache[filename], filename=filename))
+	# 		return self.__cache[filename]
+
+	# 	if os.path.isabs(filename):
+	# 		return filename
+	# 	elif hint is not None:
+	# 		# directory hint has been provided
+	# 		for path, dirs, files in os.walk(self[hint]):
+	# 			for f in files:
+	# 				if f == filename:
+	# 					self.__cache[filename] = os.path.join(path, f)
+	# 					return os.path.join(path, f)
+	# 			for d in dirs:
+	# 				if d == filename:
+	# 					self.__cache[filename] = os.path.join(path, d)
+	# 					return os.path.join(path, d)
+					
+	# 		LOGGER.info("Looked for path: '{}' in {} but could not find it.\n{}".format(filename, hint, str(self)))
+	# 	else:
+	# 		# Without a hint, each directory is searched.
+	# 		for dr in {self[drVar] for drVar in self.dirs}:
+	# 			for path, dirs, files in os.walk(self[dr]):
+	# 				for f in files:
+	# 					if f == filename:
+	# 						return os.path.join(path, f)
+	# 				for d in dirs:
+	# 					if d == filename:
+	# 						return os.path.join(path, d)
+		
+	# 		LOGGER.info("Looked for path: '{}' in all directories but could not find it.\n{}".format(filename, str(self)))
 	
 	def getReferences(self) -> dict[str,(str, str, str, str, str)]:
 		'''Returns current list of references as a dictionary:
@@ -293,7 +290,7 @@ class DirectoryLibrary:
 		
 		return self.references
 	
-	def gatherSNPdata(self) -> dict[tuple[str,str],tuple[int,str,str,list[str],int,dict[str,int|str|list[float]|bool],dict[str,dict[str,int|str|list[int,int]]]]]:
+	def getSNPdata(self) -> dict[tuple[str,str],tuple[int,str,str,list[str],int,dict[str,int|str|list[float]|bool],dict[str,dict[str,int|str|list[int,int]]]]]:
 		'''Returns: {
 			(reference, query) : (POS, ID, REF, ALT, QUAL, INFO, samples),
 			...
@@ -320,8 +317,8 @@ class DirectoryLibrary:
 			else:
 				LOGGER.error("Path does not exist: '{}'".format(path))
 				raise FileNotFoundError("Path does not exist: '{}'".format(path))
-		self._permCheck(path)
-		if not all(self.perms[path][c] for c in mode):
+		
+		if not all(os.access(path, PERMS_LOOKUP_OS[c]) for c in mode):
 			LOGGER.error("Missing {perms} permissions for path: '{path}'".format(path=path, perms="+".join([PERMS_LOOKUP[c] for c in mode if not self.perms[path][c]])))
 			raise PermissionError("Missing {perms} permissions for path: '{path}'".format(path=path, perms="+".join([PERMS_LOOKUP[c] for c in mode if not self.perms[path][c]])))
 		
@@ -337,8 +334,8 @@ class DirectoryLibrary:
 			else:
 				LOGGER.debug("Path does not exist: '{}'".format(path))
 				return False
-		self._permCheck(path)
-		if not all(self.perms[path][c] for c in mode):
+		
+		if not all(os.access(path, PERMS_LOOKUP_OS[c]) for c in mode):
 			LOGGER.debug("Missing {perms} permissions for path: '{path}'".format(path=path, perms="+".join([PERMS_LOOKUP[c] for c in mode if not self.perms[path][c]])))
 			return False
 		
