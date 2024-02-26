@@ -25,18 +25,16 @@ EXAMPLE_VCF_HEADER = """##fileformat=VCFv4.3
 VCF_HEADER = """##fileformat=VCFv4.3
 ##fileDate={dateYYYYMMDD}
 ##source=MetaCanSNPer
-##reference={refPath}
-##contig=<ID=0,URL={refPath}>
+##reference=file://{refPath}
+##contig=<ID={chrom},URL=file://{refPath}>
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
 """
 
 VCF_ROW =       "{CHROM}	{POS}	{ID}	{REF}	{ALT}	{QUAL}	{FILTER}	{INFO}"
 
-DEFAULT_FORMAT = "GT:GQ:DP:BQ:MQ"
-
 '''Concerns about future-proofing: diploid genomes give more than one result-column per sample. Looks like: 0|1:[...]
 where | separates the base call for each chromosomal pair.'''
-class OpenVCF:
+class CreateVCF:
 	meta : list[str]
 	header : list[str] # Header for the VCF, contains names of samples and other columns
 	positions : np.ndarray[int] # List of positions of the SNPs
@@ -54,31 +52,15 @@ class OpenVCF:
 		"FORMAT" : 8
 	}
 
-	def __init__(self, filename : str, mode : str, referenceFile, newline : str="\n"):
-		self.fileHandler = open(filename, mode=mode)
+	def __init__(self, filename : str, referenceFile, newline : str="\n"):
+		self.fileHandler = open(filename, mode="w")
 		self.newline = newline
 
-		if mode == "w":
-			self.header = VCF_HEADER.format(dateYYYYMMDD="{:0>4}{:0>2}{:0>2}".format(*(time.localtime()[:3])), refPath=referenceFile)
-			self.fileHandler.write(self.header)
-		elif mode == "r":
-			self.meta = []
-			row = self.fileHandler.readline()
-			while row[:2] == "##":
-				self.meta.append(row)
-				row = self.fileHandler.readline()
-			if row[:1] == "#":
-				self.header = row[1:].strip().split("\t")
-			self.positions
-			self.SNPsinfo
-			self.samples
-			for row in self.fileHandler:
-				CHROM, POS, ID, REF, ALT, QUAL, FILTER, INFO, FORMAT, SAMPLES = row.strip().split("\t")
+		self.header = VCF_HEADER.format(dateYYYYMMDD="{:0>4}{:0>2}{:0>2}".format(*(time.localtime()[:3])), refPath=referenceFile)
+		self.fileHandler.write(self.header)
 			
-
-
 	def append(self, CHROM : str=".", POS : str=".", ID : str=".", REF : str=".", ALT : str=".", QUAL : str=".", FILTER : str=".", INFO : str=".", FORMAT : str="."):
-		self.fileHandler.write( VCF_ROW.format(CHROM, POS, ID, REF, ALT, QUAL, FILTER, INFO, FORMAT)+self.newline)
+		self.fileHandler.write( VCF_ROW.format(CHROM, POS, ID, REF, ALT, QUAL, FILTER, INFO)+self.newline)
 	
 	def close(self):
 		self.fileHandler.close()

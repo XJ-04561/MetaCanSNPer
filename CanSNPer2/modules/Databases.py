@@ -106,6 +106,7 @@ class DatabaseReader:
 
     @cached_property
     def SNPsByID(self) -> dict[str,list[tuple[str,int,str,str]]]:
+        '''{SNP_ID : (POSITION, ANCESTRAL, DERIVED)}'''
         return {snpID:(pos, anc, der) for snpID, pos, anc, der in self.SNPs}
     
     @cached_property

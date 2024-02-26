@@ -7,19 +7,26 @@ try:
 	LOGGER = LogKeeper.createLogger(__name__)
 	import CanSNPer2.modules.ErrorFixes as ErrorFixes
 	from CanSNPer2.modules.DirectoryLibrary import DirectoryLibrary
-	from CanSNPer2.modules.DatabaseConnection import CanSNPdbFunctions
+	from CanSNPer2.modules.Databases import DatabaseReader
+	from CanSNPer2.modules.VCFhandler import CreateVCF
 except:
 	import LogKeeper as LogKeeper
 
 	LOGGER = LogKeeper.createLogger(__name__)
-	from DatabaseConnection import CanSNPdbFunctions
-	from DirectoryLibrary import DirectoryLibrary
 	import ErrorFixes as ErrorFixes
+	from DirectoryLibrary import DirectoryLibrary
+	from Databases import DatabaseReader
+	from VCFhandler import CreateVCF
 
 from collections.abc import Callable
 from threading import Thread, Condition
 from subprocess import run, DEVNULL, PIPE, STDOUT, CompletedProcess
 
+
+'''
+	All that is needed to create a new implementation is to inherit from the correct software type ('Aligner' in this case) and set
+	the two class attributes accordingly. See 'Timeout' and 'Sleep' for a minimalist example.
+'''
 
 class Error(Exception):
 	"""docstring for Error"""
@@ -100,6 +107,8 @@ class ThreadGroup:
 
 # Aligner and Mapper classes to inherit from
 class ProcessWrapper:
+	Lib : DirectoryLibrary
+	database : DatabaseReader
 	softwareName : str
 	returncodes : list[list[int]]
 	previousErrors : list
@@ -164,7 +173,6 @@ class ProcessWrapper:
 		pass
 
 class IndexingWrapper(ProcessWrapper):
-	Lib : DirectoryLibrary
 	queryName : str
 	commandTemplate : str # Should contain format tags for {target}, {ref}, {output}, can contain more.
 	outFormat : str
@@ -179,7 +187,7 @@ class IndexingWrapper(ProcessWrapper):
 	threadGroup : ThreadGroup
 	solutions : dict
 	
-	def __init__(self, lib : DirectoryLibrary, database : CanSNPdbFunctions, outputTemplate : str, kwargs : dict={}):
+	def __init__(self, lib : DirectoryLibrary, database : DatabaseReader, outputTemplate : str, kwargs : dict={}):
 		self.Lib = lib
 		self.database = database
 		self.queryName = os.path.splitext(os.path.basename(self.Lib.getQuery()))[0] ## get name of file and remove ending
@@ -222,25 +230,26 @@ class IndexingWrapper(ProcessWrapper):
 	
 	def createCommand(self) -> tuple[list[str], list[str], list[tuple[tuple[str,str],str]]]:
 		
+		outDir = os.path.join(self.Lib.tmpDir, self.softwareName)
+		os.mkdir(outDir)
+
 		logs = []
 		commands = []
 		outputs = []
-		for ref, refPath in self.Lib.getReferences():
-			refName, refFormat = os.path.splitext(os.path.basename(refPath))
-
-			output = self.outputTemplate.format(target=self.queryName, ref=refName, format=self.outFormat)
-			logfile = os.path.join(self.Lib.logDir, output + ".{software}.log".format(software=self.softwareName))
-			output = os.path.join(self.Lib.tmpDir, self.category, output)
-
-			os.mkdir(os.path.join(self.Lib.tmpDir, self.softwareName))
-
+		for _, refName, _, _, _ in self.database.references:
+			refPath = self.Lib.references
 			'''Not every command needs all information, but the format function is supplied with a dictionary that has
 			everything that could ever be needed.'''
-			
+
 			self.formatDict["refName"] = refName
 			self.formatDict["refPath"] = refPath
 			self.formatDict["indexPath"] = self.Lib.indexed[(self.queryName, refName)] if (self.queryName, refName) in self.Lib.indexed else None
 			self.formatDict["SNPs"] = self.Lib.SNPs[refName] if refName in self.Lib.SNPs else None
+			
+			output = self.outputTemplate.format(self.formatDict)
+			logfile = os.path.join(outDir, output + ".log")
+			output = os.path.join(outDir, output)
+
 			self.formatDict["output"] = output
 			self.formatDict["logfile"] = logfile
 
@@ -250,7 +259,7 @@ class IndexingWrapper(ProcessWrapper):
 			Adds on all the extra flags and arguments defined in the dict self.kwargs.
 			For flags that do not require a followup argument, set the value of the keyword as True.
 			'''
-			command = " ".join([command] + ["--{key} {value}".format(key=key, value=value if value is not True else "") for key, value in self.kwargs])
+			command = " ".join([command] + ["{key} {value}".format(key=key, value=value if value is not True else "") for key, value in self.kwargs])
 
 			commands.append(command)
 			logs.append(logfile)
@@ -296,4 +305,24 @@ class Mapper(IndexingWrapper):
 
 class SNPCaller(IndexingWrapper):
 	category = "SNPs"
-	pass
+	
+	def preProcess(self, force : bool=False):
+		# Create VCF files that contain the to-be called SNPs
+
+		SNPFiles = {}
+		for _, genome, _, _, _ in self.database.references:
+			refPath, strain, genkbank_id, refseq_id, assembly_name = self.Lib.references[genome] # dadsadasd
+			accession = open(refPath, "r").readline()[1:].split()[0]
+			filename = "{ref}.vcf".format(ref=refPath)
+			if force is True or not os.path.exists(filename):
+				
+				vcfFile = CreateVCF(filename, referenceFile=refPath)
+				SNPs = self.database.SNPsByGenome[genome]
+				
+				for snpID, pos, ref, alt in SNPs:
+					# CHROM has to be the same as the accession id that is in the reference file.
+					vcfFile.append(CHROM=accession, POS=pos, ID=snpID, REF=ref, ALT=",A,T,C,G".replace(","+ref, "")[1:])
+				vcfFile.close()
+				
+			SNPFiles[genome] = filename
+		self.Lib.setSNPfiles(SNPFiles)

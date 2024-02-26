@@ -6,11 +6,13 @@ try:
 
 	LOGGER = LogKeeper.createLogger(__name__)
 	from Wrappers import SNPCaller
-except:	
+	from Databases import DatabaseReader
+except:
 	import CanSNPer2.modules.LogKeeper as LogKeeper
 
 	LOGGER = LogKeeper.createLogger(__name__)
 	from CanSNPer2.modules.Wrappers import SNPCaller
+	from CanSNPer2.modules.Databases import DatabaseReader
 
 VCF_HEADER = """##fileformat=VCFv4.3
 ##fileDate={dateYYYYMMDD}
@@ -37,31 +39,6 @@ class Sleep(SNPCaller):
 class GATK_Mutect2(SNPCaller):
 	softwareName = "gatk_Mutect2"
 	commandTemplate = "gatk IndexFeatureFile -I '{0[SNPs]}' && gatk Mutect2 -R {0[refPath]} -I {0[indexPath]} -L {0[SNPs]} --alleles {0[SNPs]} -O {0[output]} > {0[logFile]}"
-
-	def preProcess(self, data, force : bool=False):
-		
-		# Create VCF files that contain the to-be called SNPs
-
-		SNPFiles = {}
-		for genome, SNPs in data:
-			refPath, strain, genkbank_id, refseq_id, assembly_name = self.Lib.references[genome] # dadsadasd
-			# accession = open(refPath, "r").readline()[1:].split()[0]
-			filename = "{ref}.vcf".format(ref=refPath)
-			if force is True or not os.path.exists(filename):
-				
-				vcfFile = open(filename, "w")
-				vcfFile.write(VCF_HEADER.format(dateYYYYMMDD="{:0>4}{:0>2}{:0>2}".format(*(time.localtime()[:3])), refPath=refPath))
-				positions = list(SNPs.keys())
-				positions.sort()
-				for pos in positions:
-					p, ref, alt, id =SNPs[pos]
-					# CHROM has to be the same as the accession id that is in the reference file.
-					vcfFile.write(VCF_ROW.format(CHROM="0", POS=p, ID=id, REF=ref, ALT=alt)+"\n")
-				vcfFile.close()
-				self.commandTemplate = "gatk IndexFeatureFile -I '{0[SNPs]}' && " + self.commandTemplate
-				
-			SNPFiles[genome] = filename
-		self.Lib.setSNPfiles(SNPFiles)
 
 class GATK_HaplotypeCaller(SNPCaller):
 	softwareName = "gatk_HaplotypeCaller"

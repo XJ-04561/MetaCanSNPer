@@ -207,7 +207,7 @@ class CanSNPer2:
 		snpCaller : SNPCaller = SNPCallerType(self.Lib, self.database, self.outputTemplate, kwargs=kwargs)
 		
 		LOGGER.info("Checking for pre-processing for SNPCaller.")
-		snpCaller.preProcess(references)
+		snpCaller.preProcess()
 
 		# Start aligning
 		output = snpCaller.start()
@@ -237,7 +237,13 @@ class CanSNPer2:
 					if snpCaller.returncodes[i][-1] == 0:
 						self.Lib.SNPs[key] = path
 		
-		self.SNPresults = snpCaller.retrieveResults()
+		resultData = self.Lib.getSNPdata()
+
+		# Interpret the SNP calls
+
+		self.SNPresults = {}
+		for snpID, (pos, anc, der) in self.database.SNPsByID.items():
+			self.SNPresults[snpID] = resultData[pos]
 
 	def traverseTree(self):
 		'''Depth-first tree search.'''

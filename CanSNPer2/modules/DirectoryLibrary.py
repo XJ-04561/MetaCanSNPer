@@ -12,7 +12,7 @@ try:
 except:
 	import LogKeeper as LogKeeper
 	from DownloadReferences import DownloadQueue
-import vcf as vcf
+import vcf
 
 LOGGER = LogKeeper.createLogger(__name__)
 PERMS_LOOKUP = {"r":"read", "w":"write", "x":"execute"}
@@ -230,7 +230,7 @@ class DirectoryLibrary:
 	def setReferences(self, references : list[str,str,str,str,str]):
 		self.references = {}
 		for genome, strain, genbank_id, refseq_id, assembly_name in references:
-			filename = DownloadReferences.download(genbank_id, refseq_id, assembly_name, dst=self.refDir)
+			filename = DownloadQueue.download(genbank_id, refseq_id, assembly_name, dst=self.refDir)
 			if not os.path.exists(filename):
 				msg = "Could not download reference genome: {genbank_id='{genbank_id}', refseq_id='{refseq_id}' assembly_name='{assembly_name}'}".format(genbank_id=genbank_id, refseq_id=refseq_id, assembly_name=assembly_name)
 				LOGGER.error(msg)
@@ -303,7 +303,9 @@ class DirectoryLibrary:
 		SNPs = {}
 		for (reference, query), path in self.SNPs.items():
 			reader = vcf.Reader(filename=path)
-			SNPs[(reference, query)] = [(entry.POS+1, entry.ID, entry.REF, entry.ALT, entry.QUAL, entry.INFO, {sample.sample:{key:sample.data.__getattribute__(key) for key in dir(sample.data) if key.isupper()} for sample in entry.samples}) for entry in reader]
+			for entry in reader:
+				# SNPs[entry.POS] = (entry.ID, entry.REF, entry.ALT, entry.QUAL, entry.INFO, {sample.sample:{key:sample.data.__getattribute__(key) for key in dir(sample.data) if key.isupper()} for sample in entry.samples})
+				SNPs[entry.POS] = entry.REF
 		
 		return SNPs
 
