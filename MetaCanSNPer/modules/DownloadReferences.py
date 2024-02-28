@@ -6,7 +6,7 @@ from urllib.request import urlretrieve
 
 import logging
 try:
-	from CanSNPer2.modules.LogKeeper import createLogger
+	from MetaCanSNPer.modules.LogKeeper import createLogger
 
 	LOGGER = createLogger(__name__)
 except:

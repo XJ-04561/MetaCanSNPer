@@ -2,13 +2,13 @@
 import os
 import logging
 try:
-	import CanSNPer2.modules.LogKeeper as LogKeeper
+	import MetaCanSNPer.modules.LogKeeper as LogKeeper
 
 	LOGGER = LogKeeper.createLogger(__name__)
-	import CanSNPer2.modules.ErrorFixes as ErrorFixes
-	from CanSNPer2.modules.DirectoryLibrary import DirectoryLibrary
-	from CanSNPer2.modules.Databases import DatabaseReader
-	from CanSNPer2.modules.VCFhandler import CreateVCF
+	import MetaCanSNPer.modules.ErrorFixes as ErrorFixes
+	from MetaCanSNPer.modules.DirectoryLibrary import DirectoryLibrary
+	from MetaCanSNPer.modules.Databases import DatabaseReader
+	from MetaCanSNPer.modules.VCFhandler import CreateVCF
 except:
 	import LogKeeper as LogKeeper
 

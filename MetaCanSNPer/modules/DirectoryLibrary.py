@@ -7,8 +7,8 @@ import random
 random.seed()
 import logging
 try:
-	import CanSNPer2.modules.LogKeeper as LogKeeper
-	from CanSNPer2.modules.DownloadReferences import DownloadQueue
+	import MetaCanSNPer.modules.LogKeeper as LogKeeper
+	from MetaCanSNPer.modules.DownloadReferences import DownloadQueue
 except:
 	import LogKeeper as LogKeeper
 	from DownloadReferences import DownloadQueue
@@ -18,6 +18,7 @@ LOGGER = LogKeeper.createLogger(__name__)
 PERMS_LOOKUP = {"r":"read", "w":"write", "x":"execute"}
 PERMS_LOOKUP_OS = {"r":os.R_OK, "w":os.W_OK, "x":os.X_OK}
 MAX_RESULTS = 10**9
+SOFTWARE_NAME = "MetaCanSNPer"
 
 ''' Functions '''
 
@@ -44,7 +45,10 @@ class DirectoryGroup:
 		self.defaultPurpose = purpose
 		for p in paths:
 			if not os.path.exists(p):
-				os.makedirs(p)
+				try:
+					os.makedirs(p)
+				except:
+					pass
 		self._roots = [*paths]
 	
 	def __contains__(self, path : str):
@@ -105,13 +109,15 @@ class DirectoryLibrary:
 	outDir : DirectoryGroup
 	resultDir : str
 	logDir : str
+	
+	sessionName : str
 
 	@property
 	def resultDir(self):
-		return self.outDir["Results"]
+		return self.outDir[self.sessionName]
 	@property
 	def logDir(self):
-		return self.outDir["Logs"]
+		return self.outDir[self.sessionName]
 
 	dirs = [
 		"workDir", "installDir", "userDir",
@@ -124,7 +130,7 @@ class DirectoryLibrary:
 	queryName : str
 	@cached_property
 	def queryName(self):
-		return os.path.splitext(os.path.basename(self.query))
+		return os.path.splitext(os.path.basename(self.query))[0]
 	
 	indexed : dict[tuple[str, str], str]
 	maps : dict[tuple[str, str], str]
@@ -132,12 +138,10 @@ class DirectoryLibrary:
 	
 	'''Dictionary keys are tuples of (reference, query).
 	Dictionary values are the absolute paths to the file.'''
-
-	__cache : dict[str]
 	
 	def __init__(self, settings : dict, workDir : str=None, installDir : str=None, userDir : str=None,
 			     targetDir : str=None, tmpDir : str=None, refDir : str=os.path.join("References", "Francisella_Tularensis"),
-				 databaseDir : str="Databases", outDir : str=None):
+				 databaseDir : str="Databases", outDir : str=SOFTWARE_NAME+"-Results", sessionName="Unnamed-Session"):
 		'''Needs only a settings dictionary implementing all keys specified in the 'defaultFlags.toml' that should be in
 		the installation directory, but keyword arguments can be used to force use directories.
 		'''
@@ -145,9 +149,10 @@ class DirectoryLibrary:
 		LOGGER.debug("Creating: {}".format(self))
 
 		self.settings = settings
+		self.sessionName = sessionName
 
 		if workDir is not None:
-			os.chdir(self.workDir)
+			os.chdir(workDir)
 		
 		LOGGER.debug("Work dir:    '{}'".format(self.workDir))
 		LOGGER.debug("Install dir: '{}'".format(self.installDir))
@@ -155,10 +160,10 @@ class DirectoryLibrary:
 		
 		# Use a list of directories in order of priority, unless being forced via flags
 		self.targetDir = DirectoryGroup(*[self.workDir, self.installDir, self.userDir] if targetDir is None else targetDir)
-		self.refDir = DirectoryGroup(*[os.path.join(d, "References") for d in [self.installDir, self.userDir, self.workDir]] if refDir is None else refDir)
-		self.databaseDir = DirectoryGroup(*[os.path.join(d, "Databases") for d in [self.installDir, self.userDir, self.workDir]] if databaseDir is None else databaseDir)
-		self.tmpDir = DirectoryGroup(*[self.newRandomName(d) for d in [self.userDir, self.workDir, self.installDir]] if tmpDir is None else tmpDir)
-		self.outDir = DirectoryGroup(*[self.workDir, self.userDir] if outDir is None else outDir)
+		self.refDir = DirectoryGroup(*[os.path.join(d, "References") for d in [self.installDir, self.userDir, self.workDir]] if not os.path.isabs(refDir) else refDir)
+		self.databaseDir = DirectoryGroup(*[os.path.join(d, "Databases") for d in [self.installDir, self.userDir, self.workDir]] if not os.path.isabs(databaseDir) else databaseDir)
+		self.tmpDir = DirectoryGroup(*[newRandomName(d) for d in [self.userDir, self.workDir, self.installDir]] if tmpDir is None else tmpDir, purpose="w")
+		self.outDir = DirectoryGroup(*[os.path.join(d, SOFTWARE_NAME+"-Results", sessionName) for d in [self.workDir, self.userDir]] if not os.path.isabs(outDir) else outDir, purpose="w")
 
 		LOGGER.debug(str(self))
 		
@@ -168,7 +173,6 @@ class DirectoryLibrary:
 		self.maps = {}
 		self.SNPs = {}
 
-		self.__cache = {}
 	
 	def __getitem__(self, key):
 		return self.__getattribute__(key)
@@ -212,11 +216,14 @@ class DirectoryLibrary:
 		else:
 			self.tmpDir = DirectoryGroup(*[os.path.join(d, tmpDir) for d in [self.userDir, self.workDir, self.installDir]], purpose="w")
 	
-	def setOutDir(self, outDir : str):
+	def setOutDir(self, outDir : str=SOFTWARE_NAME+"-Results"):
 		if os.path.isabs(outDir):
 			self.outDir = DirectoryGroup(outDir, purpose="w")
 		else:
 			self.outDir = DirectoryGroup(*[os.path.join(d, outDir) for d in [self.workDir, self.userDir]], purpose="w")
+
+	def setSessionName(self, name):
+		self.sessionName = name
 	
 	'''Set-Values'''
 
@@ -246,43 +253,6 @@ class DirectoryLibrary:
 		for r,SNP in SNPs.items():
 			self.access(SNP, mode="r")
 		self.SNPs = SNPs
-		
-	# def get(self, filename : str, hint : str=None):
-	# 	'''Gets the absolute path to a file/directory found in one of the directories used by the Library. Hint can be
-	# 	provided to limit search to only one of the directories in the Library.
-	# 	If a path can not be found, it will be returned. This should be the case for a path which already is absolute.'''
-
-	# 	if filename in self.__cache:
-	# 		LOGGER.debug("Returned cached path '{path}' for filename '{filename}'".format(path=self.__cache[filename], filename=filename))
-	# 		return self.__cache[filename]
-
-	# 	if os.path.isabs(filename):
-	# 		return filename
-	# 	elif hint is not None:
-	# 		# directory hint has been provided
-	# 		for path, dirs, files in os.walk(self[hint]):
-	# 			for f in files:
-	# 				if f == filename:
-	# 					self.__cache[filename] = os.path.join(path, f)
-	# 					return os.path.join(path, f)
-	# 			for d in dirs:
-	# 				if d == filename:
-	# 					self.__cache[filename] = os.path.join(path, d)
-	# 					return os.path.join(path, d)
-					
-	# 		LOGGER.info("Looked for path: '{}' in {} but could not find it.\n{}".format(filename, hint, str(self)))
-	# 	else:
-	# 		# Without a hint, each directory is searched.
-	# 		for dr in {self[drVar] for drVar in self.dirs}:
-	# 			for path, dirs, files in os.walk(self[dr]):
-	# 				for f in files:
-	# 					if f == filename:
-	# 						return os.path.join(path, f)
-	# 				for d in dirs:
-	# 					if d == filename:
-	# 						return os.path.join(path, d)
-		
-	# 		LOGGER.info("Looked for path: '{}' in all directories but could not find it.\n{}".format(filename, str(self)))
 	
 	def getReferences(self) -> dict[str,(str, str, str, str, str)]:
 		'''Returns current list of references as a dictionary:

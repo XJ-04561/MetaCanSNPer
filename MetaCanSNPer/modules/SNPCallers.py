@@ -8,11 +8,11 @@ try:
 	from Wrappers import SNPCaller
 	from Databases import DatabaseReader
 except:
-	import CanSNPer2.modules.LogKeeper as LogKeeper
+	import MetaCanSNPer.modules.LogKeeper as LogKeeper
 
 	LOGGER = LogKeeper.createLogger(__name__)
-	from CanSNPer2.modules.Wrappers import SNPCaller
-	from CanSNPer2.modules.Databases import DatabaseReader
+	from MetaCanSNPer.modules.Wrappers import SNPCaller
+	from MetaCanSNPer.modules.Databases import DatabaseReader
 
 VCF_HEADER = """##fileformat=VCFv4.3
 ##fileDate={dateYYYYMMDD}
