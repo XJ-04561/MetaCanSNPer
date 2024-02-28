@@ -188,12 +188,9 @@ class MetaCanSNPer:
 		SNPCallerType : SNPCaller = SNPCallers.get(softwareName)
 
 		LOGGER.info("Loading SNPs from database.")
-		references = {}
-		for genome, reference in self.Lib.getReferences().items():
-			SNPs, snpList = self.database.get_snps(reference=genome)
-			references[genome] = SNPs
-			LOGGER.info("Loaded {n} SNPs for genome {genome}.".format(n=len(snpList), genome=genome))
-		LOGGER.info("Loaded a total of {n} SNPs.".format(n=sum(len(SNPs) for SNPs in references.values())))
+		self.database.references
+		self.database.SNPsByGenome
+		LOGGER.info("Loaded a total of {n} SNPs.".format(n=sum(len(SNPs) for SNPs in self.database.SNPsByGenome.values())))
 		
 		LOGGER.info("Creating SNPCaller '{}' of type '{}'".format( softwareName, SNPCallerType.__name__))
 		snpCaller : SNPCaller = SNPCallerType(self.Lib, self.database, self.outputTemplate, kwargs=kwargs)

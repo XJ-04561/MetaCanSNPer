@@ -170,40 +170,38 @@ class RowDict(dict):
 		self.FORMAT = self["FORMAT"]
 		self.SAMPLES = self["SAMPLES"]
 
+class VCFIOWrapper:
+	file : TextIO
+
+	def __init__(self, filename, mode):
+		self.file = open(filename, mode)
+	
+	def __del__(self):
+		self.file.close()
+
+	def close(self):
+		self.file.close()
+
 '''Concerns about future-proofing: diploid genomes give more than one result-column per sample. Looks like: 0|1:[...]
 where | separates the base call for each chromosomal pair.'''
-class CreateVCF:
+class CreateVCF(VCFIOWrapper):
 	meta : list[str]
 	header : list[str] # Header for the VCF, contains names of samples and other columns
-	# columnIndex : dict[str, int]= {
-	# 	"CHROM" : 0,
-	# 	"POS" : 1,
-	# 	"ID" : 2,
-	# 	"REF" : 3,
-	# 	"ALT" : 4,
-	# 	"QUAL" : 5,
-	# 	"FILTER" : 6,
-	# 	"INFO" : 7,
-	# 	"FORMAT" : 8
-	# }
 
 	def __init__(self, filename : str, referenceFile, newline : str="\n"):
-		self.fileHandler = open(filename, mode="w")
+		super().__init__(filename, mode="w")
 		self.newline = newline
 
 		self.header = VCF_HEADER.format(dateYYYYMMDD="{:0>4}{:0>2}{:0>2}".format(*(time.localtime()[:3])), refPath=referenceFile)
-		self.fileHandler.write(self.header)
+		self.file.write(self.header)
 			
-	def append(self, CHROM : str=".", POS : str=".", ID : str=".", REF : str=".", ALT : str=".", QUAL : str=".", FILTER : str=".", INFO : str=".", FORMAT : str="."):
-		self.fileHandler.write( VCF_ROW.format(CHROM, POS, ID, REF, ALT, QUAL, FILTER, INFO)+self.newline)
+	def add(self, CHROM : str=".", POS : str=".", ID : str=".", REF : str=".", ALT : str=".", QUAL : str=".", FILTER : str=".", INFO : str=".", FORMAT : str="."):
+		self.file.write( VCF_ROW.format(CHROM, POS, ID, REF, ALT, QUAL, FILTER, INFO)+self.newline)
 	
-	def close(self):
-		self.fileHandler.close()
 
-class ReadVCF:
-	file : TextIO
+class ReadVCF(VCFIOWrapper):
 	# rowReg = re.compile(b"^(?P<CHROM>[^\t]*?)\t(?P<POS>[0-9]+)\t(?P<ID>[^\t]*?)\t(?P<REF>[^\t]*?)\t(?P<ALT>([^\t,]*?,?)+)\t(?P<QUAL>[^\t]*?)\t(?P<FILTER>[^\t]*?)\t(?P<INFO>[^\t]*?)(\t(?P<FORMAT>[^\t]*?)(?P<SAMPLES>(\t[^\t]*?)+))?$")#, re.MULTILINE)
-	rows = set[int]
+	entryRows : list[int]
 	rowsBySelection : dict[str,dict[str|int, set[int]]]
 	columns : list[str] = ["CHROM", "POS", "ID", "REF", "ALT", "QUAL", "FILTER", "INFO", "FORMAT", "SAMPLES"]
 	# "POS" : dict[int, int]
@@ -213,8 +211,9 @@ class ReadVCF:
 	byteToRow : dict[int,int]
 
 	def __init__(self, filename : str):
-		self.file = open(filename, "rb")
+		super().__init__(filename, mode="rb")
 
+		self.entryRows = []
 		self.byteToRow = {}
 		self.rowsBySelection = {c:{} for c in self.columns}
 
@@ -243,7 +242,8 @@ class ReadVCF:
 			rowLength = len(row)
 			rowNumber += 1
 			self.byteToRow[startOfRow] = rowNumber
-			
+			self.entryRows.append(startOfRow)
+
 			rowDict = splitRow(row)
 
 			if rowDict is None:
@@ -264,6 +264,10 @@ class ReadVCF:
 						pass
 
 			startOfRow += rowLength
+
+	def __iter__(self):
+		self.file.seek(self.entryRows[0])
+		return (rowFromBytes(row.rstrip()) for row in self.file)
 
 	def where(self, **kwargs):
 		"""where(self, CHROM : str | list[str]=None, POS : int|list[int]=None, REF : str | list[str]=None, ALT : str | list[str]=None, QUAL : int | list[int]=None, FILTER : str | list[str]=None, INFO : str | list[str]=None, FORMAT=None)"""

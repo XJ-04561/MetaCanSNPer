@@ -9,10 +9,12 @@ import logging
 try:
 	import MetaCanSNPer.modules.LogKeeper as LogKeeper
 	from MetaCanSNPer.modules.DownloadReferences import DownloadQueue
+	from MetaCanSNPer.modules.VCFhandler import CreateVCF, ReadVCF
 except:
 	import LogKeeper as LogKeeper
 	from DownloadReferences import DownloadQueue
-import vcf
+	from VCFhandler import CreateVCF, ReadVCF
+
 
 LOGGER = LogKeeper.createLogger(__name__)
 PERMS_LOOKUP = {"r":"read", "w":"write", "x":"execute"}
@@ -261,21 +263,13 @@ class DirectoryLibrary:
 		return self.references
 	
 	def getSNPdata(self) -> dict[tuple[str,str],tuple[int,str,str,list[str],int,dict[str,int|str|list[float]|bool],dict[str,dict[str,int|str|list[int,int]]]]]:
-		'''Returns: {
-			(reference, query) : (POS, ID, REF, ALT, QUAL, INFO, samples),
-			...
-		}
-		Where:
-			POS		= number	, ID		= name	, REF		= seq,
-			ALT		= [seq, ]	, QUAL		= number, INFO		= {"XY" : value, ...},
-			samples	= {sampleName : {"XY" : value, }, }
+		'''getSNPdata() -> {POS : CALLED}
 		'''
 		SNPs = {}
 		for (reference, query), path in self.SNPs.items():
-			reader = vcf.Reader(filename=path)
+			reader = ReadVCF(filename=path)
 			for entry in reader:
-				# SNPs[entry.POS] = (entry.ID, entry.REF, entry.ALT, entry.QUAL, entry.INFO, {sample.sample:{key:sample.data.__getattribute__(key) for key in dir(sample.data) if key.isupper()} for sample in entry.samples})
-				SNPs[entry.POS] = entry.REF
+				SNPs[entry.POS] = entry.REF # Called Base is in the "REF" field
 		
 		return SNPs
 
