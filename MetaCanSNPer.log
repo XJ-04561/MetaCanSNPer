@@ -155,3 +155,12 @@ Directories in Library at 0x000001d3e50d8260:
 [MetaCanSNPer.__main__] 2024-02-08 16:15:17,308 - DEBUG: Path does not exist: '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer\CanSNPer2\modules\References'
 [MetaCanSNPer.__main__] 2024-02-08 16:15:17,319 - DEBUG: Path does not exist: 'C:\Users\fresor\References'
 [MetaCanSNPer.__main__] 2024-02-08 16:15:17,321 - DEBUG: Path does not exist, creating it instead: '\\filer1-ume\fresor\Documents\GitHub\MetaCanSNPer\CanSNPer2\modules\tmp_20573997104956959007199254740992'
+[MetaCanSNPer.__main__] 2024-02-28 18:28:36,124 - ERROR: Bad row in VCF file 'specCallData.vcf' Row #46
+[MetaCanSNPer.__main__] 2024-02-28 18:30:30,706 - ERROR: Bad row in VCF file 'specCallData.vcf' Row #46
+[MetaCanSNPer.__main__] 2024-02-28 18:34:29,802 - ERROR: Bad row in VCF file 'specCallData.vcf' Row #46
+[MetaCanSNPer.__main__] 2024-02-28 18:39:14,953 - ERROR: Bad row in VCF file 'specCallData.vcf' Row #46
+[MetaCanSNPer.__main__] 2024-02-28 18:41:26,453 - ERROR: Bad row in VCF file 'specCallData.vcf' Row #46
+[MetaCanSNPer.__main__] 2024-02-28 18:44:57,762 - ERROR: Bad row in VCF file 'specCallData.vcf' Row #46
+[MetaCanSNPer.__main__] 2024-02-28 18:46:40,355 - ERROR: Bad row in VCF file 'specCallData.vcf' Row #46
+[MetaCanSNPer.__main__] 2024-02-28 18:49:43,605 - ERROR: Bad row in VCF file 'specCallData.vcf' Row #46
+[MetaCanSNPer.__main__] 2024-02-28 18:51:07,735 - ERROR: Bad row in VCF file 'specCallData.vcf' Row #46

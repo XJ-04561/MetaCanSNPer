@@ -321,7 +321,7 @@ class SNPCaller(IndexingWrapper):
 				
 				for snpID, pos, ref, alt in SNPs:
 					# CHROM has to be the same as the accession id that is in the reference file.
-					vcfFile.append(CHROM=accession, POS=pos, ID=snpID, REF=ref, ALT=",A,T,C,G".replace(","+ref, "")[1:])
+					vcfFile.append(CHROM=accession, POS=pos, ID=snpID, REF="N", ALT="A,T,C,G")
 				vcfFile.close()
 				
 			SNPFiles[genome] = filename

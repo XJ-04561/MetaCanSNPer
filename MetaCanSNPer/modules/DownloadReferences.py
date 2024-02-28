@@ -7,12 +7,10 @@ from urllib.request import urlretrieve
 import logging
 try:
 	from MetaCanSNPer.modules.LogKeeper import createLogger
-
-	LOGGER = createLogger(__name__)
 except:
 	from LogKeeper import createLogger
 
-	LOGGER = createLogger(__name__)
+LOGGER = createLogger(__name__)
 SOURCED = {"refseq":"F", "genbank": "A"}
 REFERENCE_FILENAME_FORMAT = "{genome_id}_{assembly}_genomic.fna"
 NCBI_FTP_LINK = "ftp://ftp.ncbi.nlm.nih.gov/genomes/all/GC{source}/{n1}/{n2}/{n3}/{genome_id}_{assembly}/{genome_id}_{assembly}_genomic.fna.gz"
