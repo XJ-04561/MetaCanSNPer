@@ -311,4 +311,5 @@ if __name__ == "__main__":
 	print(f"{vcf.sampleNames=}")
 	print(f"{vcf.rowsBySelection=}")
 
-	print( vcf.where(POS=83976))
+	for SNP in vcf:
+		print(SNP.keys(), *["{}={}".format(key, SNP[key]) for key in COLUMNS[:-1]])

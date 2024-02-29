@@ -184,8 +184,11 @@ class IndexingWrapper(ProcessWrapper):
 	format : str
 
 	returncodes : list[list[int]]
+	outputs : list[tuple[tuple[str,str],str]]
+	"""[((QUERY_NAME, REFERENCE_NAME), OUTPUT_PATH), ...]"""
 	threadGroup : ThreadGroup
 	solutions : dict
+
 	
 	def __init__(self, lib : DirectoryLibrary, database : DatabaseReader, outputTemplate : str, kwargs : dict={}):
 		self.Lib = lib
@@ -218,7 +221,8 @@ class IndexingWrapper(ProcessWrapper):
 		self.threadGroup = ThreadGroup(self.run, args=zip(commands, logs, self.returncodes), stdout=PIPE, stderr=STDOUT)
 
 		self.threadGroup.start()
-		
+
+		self.outputs = outputs
 		return outputs
 	
 	def waitNext(self, timeout=None):
@@ -237,7 +241,7 @@ class IndexingWrapper(ProcessWrapper):
 		commands = []
 		outputs = []
 		for _, refName, _, _, _ in self.database.references:
-			refPath = self.Lib.references
+			refPath = self.Lib.references[refName]
 			'''Not every command needs all information, but the format function is supplied with a dictionary that has
 			everything that could ever be needed.'''
 
@@ -266,14 +270,23 @@ class IndexingWrapper(ProcessWrapper):
 			outputs.append(((self.queryName, refName), output))
 		return commands, logs, outputs
 
+	def updateWhileWaiting(self, outputDict : dict):
+		while not self.finished():
+			finished = self.waitNext()
+			for i in finished:
+				key, path = self.output[i]
+				if self.returncodes[i][-1] == 0:
+					outputDict[key] = path
+					LOGGER.info("Finished running {software} {n}/{N}.".format(software=self.softwareName, n=len(outputDict), N=len(self.output)))
+
 	def finished(self):
 		if self.threadGroup is None:
 			raise ValueError("{classType}.threadGroup is not initialized so it cannot be status checked with {classType}.finished()".format(classType=type(self).__name__))
 		return self.threadGroup.finished()
 	
 	def hickups(self):
-		'''Checks whether any process finished with a non-zero exitcode at the latest run.'''
-		return any(e[-1]!=0 for e in self.returncodes)
+		'''Checks whether any process finished with a non-zero exitcode at the latest run. Returns True if process has not ran yet.'''
+		return len(self.returncodes[0])==0 or any(e[-1]!=0 for e in self.returncodes)
 
 	def fixable(self):
 		'''Checks whether there is a known or suspected solution available for any errors that occured. If tried once,
@@ -311,17 +324,17 @@ class SNPCaller(IndexingWrapper):
 
 		SNPFiles = {}
 		for _, genome, _, _, _ in self.database.references:
-			refPath, strain, genkbank_id, refseq_id, assembly_name = self.Lib.references[genome] # dadsadasd
+			refPath = self.Lib.references[genome]
 			accession = open(refPath, "r").readline()[1:].split()[0]
-			filename = "{ref}.vcf".format(ref=refPath)
+			filename = "{ref}.vcf".format(ref=os.path.join(self.Lib.refDir.writable, os.path.basename(refPath)))
+
 			if force is True or not os.path.exists(filename):
-				
 				vcfFile = CreateVCF(filename, referenceFile=refPath)
 				SNPs = self.database.SNPsByGenome[genome]
 				
 				for snpID, pos, ref, alt in SNPs:
 					# CHROM has to be the same as the accession id that is in the reference file.
-					vcfFile.append(CHROM=accession, POS=pos, ID=snpID, REF="N", ALT="A,T,C,G")
+					vcfFile.add(CHROM=accession, POS=pos, ID=snpID, REF="N", ALT="A,T,C,G")
 				vcfFile.close()
 				
 			SNPFiles[genome] = filename

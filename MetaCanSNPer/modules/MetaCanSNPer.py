@@ -39,47 +39,48 @@ except ModuleNotFoundError:
 import random
 random.seed()
 
-class Error(Exception):
-	"""docstring for Error"""
-	def __init__(self, value):
-		self.value = value
-	def __str__(self):
-		return repr(self.value)
+SOFTWARE_NAME = "MetaCanSNPer"
 
-
-class MetaCanSNPerError(Error):
-	"""docstring for MauveE"""
-	pass
+def loadFlattenedTOML(filename):
+	tmp : dict[str,dict] = toml.load(open(filename, "rb"))
+	# Settings hierarchy looks like this: ["Category"]["Flag"] -> Value
+	# Flatten hierarchy so flags are easily accessible
+	settings = {}
+	for flags in tmp.values():
+		for flag, value in flags.items():
+			settings[flag] = value
+	return settings
 
 class MetaCanSNPer:
-	outputTemplate = "{ref}_{target}.{format}"
+	outputTemplate = "{0[refName]}_{0[queryName]}.{0[outFormat]}"
 	databaseName : str
 	database : DatabaseReader
-	Lib : DirectoryLibrary[str]
+	Lib : DirectoryLibrary
 	settings : dict
 	sessionName : str
 
 	"""docstring for MetaCanSNPer"""
-	def __init__(self, lib : DirectoryLibrary=None, tmpDir=None, refDir="References", database="CanSNPer.fdb", settingsFile : str=None, sessionName : str=None, **kwargs):
+	def __init__(self, lib : DirectoryLibrary=None, database=None, settingsFile : str=None, sessionName : str=None, **kwargs):
 		self.startTime = time.localtime()
 		
-		self.setDatabase(database)
+		if database is None:
+			self.databaseName = None
+			self.database = None
+		else:
+			self.setDatabase(database=database)
+		
+		self.settings : dict = loadFlattenedTOML(os.path.join(self.Lib.installDir, "defaultFlags.toml"))
+		if settingsFile is not None:
+			if os.path.isabs(settingsFile):
+				self.settings.update( loadFlattenedTOML(settingsFile))
+			else:
+				self.settings.update( loadFlattenedTOML(self.Lib.targetDir[settingsFile]))
+		
 		if lib is None:
-			self.Lib = DirectoryLibrary(tmpDir=tmpDir, refDir=os.path.join(refDir, os.path.splitext(database)[0]))
+			self.Lib = DirectoryLibrary(settings=self.settings)
 		else:
 			self.Lib = lib
-		settings : dict = toml.load(open(self.Lib.get("defaultFlags.toml", "installDir") if settingsFile is None else self.Lib.get(settingsFile, "workDir")), "rb")
-		# Settings hierarchy looks like this: ["Category"]["Flag"] -> Value
-
-		# Flatten hierarchy so flags are easily accessible
-		self.settings = {}
-		for flags in settings.values():
-			for flag, value in flags.items():
-				if flag in kwargs:
-					self.settings[flag] = kwargs[flag]
-				else:
-					self.settings[flag] = value
-
+	
 		self.sessionName = sessionName
 
 		# Need for this is unknown, might remove later.
@@ -93,9 +94,19 @@ class MetaCanSNPer:
 			path = self.Lib.databaseDir[database]
 			self.databaseName = path
 			self.connectDatabase()
+		else:
+			LOGGER.warn("Database not found: '{}'".format( database))
 
 	def connectDatabase(self):
-		self.database = DatabaseReader(self.databaseName)
+		if self.databaseName is None:
+			LOGGER.error("Database not specified. Can't connect unless a valid database is set through MetaCanSNPer.setDatabase.")
+			return 1
+		try:
+			self.database = DatabaseReader(self.databaseName)
+			return 0
+		except Exception as e:
+			LOGGER.error(e)
+		return 1
 
 	'''MetaCanSNPer set directories'''
 	
@@ -133,57 +144,55 @@ class MetaCanSNPer:
 
 	'''Indexing methods'''
 
-	def createIndex(self, softwareName : str, kwargs : dict={}):
+	def getSoftwareClass(self, softwareName):
+		for types in [Aligners, Mappers, SNPCallers]:
+			if types.get(softwareName) is not None:
+				return types.get(softwareName)
+		return None
+
+	def runSoftware(self, softwareClass : IndexingWrapper, outputDict : dict={}, kwargs : dict={}):
 		'''Align sequences using subprocesses.'''
 
-		LOGGER.debug("Checking for Aligner named '{}'".format( softwareName))
-		indexerType : type = Aligners.get(softwareName) # Fetch the object class of the specified aligner software.
-		if indexerType is None:
-			LOGGER.debug("Checking for Mapper named '{}'".format( softwareName))
-			indexerType : type = Mappers.get(softwareName) # Fetch the object class of the specified Mapper software.
-		else:
-			# No Aligner or Mapper found that is implemented yet.
-			LOGGER.error("No software defined for name '{}'".format( softwareName))
-			raise NotImplementedError("No software defined for name '{}'".format( softwareName))
-		
-		LOGGER.info("Checking if all references in the database have been downloaded. Downloads them if they haven't.")
-
-		LOGGER.info("Creating Indexer '{}' of type '{}'".format( softwareName, indexerType.__name__))
-		indexer : IndexingWrapper= indexerType(self.Lib, self.database, self.outputTemplate, kwargs=kwargs)
-
-		LOGGER.info("Checking for pre-processing for indexer.")
-		indexer.preProcess()
-
-		LOGGER.info("Starting indexing.")
-		output = indexer.start()
-
-		# Start aligning
-		while not indexer.finished():
-			finished = indexer.waitNext()
-			for i in finished:
-				key, path = output[i]
-				if key not in self.Lib.indexed and indexer.returncodes[i][-1] == 0:
-					self.Lib.indexed[key] = path
+		LOGGER.info("Creating software wrapper for '{}' of type '{}'".format(softwareClass.softwareName, softwareClass.__name__))
+		software : IndexingWrapper = softwareClass(self.Lib, self.database, self.outputTemplate, kwargs=kwargs)
 
 		# Check that error did not occur.
-		while indexer.hickups():
-			if not indexer.fixable():
-				# Error does not have a known solution that has worked during this run.
-				return []
-			else:
-				# Error has a possible fix, implement the fix.
-				indexer.planB()
+		while software.hickups():	
+			LOGGER.info("Checking for pre-processing for {software}.".format(software=software.softwareName))
+			software.preProcess()
+
+			LOGGER.info("Starting {software}.".format(software=software.softwareName))
+			output = software.start()
 			
 			# Run the alignment just like before, but hopefully fixed.
-			while not indexer.finished():
-				finished = indexer.waitNext()
-				for i in finished:
-					key, path = output[i][0]
-					if indexer.returncodes[i][-1] == 0:
-						self.Lib.indexed[key] = path
+			software.updateWhileWaiting(outputDict)
+			LOGGER.info("Finished running all instances of {software}.".format(software=software.softwareName))
+
+			if software.fixable():
+				LOGGER.info("{software} failed. Fix for the specific error exists. Implementing and running again.".format(software=software.softwareName))
+				software.planB()
+			else:
+				LOGGER.error("Software error, no fix implemented. Returning empty list of outputs")
+				for key, path in output:
+					del outputDict[key]
+				return outputDict
+		
+		return outputDict
 	
 
 	def callSNPs(self, softwareName : str, kwargs : dict={}):
+		''''''
+		SNPCallerType : SNPCaller = SNPCallers.get(softwareName)
+
+		LOGGER.info("Loading References from database.")
+		self.database.references
+		LOGGER.info("Loading SNPs from database.")
+		self.database.SNPsByGenome
+		LOGGER.info("Loaded a total of {n} SNPs.".format(n=sum(len(SNPs) for SNPs in self.database.SNPsByGenome.values())))
+		
+		self.runSoftware(SNPCallerType, outputDict=self.Lib.SNPs, kwargs=kwargs)
+
+	def createIndex(self, softwareName : str, kwargs : dict={}):
 		''''''
 		SNPCallerType : SNPCaller = SNPCallers.get(softwareName)
 
@@ -192,47 +201,7 @@ class MetaCanSNPer:
 		self.database.SNPsByGenome
 		LOGGER.info("Loaded a total of {n} SNPs.".format(n=sum(len(SNPs) for SNPs in self.database.SNPsByGenome.values())))
 		
-		LOGGER.info("Creating SNPCaller '{}' of type '{}'".format( softwareName, SNPCallerType.__name__))
-		snpCaller : SNPCaller = SNPCallerType(self.Lib, self.database, self.outputTemplate, kwargs=kwargs)
-		
-		LOGGER.info("Checking for pre-processing for SNPCaller.")
-		snpCaller.preProcess()
-
-		# Start aligning
-		output = snpCaller.start()
-
-
-		while not snpCaller.finished():
-			finished = snpCaller.waitNext()
-			for i in finished:
-				key, path = output[i]
-				if key not in self.Lib.SNPs and snpCaller.returncodes[i][-1] == 0:
-					self.Lib.SNPs[key] = path
-
-		# Check that error did not occur.
-		while snpCaller.hickups():
-			if not snpCaller.fixable():
-				# Error does not have a known solution that has worked during this run.
-				return []
-			else:
-				# Error has a possible fix, implement the fix.
-				snpCaller.planB()
-			
-			# Run the alignment just like before, but hopefully fixed.
-			while not snpCaller.finished():
-				finished = snpCaller.waitNext()
-				for i in finished:
-					key, path = output[i][0]
-					if snpCaller.returncodes[i][-1] == 0:
-						self.Lib.SNPs[key] = path
-		
-		resultData = self.Lib.getSNPdata()
-
-		# Interpret the SNP calls
-
-		self.SNPresults = {}
-		for snpID, (pos, anc, der) in self.database.SNPsByID.items():
-			self.SNPresults[snpID] = resultData[pos]
+		self.runSoftware(SNPCallerType, outputDict=self.Lib.SNPs, kwargs=kwargs)
 
 	def traverseTree(self):
 		'''Depth-first tree search.'''

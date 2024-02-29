@@ -22,6 +22,14 @@ PERMS_LOOKUP_OS = {"r":os.R_OK, "w":os.W_OK, "x":os.X_OK}
 MAX_RESULTS = 10**9
 SOFTWARE_NAME = "MetaCanSNPer"
 
+# OS alibis
+pJoin = os.path.join
+pIsAbs = os.path.isabs
+pExpUser = os.path.expanduser
+pAbs = os.path.abspath
+pNorm = os.path.normpath
+pDirName = os.path.dirname
+
 ''' Functions '''
 
 def findValidPath(self, paths, mode="r") -> str:
@@ -33,12 +41,12 @@ def findValidPath(self, paths, mode="r") -> str:
 def newRandomName(path : str, ext : str=None):
 	newName = "tmp_{}{}{}".format(*random.random().as_integer_ratio(), "."+ext if ext is not None else "")
 	n=0
-	while os.path.exists(os.path.join(path, newName)):
+	while os.path.exists(pJoin(path, newName)):
 		newName = "tmp_{}{}{}".format(*random.random().as_integer_ratio(), "."+ext if ext is not None else "")
 		if n>1000000-1:
 			raise FileExistsError("Could not generate random file/directory name for path='{path}' after {n} attempts".format(path=path, n=n))
 			break
-	return os.path.join(path, newName)
+	return pJoin(path, newName)
 
 class DirectoryGroup:
 	_roots : list[str]
@@ -55,29 +63,43 @@ class DirectoryGroup:
 	
 	def __contains__(self, path : str):
 		for r in self._roots:
-			if os.path.exists(os.path.join(r, path)):
+			if os.path.exists(pJoin(r, path)):
 				return True
 		return False
 
 	def __str__(self) -> str:
 		return "{}\t: {}".format(self._roots, [c if os.access(r, PERMS_LOOKUP_OS[c]) else " " for r in self._roots for c in "rwx"])
 
-	def __getitem__(self, path : str, purpose=None) -> str:
+	def __getitem__(self, path : str, purpose:str=None) -> str:
 		if purpose is None:
 			purpose = self.defaultPurpose
 		for r in self._roots:
-			if not os.path.exists(os.path.join(r, path)):
-				self.create(path)
-			
-			if os.access(os.path.join(r, path), PERMS_LOOKUP_OS[purpose]):
-				return os.path.join(r, path)
+			if os.path.exists(pJoin(r, path)):
+				if os.access(pJoin(r, path), PERMS_LOOKUP_OS[purpose]):
+					return pJoin(r, path)
 		return None
+	
+	def find(self, path : str, purpose:str=None):
+		'''Looks for path in the group of directories and returns first found path.'''
+		return self.__getitem__(self, path, purpose=purpose if purpose is not None else self.defaultPurpose)
+
+	def forceFind(self, path : str, purpose:str=None):
+		'''Looks for path in the group of directories and returns first found path. Will try to create and return path
+		in the group if it does not currently exist.'''
+		return self.__getitem__(self, path, purpose=purpose if purpose is not None else self.defaultPurpose) or self.create(path=path)
+
+	
+	@property
+	def writable(self): return self.__getitem__(self, "", purpose="w")
+	@property
+	def readable(self): return self.__getitem__(self, "", purpose="r")
 	
 	def create(self, path : str):
 		'''Should not be used to create files, only directories!'''
 		for r in self._roots:
 			if os.access(r, os.W_OK):
-				os.makedirs(os.path.join(r, os.path.dirname(path)))
+				os.makedirs(pJoin(r, pDirName(path)))
+				return pJoin(r, pDirName(path))
 		return None
 		
 
@@ -94,16 +116,6 @@ class DirectoryLibrary:
 	installDir : str
 	userDir : str
 
-	@cached_property
-	def workDir(self):
-		return os.curdir
-	@cached_property
-	def installDir(self):
-		return os.path.dirname(__file__)
-	@cached_property
-	def userDir(self):
-		return os.path.expanduser("~")
-
 	targetDir : DirectoryGroup
 	refDir : DirectoryGroup
 	databaseDir : DirectoryGroup
@@ -111,40 +123,44 @@ class DirectoryLibrary:
 	outDir : DirectoryGroup
 	resultDir : str
 	logDir : str
+	query : list[str]
 	
 	sessionName : str
+	queryName : str
 
-	@property
-	def resultDir(self):
-		return self.outDir[self.sessionName]
-	@property
-	def logDir(self):
-		return self.outDir[self.sessionName]
+	indexed : dict[tuple[str, str], str]
+	'''Dictionary keys are tuples of (reference, query). Dictionary values are the absolute paths to the file.'''
+	maps : dict[tuple[str, str], str]
+	'''Dictionary keys are tuples of (reference, query). Dictionary values are the absolute paths to the file.'''
+	SNPs : dict[tuple[str, str], str]
+	'''Dictionary keys are tuples of (reference, query). Dictionary values are the absolute paths to the file.'''
 
-	dirs = [
+
+	baseDirs = [
 		"workDir", "installDir", "userDir",
 		"targetDir", "refDir", "tmpDir",
 		"outDir", "resultDir", "logDir",
 		"databaseDir"
 	]
 
-	query : list[str]
-	queryName : str
 	@cached_property
-	def queryName(self):
-		return os.path.splitext(os.path.basename(self.query))[0]
+	def workDir(self):		return os.curdir
+	@cached_property
+	def installDir(self):	return pNorm(pJoin(pDirName(__file__), ".."))
+	@cached_property
+	def userDir(self):		return pExpUser("~")
+	@property
+	def resultDir(self):	return self.outDir.forceFind(self.sessionName)
+	@property
+	def logDir(self):		return self.outDir.forceFind(self.sessionName)
+	@cached_property
+	def queryName(self):	return os.path.splitext(os.path.basename(self.query))[0]
 	
-	indexed : dict[tuple[str, str], str]
-	maps : dict[tuple[str, str], str]
-	SNPs : dict[tuple[str, str], str]
-	
-	'''Dictionary keys are tuples of (reference, query).
-	Dictionary values are the absolute paths to the file.'''
-	
-	def __init__(self, settings : dict, workDir : str=None, installDir : str=None, userDir : str=None,
-			     targetDir : str=None, tmpDir : str=None, refDir : str=os.path.join("References", "Francisella_Tularensis"),
-				 databaseDir : str="Databases", outDir : str=SOFTWARE_NAME+"-Results", sessionName="Unnamed-Session"):
-		'''Needs only a settings dictionary implementing all keys specified in the 'defaultFlags.toml' that should be in
+	def __init__(self, settings : dict, sessionName="Unnamed-Session", **kwargs):
+		'''Directories that can be passed as kwargs:
+		workDir, targetDir, tmpDir, refDir, databaseDir, outDir
+
+		Needs only a settings dictionary implementing all keys specified in the 'defaultFlags.toml' that should be in
 		the installation directory, but keyword arguments can be used to force use directories.
 		'''
 
@@ -153,19 +169,25 @@ class DirectoryLibrary:
 		self.settings = settings
 		self.sessionName = sessionName
 
-		if workDir is not None:
-			os.chdir(workDir)
-		
 		LOGGER.debug("Work dir:    '{}'".format(self.workDir))
 		LOGGER.debug("Install dir: '{}'".format(self.installDir))
 		LOGGER.debug("User dir:    '{}'".format(self.userDir))
 		
-		# Use a list of directories in order of priority, unless being forced via flags
+		# Use kwargs as a first, and settings as a second.
+		workDir = kwargs.get("workDir")
+		targetDir = kwargs.get("targetDir") or self.settings.get("targetDir")
+		refDir = kwargs.get("refDir")
+		databaseDir = kwargs.get("databaseDir") or self.settings.get("databaseDir")
+		tmpDir = kwargs.get("tmpDir") or self.settings.get("tmpDir")
+		outDir = kwargs.get("outDir") or self.settings.get("outDir")
+
+		# Use pre-defined directories if kwargs and settings did not have specifications.
+		if workDir is not None: os.chdir(workDir)
 		self.targetDir = DirectoryGroup(*[self.workDir, self.installDir, self.userDir] if targetDir is None else targetDir)
-		self.refDir = DirectoryGroup(*[os.path.join(d, "References") for d in [self.installDir, self.userDir, self.workDir]] if not os.path.isabs(refDir) else refDir)
-		self.databaseDir = DirectoryGroup(*[os.path.join(d, "Databases") for d in [self.installDir, self.userDir, self.workDir]] if not os.path.isabs(databaseDir) else databaseDir)
-		self.tmpDir = DirectoryGroup(*[newRandomName(d) for d in [self.userDir, self.workDir, self.installDir]] if tmpDir is None else tmpDir, purpose="w")
-		self.outDir = DirectoryGroup(*[os.path.join(d, SOFTWARE_NAME+"-Results", sessionName) for d in [self.workDir, self.userDir]] if not os.path.isabs(outDir) else outDir, purpose="w")
+		self.refDir = DirectoryGroup(*[pJoin(d, SOFTWARE_NAME+"-Data", "References", refDir) if "refDir" not in self.settings else pJoin(d, self.settings["refDir"]) for d in [self.installDir, self.userDir, self.workDir]] if "refDir" not in self.settings or not pIsAbs(pExpUser(refDir)) else refDir)
+		self.databaseDir = DirectoryGroup(*[pJoin(d, SOFTWARE_NAME+"-Data", "Databases") for d in [self.installDir, self.userDir, self.workDir]] if databaseDir is None else databaseDir)
+		self.tmpDir = DirectoryGroup(*[newRandomName(d) for d in [self.userDir, self.workDir]] if tmpDir is None else tmpDir, purpose="w")
+		self.outDir = DirectoryGroup(*[pJoin(d, SOFTWARE_NAME+"-Results", sessionName) for d in [self.workDir, self.userDir]] if outDir is None else pJoin(outDir, sessionName), purpose="w")
 
 		LOGGER.debug(str(self))
 		
@@ -186,7 +208,7 @@ class DirectoryLibrary:
 	def __str__(self):
 		''''''
 		# Works nicely, don't question it.
-		return "Directories in Library at 0x{:0>16}:\n".format(hex(id(self))[2:])+"\n".join(["  {:<20}='{}{}{}' '{}'".format(d,*["?" if self[d] not in self.perms else c if self.perms[self[d]][c] else " " for c in "rwx" ], self[d]) for d in (a for a in dir(self) if a in self.dirs)])
+		return "Directories in Library at 0x{:0>16}:\n".format(hex(id(self))[2:])+"\n".join(["  {:<20}='{}{}{}' '{}'".format(d,*["?" if self[d] not in self.perms else c if self.perms[self[d]][c] else " " for c in "rwx" ], self[d]) for d in (a for a in dir(self) if a in self.baseDirs)])
 
 	def __del__(self):
 		if os.path.exists(self.tmpDir) and (not self.settings["KeepTemporaryFiles"] if "KeepTemporaryFiles" in self.settings else True):
@@ -195,34 +217,34 @@ class DirectoryLibrary:
 	'''Set-Pathing'''
 
 	def setTargetDir(self, targetDir : str):
-		if os.path.isabs(targetDir):
+		if pIsAbs(targetDir):
 			self.targetDir = DirectoryGroup(targetDir, purpose="r")
 		else:
-			self.targetDir = DirectoryGroup(*[os.path.join(d, targetDir) for d in [self.workDir, self.installDir, self.userDir]], purpose="r")
+			self.targetDir = DirectoryGroup(*[pJoin(d, targetDir) for d in [self.workDir, self.installDir, self.userDir]], purpose="r")
 	
 	def setRefDir(self, refDir : str):
-		if os.path.isabs(refDir):
+		if pIsAbs(refDir):
 			self.refDir = DirectoryGroup(refDir, purpose="r")
 		else:
-			self.refDir = DirectoryGroup(*[os.path.join(d, refDir) for d in [self.installDir, self.userDir, self.workDir]], purpose="r")
+			self.refDir = DirectoryGroup(*[pJoin(d, refDir) for d in [self.installDir, self.userDir, self.workDir]], purpose="r")
 	
 	def setDatabaseDir(self, databaseDir : str):
-		if os.path.isabs(databaseDir):
+		if pIsAbs(databaseDir):
 			self.databaseDir = DirectoryGroup(databaseDir, purpose="r")
 		else:
-			self.databaseDir = DirectoryGroup(*[os.path.join(d, databaseDir) for d in [self.installDir, self.userDir, self.workDir]], purpose="r")
+			self.databaseDir = DirectoryGroup(*[pJoin(d, databaseDir) for d in [self.installDir, self.userDir, self.workDir]], purpose="r")
 
 	def setTmpDir(self, tmpDir : str):
-		if os.path.isabs(tmpDir):
+		if pIsAbs(tmpDir):
 			self.tmpDir = DirectoryGroup(tmpDir, purpose="w")
 		else:
-			self.tmpDir = DirectoryGroup(*[os.path.join(d, tmpDir) for d in [self.userDir, self.workDir, self.installDir]], purpose="w")
+			self.tmpDir = DirectoryGroup(*[pJoin(d, tmpDir) for d in [self.userDir, self.workDir, self.installDir]], purpose="w")
 	
 	def setOutDir(self, outDir : str=SOFTWARE_NAME+"-Results"):
-		if os.path.isabs(outDir):
+		if pIsAbs(outDir):
 			self.outDir = DirectoryGroup(outDir, purpose="w")
 		else:
-			self.outDir = DirectoryGroup(*[os.path.join(d, outDir) for d in [self.workDir, self.userDir]], purpose="w")
+			self.outDir = DirectoryGroup(*[pJoin(d, outDir) for d in [self.workDir, self.userDir]], purpose="w")
 
 	def setSessionName(self, name):
 		self.sessionName = name
@@ -230,7 +252,7 @@ class DirectoryLibrary:
 	'''Set-Values'''
 
 	def setQuery(self, query : str):
-		if os.path.isabs(query):
+		if pIsAbs(query):
 			self.query = query
 			self.access(self.query, mode="r")
 		else:
@@ -239,12 +261,12 @@ class DirectoryLibrary:
 	def setReferences(self, references : list[str,str,str,str,str]):
 		self.references = {}
 		for genome, strain, genbank_id, refseq_id, assembly_name in references:
-			filename = DownloadQueue.download(genbank_id, refseq_id, assembly_name, dst=self.refDir)
+			filename = DownloadQueue.download(genbank_id, refseq_id, assembly_name, dst=self.refDir.writable)
 			if not os.path.exists(filename):
 				msg = "Could not download reference genome: {genbank_id='{genbank_id}', refseq_id='{refseq_id}' assembly_name='{assembly_name}'}".format(genbank_id=genbank_id, refseq_id=refseq_id, assembly_name=assembly_name)
 				LOGGER.error(msg)
 				raise FileNotFoundError(msg)
-			self.references[genome] = filename, strain, genbank_id, refseq_id, assembly_name
+			self.references[genome] = filename
 
 	def setIndexes(self, indexes : dict[tuple[str,str],str]):
 		for (q,r),iP in indexes.items():
