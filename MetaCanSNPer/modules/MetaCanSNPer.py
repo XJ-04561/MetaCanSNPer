@@ -41,6 +41,15 @@ random.seed()
 
 SOFTWARE_NAME = "MetaCanSNPer"
 
+# OS Alibis
+pSep = os.path.sep
+pJoin = os.path.join
+pIsAbs = lambda *args, **kwargs: os.path.isabs(os.path.expanduser(*args, **kwargs))
+pExpUser = os.path.expanduser
+pAbs = os.path.abspath
+pNorm = os.path.normpath
+pDirName = os.path.dirname
+
 def loadFlattenedTOML(filename):
 	tmp : dict[str,dict] = toml.load(open(filename, "rb"))
 	# Settings hierarchy looks like this: ["Category"]["Flag"] -> Value
@@ -60,26 +69,24 @@ class MetaCanSNPer:
 	sessionName : str
 
 	"""docstring for MetaCanSNPer"""
-	def __init__(self, lib : DirectoryLibrary=None, database=None, settingsFile : str=None, sessionName : str=None, **kwargs):
+	def __init__(self, lib : DirectoryLibrary=None, database=None, settings : dict={}, settingsFile : str=None, sessionName : str=None):
 		self.startTime = time.localtime()
-		
-		if database is None:
-			self.databaseName = None
-			self.database = None
-		else:
-			self.setDatabase(database=database)
-		
-		self.settings : dict = loadFlattenedTOML(os.path.join(self.Lib.installDir, "defaultFlags.toml"))
-		if settingsFile is not None:
-			if os.path.isabs(settingsFile):
-				self.settings.update( loadFlattenedTOML(settingsFile))
-			else:
-				self.settings.update( loadFlattenedTOML(self.Lib.targetDir[settingsFile]))
 		
 		if lib is None:
 			self.Lib = DirectoryLibrary(settings=self.settings)
 		else:
 			self.Lib = lib
+
+		self.settings : dict = loadFlattenedTOML(os.path.join(self.Lib.installDir, "defaultFlags.toml"))
+		if settingsFile is not None:
+			if pIsAbs(settingsFile):
+				self.settings.update( loadFlattenedTOML(settingsFile))
+			else:
+				self.settings.update( loadFlattenedTOML(self.Lib.targetDir[settingsFile]))
+		self.settings.update(settings)
+
+		if database is not None:
+			self.setDatabase(database=database)
 	
 		self.sessionName = sessionName
 
@@ -95,7 +102,7 @@ class MetaCanSNPer:
 			self.databaseName = path
 			self.connectDatabase()
 		else:
-			LOGGER.warn("Database not found: '{}'".format( database))
+			LOGGER.warning("Database not found: '{}'".format( database))
 
 	def connectDatabase(self):
 		if self.databaseName is None:
@@ -110,11 +117,11 @@ class MetaCanSNPer:
 
 	'''MetaCanSNPer set directories'''
 	
-	def setTargetDir(self, path : str):		self.Lib.setTargetDir(path)
-	def setRefDir(self, path : str):		self.Lib.setRefDir(path)
-	def setDatabaseDir(self, path : str):	self.Lib.setDatabaseDir(path)
-	def setTmpDir(self, path : str):		self.Lib.setTmpDir(path)
-	def setOutDir(self, path : str):		self.Lib.setOutDir(path)
+	def setTargetDir(self, path : str):						self.Lib.setTargetDir(path)
+	def setRefDir(self, genomeName : str, path : str):		self.Lib.setRefDir(genomeName, path)
+	def setDatabaseDir(self, path : str):					self.Lib.setDatabaseDir(path)
+	def setTmpDir(self, path : str):						self.Lib.setTmpDir(path)
+	def setOutDir(self, path : str):						self.Lib.setOutDir(path)
 
 	# Setting the same docstring for each 'set*Dir' function
 	setTargetDir.__doc__ = setRefDir.__doc__ = setDatabaseDir.__doc__ = setTmpDir.__doc__ = setOutDir.__doc__ = """
@@ -132,6 +139,7 @@ class MetaCanSNPer:
 
 	def setSessionName(self, name):
 		self.sessionName = name
+		self.Lib.setSessionName(name)
 
 	'''MetaCanSNPer get functions'''
 
@@ -179,6 +187,25 @@ class MetaCanSNPer:
 		
 		return outputDict
 	
+	def createMap(self, softwareName : str, kwargs : dict={}):
+		''''''
+		MapperType : Mapper = Mappers.get(softwareName)
+
+		LOGGER.info("Loading References from database.")
+		self.database.references
+		LOGGER.info("Loaded a total of {n} References.".format(n=len(self.database.references)))
+		
+		self.runSoftware(MapperType, outputDict=self.Lib.SNPs, kwargs=kwargs)
+
+	def createAlignment(self, softwareName : str, kwargs : dict={}):
+		''''''
+		AlignerType : Aligner = Aligners.get(softwareName)
+
+		LOGGER.info("Loading References from database.")
+		self.database.references
+		LOGGER.info("Loaded a total of {n} References.".format(n=len(self.database.references)))
+		
+		self.runSoftware(AlignerType, outputDict=self.Lib.SNPs, kwargs=kwargs)
 
 	def callSNPs(self, softwareName : str, kwargs : dict={}):
 		''''''
@@ -187,17 +214,6 @@ class MetaCanSNPer:
 		LOGGER.info("Loading References from database.")
 		self.database.references
 		LOGGER.info("Loading SNPs from database.")
-		self.database.SNPsByGenome
-		LOGGER.info("Loaded a total of {n} SNPs.".format(n=sum(len(SNPs) for SNPs in self.database.SNPsByGenome.values())))
-		
-		self.runSoftware(SNPCallerType, outputDict=self.Lib.SNPs, kwargs=kwargs)
-
-	def createIndex(self, softwareName : str, kwargs : dict={}):
-		''''''
-		SNPCallerType : SNPCaller = SNPCallers.get(softwareName)
-
-		LOGGER.info("Loading SNPs from database.")
-		self.database.references
 		self.database.SNPsByGenome
 		LOGGER.info("Loaded a total of {n} SNPs.".format(n=sum(len(SNPs) for SNPs in self.database.SNPsByGenome.values())))
 		
@@ -224,11 +240,15 @@ class MetaCanSNPer:
 
 	'''Functions'''
 
-	def saveResults(self, session : str=None):
-		path = self.traverseTree()
+	def saveResults(self, where : str=None):
+		if where is None:
+			pathFile = open(os.path.join(self.Lib.resultDir, self.Lib.queryName+"_path.tsv"), "w")
+			finalFile = open(os.path.join(self.Lib.resultDir, self.Lib.queryName+"_final.tsv"), "w")
+		else:
+			pathFile = open(os.path.join(where, self.Lib.queryName+"_path.tsv"), "w")
+			finalFile = open(os.path.join(where, self.Lib.queryName+"_final.tsv"), "w")
 
-		pathFile = open(os.path.join(self.Lib.resultDir, self.Lib.queryName+"_path.tsv"), "w")
-		finalFile = open(os.path.join(self.Lib.resultDir, self.Lib.queryName+"_final.tsv"), "w")
+		path = self.traverseTree()
 
 		pathFile.write("\t".join(path))
 		finalFile.write(path[-1])
@@ -237,12 +257,18 @@ class MetaCanSNPer:
 		finalFile.close()
 
 
-	def saveSNPdata(self, session : str=None):
+	def saveSNPdata(self, where : str=None):
 		""""""
-		called = open(os.path.join(self.Lib.resultDir, self.Lib.queryName+"_snps.tsv"), "w")
-		notCalled = open(os.path.join(self.Lib.resultDir, self.Lib.queryName+"_not_called.tsv"), "w")
-		noCoverage = open(os.path.join(self.Lib.resultDir, self.Lib.queryName+"_no_coverage.tsv"), "w")
-		unique = open(os.path.join(self.Lib.resultDir, self.Lib.queryName+"_unique.tsv"), "w")
+		if where is None:
+			called = open(self.Lib.resultDir > self.Lib.queryName+"_snps.tsv", "w")
+			notCalled = open(self.Lib.resultDir > self.Lib.queryName+"_not_called.tsv", "w")
+			noCoverage = open(self.Lib.resultDir > self.Lib.queryName+"_no_coverage.tsv", "w")
+			unique = open(self.Lib.resultDir > self.Lib.queryName+"_unique.tsv", "w")
+		else:
+			called = open(where > self.Lib.queryName+"_snps.tsv", "w")
+			notCalled = open(where > self.Lib.queryName+"_not_called.tsv", "w")
+			noCoverage = open(where > self.Lib.queryName+"_no_coverage.tsv", "w")
+			unique = open(where > self.Lib.queryName+"_unique.tsv", "w")
 
 		header = "\t".join(["Name","Reference","Pos","Ancestral base","Derived base", "Target base\n"])
 		entryTemplate = "{name}\t{reference}\t{pos}\t{ancestral}\t{derived}\t{target}\n"

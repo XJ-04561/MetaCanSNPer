@@ -3,6 +3,7 @@ import os
 import textwrap
 from threading import Thread, Condition
 from urllib.request import urlretrieve
+from typing import Callable
 
 import logging
 try:
@@ -19,8 +20,8 @@ NCBI_FTP_LINK = "ftp://ftp.ncbi.nlm.nih.gov/genomes/all/GC{source}/{n1}/{n2}/{n3
 from subprocess import Popen,PIPE,STDOUT
 
 class _DownloadQueue:
-	_queue : list[dict[str,function|list|dict]] = []
-	_history : list[dict[str,function|list|dict]] = []
+	_queue : list[dict[str,Callable|list|dict]] = []
+	_history : list[dict[str,Callable|list|dict]] = []
 	worker : Thread
 	running : bool
 	def __init__(self):

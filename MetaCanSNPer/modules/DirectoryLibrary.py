@@ -23,8 +23,9 @@ MAX_RESULTS = 10**9
 SOFTWARE_NAME = "MetaCanSNPer"
 
 # OS alibis
+pSep = os.path.sep
 pJoin = os.path.join
-pIsAbs = os.path.isabs
+pIsAbs = lambda *args, **kwargs: os.path.isabs(os.path.expanduser(*args, **kwargs))
 pExpUser = os.path.expanduser
 pAbs = os.path.abspath
 pNorm = os.path.normpath
@@ -32,7 +33,7 @@ pDirName = os.path.dirname
 
 ''' Functions '''
 
-def findValidPath(self, paths, mode="r") -> str:
+def findValidPath(paths, mode="r") -> str:
 	for d in paths:
 		if all(os.access(d, PERMS_LOOKUP_OS[c]) for c in mode):
 			return d
@@ -48,6 +49,36 @@ def newRandomName(path : str, ext : str=None):
 			break
 	return pJoin(path, newName)
 
+class Path(str):
+	def __new__(cls, *paths):
+		obj = super(Path, cls).__new__(cls, pJoin(*paths))
+		return obj
+
+	def __add__(self, right):
+		return Path(str.__add__(self.rstrip(pSep), right))
+
+	def __gt__(self, right):
+		return Path(pJoin(self, right))
+	
+	def __lt__(self, left):
+		return Path(pJoin(self, left))
+
+	def __or__(self, right):
+		if type(right) is DirectoryGroup:
+			return DirectoryGroup(self, *right._roots, purpose=right.defaultPurpose)
+		else:
+			return DirectoryGroup(self, right)
+	
+	def __ror__(self, left):
+		if type(left) is DirectoryGroup:
+			return DirectoryGroup(*left._roots, self, purpose=left.defaultPurpose)
+		else:
+			return DirectoryGroup(left, self)
+
+class FilePath(Path):
+	def __lt__(self, right):
+		raise TypeError("Attempted to append path to a filepath, this behovior is not currently supported (Allowed). Attempted to combine '{}' with '{}'".format(self, right))
+
 class DirectoryGroup:
 	_roots : list[str]
 
@@ -59,7 +90,31 @@ class DirectoryGroup:
 					os.makedirs(p)
 				except:
 					pass
-		self._roots = [*paths]
+		self._roots = [p if type(p) is Path else Path(p) for p in paths]
+
+	def __or__(self, right):
+		if type(right) is DirectoryGroup:
+			return DirectoryGroup(*self._roots, *right._roots, purpose=right.defaultPurpose)
+		else:
+			return DirectoryGroup(*self._roots, right, purpose=self.defaultPurpose)
+	
+	def __ror__(self, left):
+		if type(left) is DirectoryGroup:
+			return DirectoryGroup(*left._roots, *self._roots, purpose=left.defaultPurpose+self.defaultPurpose)
+		else:
+			return DirectoryGroup(left, *self._roots, purpose=self.defaultPurpose)
+		
+	def __ior__(self, right):
+		if type(right) is DirectoryGroup:
+			self._roots += right._roots
+		else:
+			self._roots.append(right)
+	
+	def __gt__(self, right):
+		return DirectoryGroup(*[r > right for r in self._roots], purpose=self.defaultPurpose)
+	
+	def __ge__(self, right):
+		self._roots = [r > right for r in self._roots]
 	
 	def __contains__(self, path : str):
 		for r in self._roots:
@@ -68,14 +123,14 @@ class DirectoryGroup:
 		return False
 
 	def __str__(self) -> str:
-		return "{}\t: {}".format(self._roots, [c if os.access(r, PERMS_LOOKUP_OS[c]) else " " for r in self._roots for c in "rwx"])
+		return "<DirectoryGroup>\n" + "\n".join(["  {}:d{}{}{}".format(r, *[c if os.access(r, PERMS_LOOKUP_OS[c]) else "-" for c in "rwx"]) for r in self._roots]) + "\n</DirectoryGroup>"
 
 	def __getitem__(self, path : str, purpose:str=None) -> str:
 		if purpose is None:
 			purpose = self.defaultPurpose
 		for r in self._roots:
 			if os.path.exists(pJoin(r, path)):
-				if os.access(pJoin(r, path), PERMS_LOOKUP_OS[purpose]):
+				if all(os.access(pJoin(r, path), PERMS_LOOKUP_OS[p]) for p in purpose):
 					return pJoin(r, path)
 		return None
 	
@@ -112,27 +167,27 @@ class DirectoryLibrary:
 
 	__lib__ : dict
 
-	workDir : str
-	installDir : str
-	userDir : str
+	workDir : Path
+	installDir : Path
+	userDir : Path
 
 	targetDir : DirectoryGroup
 	refDir : DirectoryGroup
 	databaseDir : DirectoryGroup
 	tmpDir : DirectoryGroup
 	outDir : DirectoryGroup
-	resultDir : str
-	logDir : str
-	query : list[str]
+	resultDir : Path
+	logDir : Path
+	query : FilePath
 	
 	sessionName : str
 	queryName : str
 
-	indexed : dict[tuple[str, str], str]
+	indexed : dict[tuple[str, str], FilePath]
 	'''Dictionary keys are tuples of (reference, query). Dictionary values are the absolute paths to the file.'''
-	maps : dict[tuple[str, str], str]
+	maps : dict[tuple[str, str], FilePath]
 	'''Dictionary keys are tuples of (reference, query). Dictionary values are the absolute paths to the file.'''
-	SNPs : dict[tuple[str, str], str]
+	SNPs : dict[tuple[str, str], FilePath]
 	'''Dictionary keys are tuples of (reference, query). Dictionary values are the absolute paths to the file.'''
 
 
@@ -144,19 +199,19 @@ class DirectoryLibrary:
 	]
 
 	@cached_property
-	def workDir(self):		return os.curdir
+	def workDir(self):		return Path(os.curdir)
 	@cached_property
-	def installDir(self):	return pNorm(pJoin(pDirName(__file__), ".."))
+	def installDir(self):	return Path(pNorm(pJoin(pDirName(__file__), "..")))
 	@cached_property
-	def userDir(self):		return pExpUser("~")
+	def userDir(self):		return Path(pExpUser("~"))
 	@property
 	def resultDir(self):	return self.outDir.forceFind(self.sessionName)
 	@property
 	def logDir(self):		return self.outDir.forceFind(self.sessionName)
-	@cached_property
+	@property
 	def queryName(self):	return os.path.splitext(os.path.basename(self.query))[0]
 	
-	def __init__(self, settings : dict, sessionName="Unnamed-Session", **kwargs):
+	def __init__(self, settings : dict, reference : str=None, sessionName="Unnamed-Session", **kwargs):
 		'''Directories that can be passed as kwargs:
 		workDir, targetDir, tmpDir, refDir, databaseDir, outDir
 
@@ -176,19 +231,19 @@ class DirectoryLibrary:
 		# Use kwargs as a first, and settings as a second.
 		workDir = kwargs.get("workDir")
 		targetDir = kwargs.get("targetDir") or self.settings.get("targetDir")
-		refDir = kwargs.get("refDir")
+		refDir = kwargs.get("refDir") or self.settings.get("refDir")
 		databaseDir = kwargs.get("databaseDir") or self.settings.get("databaseDir")
 		tmpDir = kwargs.get("tmpDir") or self.settings.get("tmpDir")
 		outDir = kwargs.get("outDir") or self.settings.get("outDir")
 
-		# Use pre-defined directories if kwargs and settings did not have specifications.
 		if workDir is not None: os.chdir(workDir)
-		self.targetDir = DirectoryGroup(*[self.workDir, self.installDir, self.userDir] if targetDir is None else targetDir)
-		self.refDir = DirectoryGroup(*[pJoin(d, SOFTWARE_NAME+"-Data", "References", refDir) if "refDir" not in self.settings else pJoin(d, self.settings["refDir"]) for d in [self.installDir, self.userDir, self.workDir]] if "refDir" not in self.settings or not pIsAbs(pExpUser(refDir)) else refDir)
-		self.databaseDir = DirectoryGroup(*[pJoin(d, SOFTWARE_NAME+"-Data", "Databases") for d in [self.installDir, self.userDir, self.workDir]] if databaseDir is None else databaseDir)
-		self.tmpDir = DirectoryGroup(*[newRandomName(d) for d in [self.userDir, self.workDir]] if tmpDir is None else tmpDir, purpose="w")
-		self.outDir = DirectoryGroup(*[pJoin(d, SOFTWARE_NAME+"-Results", sessionName) for d in [self.workDir, self.userDir]] if outDir is None else pJoin(outDir, sessionName), purpose="w")
-
+		self.setTargetDir(targetDir)
+		if reference is not None: self.setRefDir(reference, refDir=refDir)
+		self.setDatabaseDir(databaseDir)
+		self.setTmpDir(tmpDir)
+		self.setOutDir(outDir)
+		# If argument is None, then a default set of directories are used. Non-abs paths are appended to a set of Paths (workDir and userDir mostly)
+		
 		LOGGER.debug(str(self))
 		
 		self.query = None
@@ -197,7 +252,6 @@ class DirectoryLibrary:
 		self.maps = {}
 		self.SNPs = {}
 
-	
 	def __getitem__(self, key):
 		return self.__getattribute__(key)
 
@@ -211,45 +265,68 @@ class DirectoryLibrary:
 		return "Directories in Library at 0x{:0>16}:\n".format(hex(id(self))[2:])+"\n".join(["  {:<20}='{}{}{}' '{}'".format(d,*["?" if self[d] not in self.perms else c if self.perms[self[d]][c] else " " for c in "rwx" ], self[d]) for d in (a for a in dir(self) if a in self.baseDirs)])
 
 	def __del__(self):
-		if os.path.exists(self.tmpDir) and (not self.settings["KeepTemporaryFiles"] if "KeepTemporaryFiles" in self.settings else True):
+		if os.path.exists(self.tmpDir) and (not self.settings["saveTemp"] if "saveTemp" in self.settings else True):
 			shutil.rmtree(self.tmpDir)
 
 	'''Set-Pathing'''
 
-	def setTargetDir(self, targetDir : str):
-		if pIsAbs(targetDir):
-			self.targetDir = DirectoryGroup(targetDir, purpose="r")
+	def setTargetDir(self, targetDir : str=None):
+		if targetDir is None:
+			self.targetDir = DirectoryGroup(self.workDir, self.installDir, self.userDir)
+		elif pIsAbs(targetDir):
+			self.targetDir = DirectoryGroup(targetDir)
 		else:
-			self.targetDir = DirectoryGroup(*[pJoin(d, targetDir) for d in [self.workDir, self.installDir, self.userDir]], purpose="r")
+			self.targetDir = DirectoryGroup(self.workDir) > targetDir
 	
-	def setRefDir(self, refDir : str):
-		if pIsAbs(refDir):
-			self.refDir = DirectoryGroup(refDir, purpose="r")
+	def setRefDir(self, reference : str, refDir : str=None):
+		"""Reference directory is set differently than the rest of the directory groups, as it needs to both be
+		specific to the .fna file containning directory, but can also look for that directory in more directories than
+		those hardcoded by adding it through the --refDir flag or as 'refDir = ' in a .TOML."""
+
+		self.refDir = DirectoryGroup(purpose="r")
+		if refDir is not None and pIsAbs(refDir):
+			self.refDir |= refDir
+		elif refDir is not None:
+			self.refDir |= self.workDir > refDir
 		else:
-			self.refDir = DirectoryGroup(*[pJoin(d, refDir) for d in [self.installDir, self.userDir, self.workDir]], purpose="r")
+			self.refDir |= self.installDir > SOFTWARE_NAME+"-Data" > "References"
+			self.refDir |= self.userDir > SOFTWARE_NAME+"-Data" > "References"
+			self.refDir |= self.workDir > SOFTWARE_NAME+"-Data" > "References"
+
+		if pIsAbs(reference):
+			self.refDir = DirectoryGroup(reference, purpose="r")
+		else:
+			self.refDir >= reference
 	
-	def setDatabaseDir(self, databaseDir : str):
-		if pIsAbs(databaseDir):
+	def setDatabaseDir(self, databaseDir : str=None):
+		if databaseDir is None:
+			self.databaseDir = DirectoryGroup(self.installDir, self.userDir, self.workDir, purpose="r") > SOFTWARE_NAME+"-Data" > "Databases"
+		elif pIsAbs(databaseDir):
 			self.databaseDir = DirectoryGroup(databaseDir, purpose="r")
 		else:
-			self.databaseDir = DirectoryGroup(*[pJoin(d, databaseDir) for d in [self.installDir, self.userDir, self.workDir]], purpose="r")
+			self.databaseDir = DirectoryGroup(self.workDir, purpose="r") > databaseDir
 
-	def setTmpDir(self, tmpDir : str):
-		if pIsAbs(tmpDir):
+	def setTmpDir(self, tmpDir : str=None):
+		if tmpDir is None:
+			self.tmpDir = DirectoryGroup(newRandomName(self.userDir), newRandomName(self.workDir), purpose="w")
+		elif pIsAbs(tmpDir):
 			self.tmpDir = DirectoryGroup(tmpDir, purpose="w")
 		else:
-			self.tmpDir = DirectoryGroup(*[pJoin(d, tmpDir) for d in [self.userDir, self.workDir, self.installDir]], purpose="w")
+			self.tmpDir = DirectoryGroup(self.userDir, self.workDir, purpose="w") > tmpDir
 	
-	def setOutDir(self, outDir : str=SOFTWARE_NAME+"-Results"):
-		if pIsAbs(outDir):
+	def setOutDir(self, outDir : str=None):
+		if outDir is None:
+			self.outDir = DirectoryGroup(self.workDir, self.userDir, purpose="w")
+		elif pIsAbs(outDir):
 			self.outDir = DirectoryGroup(outDir, purpose="w")
 		else:
-			self.outDir = DirectoryGroup(*[pJoin(d, outDir) for d in [self.workDir, self.userDir]], purpose="w")
+			self.outDir = DirectoryGroup(self.workDir, self.userDir, purpose="w") > outDir
 
+
+	'''Set-Values'''
+	
 	def setSessionName(self, name):
 		self.sessionName = name
-	
-	'''Set-Values'''
 
 	def setQuery(self, query : str):
 		if pIsAbs(query):
@@ -330,6 +407,21 @@ class DirectoryLibrary:
 		return True
 
 if __name__ == "__main__":
-	DL = DirectoryLibrary({})
+	p1 = Path(os.path.abspath("/"))
+	p2 = Path(pExpUser("~"))
+	print("p1 = ", p1)
+	print("p2 = ", p2)
 
-	print(DL)
+	dg1 = p1 | p2
+	print("p1 | p2 = ", dg1)
+
+	p3 = p2 > "Documents"
+	print("p2 > \"Documents\" = ", p3)
+
+	p4 = p1 + "-Data"
+	print("p1 + \"-Data\" = ", p4)
+
+	dg2 = p1 | p2 | p3 | p4
+	print("p1 | p2 | p3 | p4 = ", dg2)
+
+	print("dg1 | dg2 = ", dg1 | dg2)
