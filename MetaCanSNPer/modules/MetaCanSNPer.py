@@ -43,7 +43,7 @@ SOFTWARE_NAME = "MetaCanSNPer"
 # OS Alibis
 pSep = os.path.sep
 pJoin = os.path.join
-pIsAbs = lambda *args, **kwargs: os.path.isabs(os.path.expanduser(*args, **kwargs))
+pIsAbs = lambda path: os.path.isabs(os.path.expanduser(path))
 pExpUser = os.path.expanduser
 pAbs = os.path.abspath
 pNorm = os.path.normpath

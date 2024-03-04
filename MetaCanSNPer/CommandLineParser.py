@@ -60,7 +60,7 @@ def separateCommands(argv : list[str]) -> dict[str,list[str]]:
 	except:
 		pass
 	order.append((len(argv), None))
-	order.sort(key=lambda i, flag : i)
+	order.sort(key=lambda t : t[0])
 
 	out = {}
 	for i in range(len(order)-1):
