@@ -26,7 +26,7 @@ def checkDiag(table, y, x, value=0):
         x-=1
     return n
 
-def align2(string1, string2, gapOpenCost=2, gapExtensionCost=1, matchReward=3, missMatchCost=2, gapSymbol="-", missMatchSymbol="#", trim=False, contigBonus=0.1):
+def align2(string1, string2, gapOpenCost=2, gapExtensionCost=1, matchReward=3, missMatchCost=2, contigBonus=0.1, gapSymbol="-", missMatchSymbol="#", trim=False, compressed=False):
     size = max(len(string1), len(string2))
     size1, size2 = len(string1), len(string2)
     scores = Table(size1+1, size2+1)
@@ -54,27 +54,23 @@ def align2(string1, string2, gapOpenCost=2, gapExtensionCost=1, matchReward=3, m
     
     y, x = m
     path = []
-    while y > 0 or x > 0:
-        
-        moves = {
-            0 : ((y-1,x-1), string1[y-1] if string1[y-1]==string2[x-1] else missMatchSymbol),
-            1 : ((y-1,x), gapSymbol),
-            2 : ((y,x-1), gapSymbol)
-        }
-        if y > 0 and x > 0:
-            (y,x), s = moves[outComes[y,x]]
-        elif y > 0:
-            (y,x), s = (y-1, x), gapSymbol
-            if trim:
-                break
-        elif x > 0:
-            (y,x), s = (y, x-1), gapSymbol
-            if trim:
-                break
-        
-        path.append(s)
+    while y > 0 and x > 0:
+        if outComes[y,x] == 0:
+            path.append(string1[y-1] if string1[y-1]==string2[x-1] else missMatchSymbol)
+            y-=1
+            x-=1
+        elif outComes[y,x] == 1:
+            path.append(gapSymbol)
+            y-=1
+        elif outComes[y,x] == 2:
+            path.append(gapSymbol)
+            x-=1
+        else:
+            raise ValueError("Not a recognized outCome symbol for align2()")
 
-    if trim:
+    if compressed:
+        return gapSymbol.join([c for c in "".join(path[::-1]).strip(gapSymbol).split(gapSymbol) if c != ""])
+    elif trim:
         return "".join(path[::-1]).strip(gapSymbol)
     else:
         return "".join(path[::-1])
@@ -109,6 +105,6 @@ if __name__ == "__main__":
 
     print("'{}' & '{}' = '{}'".format("FSC448.fq", "FSC448(1).fq", aligned2))
     
-    aligned3 = align("FSC448.fq", "FSC658-[FSC448_R1].fq", "FSC567-[FSC448_R2].fq")
+    aligned3 = align("FSC448.fq", "FSC658-[FSC448_R1].fq", "FSC567-[FSC448_R2].fq", compressed=True)
 
     print("'{}' & '{}' & '{}' = '{}'".format("FSC448.fq", "FSC658-[FSC448_R1].fq", "FSC567-[FSC448_R2].fq", aligned3))
