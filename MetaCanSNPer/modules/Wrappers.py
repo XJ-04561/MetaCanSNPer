@@ -199,8 +199,8 @@ class IndexingWrapper(ProcessWrapper):
 		self.threadGroup = None
 		self.solutions : ErrorFixes.SolutionContainer = ErrorFixes.get(self.softwareName)
 		
-		if not os.path.exists(os.path.join(self.Lib.tmpDir, self.softwareName)):
-			os.mkdir(os.path.join(self.Lib.tmpDir, self.softwareName))
+		if not os.path.exists(self.Lib.tmpDir > self.softwareName):
+			os.mkdir(self.Lib.tmpDir.writable > self.softwareName)
 
 		self.formatDict = {
 			"tmpDir" : self.Lib.tmpDir,

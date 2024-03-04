@@ -56,4 +56,4 @@ def get(softwareName) -> SolutionContainer:
 	for c in SolutionContainer.__subclasses__():
 		if c.__name__ == softwareName:
 			return c
-	return None
+	return SolutionContainer

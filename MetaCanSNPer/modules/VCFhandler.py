@@ -196,8 +196,8 @@ class CreateVCF(VCFIOWrapper):
 		self.header = VCF_HEADER.format(dateYYYYMMDD="{:0>4}{:0>2}{:0>2}".format(*(time.localtime()[:3])), refPath=referenceFile)
 		self.file.write(self.header)
 			
-	def add(self, CHROM : str=".", POS : str=".", ID : str=".", REF : str=".", ALT : str=".", QUAL : str=".", FILTER : str=".", INFO : str=".", FORMAT : str="."):
-		self.file.write( VCF_ROW.format(CHROM, POS, ID, REF, ALT, QUAL, FILTER, INFO)+self.newline)
+	def add(self, CHROM : str=".", POS : str=".", ID : str=".", REF : str=".", ALT : str=".", QUAL : str=".", FILTER : str=".", INFO : str="."):
+		self.file.write( f"{CHROM}\t{POS}\t{ID}\t{REF}\t{ALT}\t{QUAL}\t{FILTER}\t{INFO}\n")
 	
 
 class ReadVCF(VCFIOWrapper):

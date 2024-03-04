@@ -15,23 +15,17 @@ __date__ 		= "2024-02-27"
 __status__ 		= "Prototype"
 
 
-import logging
+import logging, sys, argparse
 try:
 	## import MetaCanSNPer specific modules
 	import MetaCanSNPer.modules.LogKeeper as LogKeeper
-	# from MetaCanSNPer.modules.MetaCanSNPer import MetaCanSNPer
+	from MetaCanSNPer.modules.MetaCanSNPer import MetaCanSNPer
 except:
 	## import MetaCanSNPer specific modules
 	import modules.LogKeeper as LogKeeper
-	# from modules.MetaCanSNPer import MetaCanSNPer
+	from modules.MetaCanSNPer import MetaCanSNPer
 
 LOGGER = LogKeeper.createLogger(__name__)
-
-import sys
-## Basic config file
-
-"""MetaCanSNPer settings"""
-import argparse
 
 DIRECTORY_OPTIONS = ["workDir", "userDir", "installDir", "targetDir", "tmpDir", "refDir", "databaseDir", "outDir", "sessionName"]
 
@@ -52,16 +46,20 @@ command call or the corresponding flag for Mapper or Aligner options.
 """
 
 def separateCommands(argv : list[str]) -> dict[str,list[str]]:
-	order = [(0, "args"), (len(argv), None)]
-	m = argv.index("--mapperOptions")
-	if m != -1:
-		order.append((m, "--mapperOptions"))
-	a = argv.index("--alignerOptions")
-	if a != -1:
-		order.append((a, "--alignerOptions"))
-	s = argv.index("--snpCallerOptions")
-	if s != -1:
-		order.append((s, "--snpCallerOptions"))
+	order = [(0, "args")]
+	try:
+		order.append((argv.index("--mapperOptions"), "--mapperOptions"))
+	except:
+		pass
+	try:
+		order.append((argv.index("--alignerOptions"), "--alignerOptions"))
+	except:
+		pass
+	try:
+		order.append((argv.index("--snpCallerOptions"), "--snpCallerOptions"))
+	except:
+		pass
+	order.append((len(argv), None))
 	order.sort(key=lambda i, flag : i)
 
 	out = {}
@@ -123,48 +121,47 @@ def createParser():
 
 def main():
 	
-	# argsDict = separateCommands(sys.argv)
+	argsDict = separateCommands(sys.argv)
 	
 	parser = createParser()
-	parser.print_help()
-	# parser.print_usage()
-# 	args = parser.parse_args(argsDict["args"])
 
-# 	if len(sys.argv)==1:
-# 		parser.print_help()
-# 		parser.exit()
-# 	elif args.version:
-# 		print("MetaCanSNPer - version {version}".format(version=__version__))
-# 		exit()
-# 	elif args.list:
-# 		from modules.Wrappers import Mapper, Aligner, SNPCaller
-# 		print("\nMappers:")
-# 		for mapper in Mapper.__subclasses__(): print("\t{}".format(mapper.softwareName))
-# 		print("\nAligners:")
-# 		for aligner in Aligner.__subclasses__(): print("\t{}".format(aligner.softwareName))
-# 		print("\nSNPCallers:")
-# 		for snpCaller in SNPCaller.__subclasses__(): print("\t{}".format(snpCaller.softwareName))
-# 		exit()
+	args = parser.parse_args(argsDict["args"])
+
+	if len(sys.argv)==1:
+		parser.print_help()
+		parser.exit()
+	elif args.version:
+		print(f"MetaCanSNPer - version {__version__}")
+		exit()
+	elif args.list:
+		from modules.Wrappers import Mapper, Aligner, SNPCaller
+		print("\nMappers:")
+		for mapper in Mapper.__subclasses__():			print(f"\t{mapper.softwareName}")
+		print("\nAligners:")
+		for aligner in Aligner.__subclasses__():		print(f"\t{aligner.softwareName}")
+		print("\nSNPCallers:")
+		for snpCaller in SNPCaller.__subclasses__():	print(f"\t{snpCaller.softwareName}")
+		exit()
 		
 
-# 	mObj = MetaCanSNPer(settings=args, settingsFile=args["settingsFile"])
+	mObj = MetaCanSNPer(settings=args, settingsFile=args["settingsFile"])
 
-# 	mObj.setQuery(args.query)
-# 	mObj.setDatabase(args.database)
+	mObj.setQuery(args.query)
+	mObj.setDatabase(args.database)
 
-# 	if args.sessionName is not None: mObj.setSessionName(args.sessionName)
+	if args.sessionName is not None: mObj.setSessionName(args.sessionName)
 
-# 	if "mapper" in args:
-# 		mObj.createMap(softwareName=args.mapper, kwargs=argsDict["--mapperOptions"] if "--mapperOptions" in argsDict else {})
-# 	if "aligner" in args:
-# 		mObj.createAlignment(softwareName=args.aligner, kwargs=argsDict["--alignerOptions"] if "--alignerOptions" in argsDict else {})
+	if "mapper" in args:
+		mObj.createMap(softwareName=args.mapper, kwargs=argsDict["--mapperOptions"] if "--mapperOptions" in argsDict else {})
+	if "aligner" in args:
+		mObj.createAlignment(softwareName=args.aligner, kwargs=argsDict["--alignerOptions"] if "--alignerOptions" in argsDict else {})
 
-# 	mObj.callSNPs(softwareName=args.snpCaller, kwargs=argsDict["--snpCallerOptions"] if "--snpCallerOptions" in argsDict else {})
+	mObj.callSNPs(softwareName=args.snpCaller, kwargs=argsDict["--snpCallerOptions"] if "--snpCallerOptions" in argsDict else {})
 
-# 	mObj.saveResults()
-# 	mObj.saveSNPdata()
+	mObj.saveResults()
+	mObj.saveSNPdata()
 
-# 	print("Done!")
+	print("Done!")
 
 if oname=="__main__":
 	main()

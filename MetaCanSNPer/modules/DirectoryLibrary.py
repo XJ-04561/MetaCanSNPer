@@ -230,8 +230,8 @@ class DirectoryLibrary:
 	def resultDir(self):	return self.outDir.forceFind(self.sessionName)
 	@property
 	def logDir(self):		return self.outDir.forceFind(self.sessionName)
-	@property
-	def queryName(self):	return fileNameAlign(*self.query)
+	@cached_property
+	def queryName(self):	return os.path.basename(fileNameAlign(*self.query))
 	
 	def __init__(self, settings : dict, reference : str=None, sessionName="Unnamed-Session", **kwargs):
 		'''Directories that can be passed as kwargs:
@@ -366,10 +366,11 @@ class DirectoryLibrary:
 		for genome, strain, genbank_id, refseq_id, assembly_name in references:
 			filename = DownloadQueue.download(genbank_id, refseq_id, assembly_name, dst=self.refDir.writable)
 			if not os.path.exists(filename):
-				msg = "Could not download reference genome: {genbank_id='{genbank_id}', refseq_id='{refseq_id}' assembly_name='{assembly_name}'}".format(genbank_id=genbank_id, refseq_id=refseq_id, assembly_name=assembly_name)
+				msg = f"Could not download reference genome: [{genbank_id=}, {refseq_id=}, {assembly_name=}]"
 				LOGGER.error(msg)
 				raise FileNotFoundError(msg)
 			self.references[genome] = filename
+			self.chromosomes = [open(filename, "r").readline()[1:].split()[0]]
 
 	def setIndexes(self, indexes : dict[tuple[str,str],str]):
 		for (r,q),iP in indexes.items():

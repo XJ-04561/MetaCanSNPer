@@ -37,7 +37,7 @@ class DatabaseReader:
     SNPs : list[tuple[str,int,str,str]]
 
     def __init__(self, database : str):
-        self._connection = sqlite3.connect("file:{}?mode=ro".format(database), uri=True)
+        self._connection = sqlite3.connect(f"file:{database}?mode=ro", uri=True)
 
     def __del__(self):
         try:
