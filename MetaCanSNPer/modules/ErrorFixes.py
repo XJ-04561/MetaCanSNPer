@@ -1,12 +1,16 @@
 import os.path, logging
 from shutil import copy
 
+class Aligner: pass
+class Mapper: pass
+class SNPCaller: pass
+
 try:
-    import LogKeeper as LogKeeper
-    from Wrappers import *
-except:
     import MetaCanSNPer.modules.LogKeeper as LogKeeper
     from MetaCanSNPer.modules.Wrappers import *
+except:
+    import LogKeeper as LogKeeper
+    from Wrappers import *
 
 LOGGER = LogKeeper.createLogger(__name__)
 
@@ -31,8 +35,7 @@ class SolutionContainer:
 
 class progressiveMauve(SolutionContainer):
     @staticmethod
-    def _11(obj : Aligner, offenders : list[int]):
-        
+    def _11(obj : Aligner):
         tmpName = "{}.tmp".format(os.path.join([obj.Lib.tmpDir, obj.queryName]))
         LOGGER.info("Fixing exitcode 11 by replacing occurrances of '-' with 'N' from '{query}' into '{tmpName}'.".format(query=obj.Lib.query, tmpName=tmpName))
 
@@ -47,10 +50,6 @@ class progressiveMauve(SolutionContainer):
                     f.seek(-1, 1)
                     f.write(b"N")
             f.close()
-
-        # Old way
-        # LOGGER.debug("sed 's/-/N/g' {query} > {tmpName}.tmp".format(query=obj.Lib.query, tmpName=tmpName))
-        # os.system("sed 's/-/N/g' {query} > {tmpName}".format(query=obj.Lib.query, tmpName=tmpName))
         
         LOGGER.info("New query: {nq}".format(nq=tmpName))
         obj.Lib.setQuery(tmpName, abs=True)
