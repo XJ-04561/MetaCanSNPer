@@ -1,8 +1,13 @@
-# CanSNPer2
-CanSNPer2: A toolkit for SNP-typing NGS data.
+# MetaCanSNPer
+MetaCanSNPer: A toolkit for SNP-typing NGS data.
+ParseXMFA2: a script/module for looking up positions in an aligned genome from an .XMFA file, without loading the file into memory.
 
 Future planned implementations
-* Read input - Call SNPs directly from reads instead of an assembly
+* Multiple SNPs per node.
+* GUI
+* Interactive Graph outputs
+* Allow for more complex SNP Arbitration (Possibly weighting SNPs)
+* Pre-Processing command to determina organisms present in read-data.
 
 Databases supplied can be found at https://github.com/FOI-Bioinformatics/CanSNPer2-data
 
@@ -16,146 +21,108 @@ Databases supplied can be found at https://github.com/FOI-Bioinformatics/CanSNPe
 
 
 ## Installation
-Installing using bioconda using mamba (recommended instead of conda)
-
-```
-mamba create -n cansnper2 cansnper2
-mamba activate cansnper2
-```
-
-Installing from the repository
+As of right now it is only possible to install directly from the repository
 ```
 python setup.py install
 ```
 
 ## Requirements (for manual install conda will install all dependencies)
+None.\\
+But at least an aligner/mapper and a SNPCaller is needed. (XMFA can be parsed without external software.)
 
-* ETE3
-* FlexTaxD - https://github.com/FOI-Bioinformatics/flextaxd
+### Supported Aligners
 * progressiveMauve
 
-Read input (not yet implemeted)
-* BWA
-* Minimap2
+### Supported Mappers
+* minimap2
+
+### Supported SNPCallers
+* gatk Mutect2
 
 ## User guide CanSNPer2 (for custom databases see below)
 1. Download pre-built databases from https://github.com/FOI-Bioinformatics/CanSNPer2-data
 
-2. Download references for database
-
+2. Run genomes
 ```sh
-CanSNPer2-download --database downloaded_database.db
+MetaCanSNPer --query FILE1 [,FILE2] --database DOWNLOADED_DATABASE --mapper MAPPER_COMMAND --SNPCaller SNPCALLER_COMMAND
 ```
 
-3. Run genomes
-```sh
-CanSNPer2 --database downloaded_database.db fastadir/*.fasta --summary
-```
+For more options MetaCanSNPer --help
 
-The summary parameter will give a final result file with all SNPs that could be confirmed as well as a final CanSNP tree pdf with all SNPs from set colored.
+## Help Page
+```
+usage: CommandLineParser.py [-h] [--list] [--query query [query ...]] [-d database] (--mapper mapper | --aligner aligner) [--snpCaller snpCaller] [-s saveTemp]
+                            [--settingsFile settingsFile] [--mapperOptions Mapper options] [--alignerOptions Aligner options] [--snpCallerOptions SNP Caller options] [-W DIR]        
+                            [-U DIR] [-I DIR] [-Q DIR] [-T DIR] [-R DIR] [-D DIR] [-O DIR] [-S DIR] [--verbose] [--debug] [--supress]
 
-For more options CanSNPer2 --help
+MetaCanSNPer
 
-## Quick start custom databases
-Create database, download references annotated in the database and run CanSNPer2
-```sh
-CanSNPer2-database --database francisella_tularensis.db --annotation snps.txt --tree tree.txt --reference references.txt --source_type CanSNPer --create
-CanSNPer2-download --database francisella_tularensis.db
-CanSNPer2 sample1.fasta sample2.fasta --database francisella_tularensis.db --save_tree
-```
-Example structure of references.txt
-```
-genome strain  genbank_id      refseq_id       assembly_name
-OSU18   OSU18   GCA_000014605.1 GCF_000014605.1 ASM1460v1
-FSC200  FSC200  GCA_000168775.2 GCF_000168775.2 ASM16877v2
-FTNF002-00      FTNF002-00      GCA_000017785.1 GCF_000017785.1 ASM1778v1
-LVS     LVS     GCA_000009245.1 GCF_000009245.1 ASM924v1
-SCHUS4.2        SCHUS4  GCA_000008985.1 GCF_000008985.1 ASM898v1
-
-```
-Example structure of snps.txt (NEW headerline)
-```
-snp_id	strain	reference	genome	position	derived_base	ancestral_base
-T/N.1	francisella	Svensson2009	SCHUS4.2	83976	A	G
-T.1	francisella	Svensson2009	SCHUS4.2	1165688	G	A
-M.1	francisella	Vogler2009	SCHUS4.2	75124	T	C
-A/M.1	francisella	Vogler2009	SCHUS4.2	1491914	A	G
-A.1	francisella	Vogler2009	SCHUS4.2	397639	T	C
-B.1	francisella	Birdsell2014	OSU18	1710718	T	C
-...
-```
-Example structure of tree.txt
-```
-T/N.1
-T/N.1	T.1		
-T/N.1	T.1	B.1
-T/N.1	T.1	A/M.1
-T/N.1	T.1	A/M.1	A.1
-T/N.1	T.1	A/M.1	M.1
-...
-
-
-```
-CanSNPer2 help
-```
-usage: CanSNPer2 [-h] [-db] [-o DIR] [--save_tree] [--no_export]
-                 [--refdir] [--workdir]
-                 [--read_input] [--skip_mauve]
-                 [--keep_going] [--keep_temp]
-                 [--tmpdir] [--logdir] [--verbose] [--debug] [--supress]
-                 [query [query ...]]
-
-CanSNPer2
-
-optional arguments:
+options:
   -h, --help            show this help message and exit
+  --list                To list implemented software and exit.
 
 Required arguments:
-  query                 File(s) to align (fasta)
-  -db , --database      CanSNP database
+  --query query [query ...]
+                        Raw sequence data file supported by the intended Aligner/Mapper.
+  -d database, --database database
+                        Filename of CanSNP database to be used.
+  --mapper mapper       Name of installed and supported Mapper software.
+  --aligner aligner     Name of installed and supported Alignment software.
+  --snpCaller snpCaller
+                        Name of installed and supported SNP Calling software.
 
-Output options:
-  -o DIR, --outdir DIR  Output directory
-  --save_tree           Save tree as PDF using ETE3 (default False)
-  --no_export           no file output (can be used if summary only is requested)
-  --summary             Output a summary file and tree with all called SNPs
+Optional arguments:
+  -s saveTemp, --saveTemp saveTemp
+                        Path to .TOML file containing settings for MetaCanSNPer. Check the 'defaultConfig.toml' to see what can be included in a settings file.
+  --settingsFile settingsFile
+                        Path to .TOML file containing settings for MetaCanSNPer. Check the 'defaultConfig.toml' to see what can be included in a settings file.
+  --mapperOptions Mapper options
+                        To provide flags/arguments for the chosen Mapper, provide them directly after the '--indexerOptions' flag, only interrupted by the end of the command call    
+                        or the corresponding flag for an Aligner or SNP Caller options.
+  --alignerOptions Aligner options
+                        To provide flags/arguments for the chosen Aligner, provide them directly after the '--indexerOptions' flag, only interrupted by the end of the command call   
+                        or the corresponding flag for a Mapper or SNP Caller options.
+  --snpCallerOptions SNP Caller options
+                        To provide flags/arguments for the chosen SNP Caller, provide them directly after the '--snpCallerOptions' flag, only interrupted by the end of the command   
+                        call or the corresponding flag for Mapper or Aligner options.
 
-Run options:
-  --refdir              Specify reference directory
-  --workdir             Change workdir default (./)
-  --read_input          Select if input is reads not fasta
-                        (not implemeted expected for version v2.1.0)
-  --min_required_hits   MIN_REQUIRED_HITS
-                        Minimum sequential hits to call a SNP!
-  --keep_going          If Error occurs, continue with the rest of samples
-  --rerun               Rerun already processed files (else skip if result file exists)
-
-  --keep_temp           keep temporary files
-  --skip_mauve          If xmfa files already exists skip step
+Directory Options:
+  -W DIR, --workDir DIR
+                        Work directory
+  -U DIR, --userDir DIR
+                        User directory
+  -I DIR, --installDir DIR
+                        Installation directory
+  -Q DIR, --targetDir DIR
+                        Target (Query) directory
+  -T DIR, --tmpDir DIR  Temporary directory
+  -R DIR, --refDir DIR  References directory
+  -D DIR, --databaseDir DIR
+                        Databases directory
+  -O DIR, --outDir DIR  Output directory
+  -S DIR, --sessionName DIR
+                        Session Name/Directory
 
 Logging and debug options:
-  --tmpdir              Specify reference directory
-  --logdir              Specify log directory
   --verbose             Verbose output
   --debug               Debug output
   --supress             Supress warnings
 ```
 
-
-Additional information about running CanSNPer2 could be found in the [wiki](https://github.com/FOI-Bioinformatics/CanSNPer2/wiki).
+## About
 
 About this software
 ===================
-Copyright (C) 2019 David Sundell @ FOI bioinformatics group  
+Copyright (C) 2024 Fredrik Sörensen @ Umeå University
 
-CanSNPer2 is implemented as a Python 3 package. It is open source software made available
+MetaCanSNPer is implemented as a Python 3 package. It is open source software made available
 under the [GPL-3.0 license](LICENSE).
 
 If you experience any difficulties with this software, or you have suggestions, or want
 to contribute directly, you have the following options:
 
 - submit a bug report or feature request to the
-  [issue tracker](https://github.com/FOI-Bioinformatics/CanSNPer2/issues)
+  [issue tracker](https://github.com/XJ-04561/MetaCanSNPer/issues)
 - contribute directly to the source code through the
-  [github](https://github.com/FOI-Bioinformatics/CanSNPer2) repository. 'Pull requests' are
+  [github](https://github.com/XJ-04561/MetaCanSNPer) repository. 'Pull requests' are
   especially welcome.
