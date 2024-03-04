@@ -1,11 +1,12 @@
-from Wrappers import *
 import os.path, logging
 from shutil import copy
 
 try:
     import LogKeeper as LogKeeper
+    from Wrappers import *
 except:
     import MetaCanSNPer.modules.LogKeeper as LogKeeper
+    from MetaCanSNPer.modules.Wrappers import *
 
 LOGGER = LogKeeper.createLogger(__name__)
 
