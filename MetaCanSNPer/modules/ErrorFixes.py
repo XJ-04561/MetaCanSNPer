@@ -31,8 +31,11 @@ class progressiveMauve(SolutionContainer):
     def _11(obj : Aligner, offenders : list[int]):
         
         tmpName = "{}.tmp".format(os.path.join([obj.Lib.tmpDir, obj.queryName]))
-        LOGGER.debug("Fixing exitcode 11 by replacing occurrances of '-' with 'N' from '{query}' into '{tmpName}'.".format(query=obj.Lib.query, tmpName=tmpName))
+        LOGGER.info("Fixing exitcode 11 by replacing occurrances of '-' with 'N' from '{query}' into '{tmpName}'.".format(query=obj.Lib.query, tmpName=tmpName))
+
+        LOGGER.debug("copy('{}', '{}')".format(obj.Lib.query, tmpName))
         copy(obj.Lib.query, tmpName)
+        LOGGER.debug("open('{}', 'r+b')".format(tmpName))
         with open(tmpName, "r+b") as f:
             c = b" "
             while c != b"":
@@ -46,7 +49,7 @@ class progressiveMauve(SolutionContainer):
         # LOGGER.debug("sed 's/-/N/g' {query} > {tmpName}.tmp".format(query=obj.Lib.query, tmpName=tmpName))
         # os.system("sed 's/-/N/g' {query} > {tmpName}".format(query=obj.Lib.query, tmpName=tmpName))
         
-        LOGGER.debug("New query: {nq}".format(nq=tmpName))
+        LOGGER.info("New query: {nq}".format(nq=tmpName))
         obj.Lib.setQuery(tmpName, abs=True)
 
 def get(softwareName) -> SolutionContainer:

@@ -149,6 +149,7 @@ class Minimap2(Mapper):
 		# Create bed-file of only the SNP locations + padding
 		pad = self.settings["RegionPadding"]
 		for genome, (refPath,*_) in self.Lib.getReferences().items():
+			LOGGER.debug("open('{}'+'.bed', 'w')").format(refPath)
 			f = open(refPath+".bed", "w")
 			# Write a header maybe??
 			for pos in sorted(self.Lib.SNPs):

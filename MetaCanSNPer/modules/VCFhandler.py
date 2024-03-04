@@ -1,6 +1,6 @@
 
 import numpy as np
-from typing import TextIO
+from typing import TextIO, overload
 import time
 import re
 try:
@@ -174,6 +174,7 @@ class VCFIOWrapper:
 	file : TextIO
 
 	def __init__(self, filename, mode):
+		LOGGER.debug(f"Opening vcf file: open({filename!r}, {mode!r})")
 		self.file = open(filename, mode)
 	
 	def __del__(self):
@@ -200,13 +201,10 @@ class CreateVCF(VCFIOWrapper):
 	
 
 class ReadVCF(VCFIOWrapper):
-	# rowReg = re.compile(b"^(?P<CHROM>[^\t]*?)\t(?P<POS>[0-9]+)\t(?P<ID>[^\t]*?)\t(?P<REF>[^\t]*?)\t(?P<ALT>([^\t,]*?,?)+)\t(?P<QUAL>[^\t]*?)\t(?P<FILTER>[^\t]*?)\t(?P<INFO>[^\t]*?)(\t(?P<FORMAT>[^\t]*?)(?P<SAMPLES>(\t[^\t]*?)+))?$")#, re.MULTILINE)
 	entryRows : list[int]
 	rowsBySelection : dict[str,dict[str|int, set[int]]]
 	columns : list[str] = ["CHROM", "POS", "ID", "REF", "ALT", "QUAL", "FILTER", "INFO", "FORMAT", "SAMPLES"]
-	# "POS" : dict[int, int]
-	# "CHROM" : dict[str, set[int]]
-	# "FILTER" : dict[str, set[int]]
+
 	sampleNames : list[str]
 	byteToRow : dict[int,int]
 
@@ -269,25 +267,26 @@ class ReadVCF(VCFIOWrapper):
 		self.file.seek(self.entryRows[0])
 		return (rowFromBytes(row.rstrip()) for row in self.file)
 
-	def where(self, **kwargs):
-		"""where(self, CHROM : str | list[str]=None, POS : int|list[int]=None, REF : str | list[str]=None, ALT : str | list[str]=None, QUAL : int | list[int]=None, FILTER : str | list[str]=None, INFO : str | list[str]=None, FORMAT=None)"""
-		rowStarts = []
-		if all(c not in kwargs or kwargs[c] is None for c in self.columns):
+	def where(self, CHROM : str | list[str]=None, POS : int|list[int]=None, REF : str | list[str]=None, ALT : str | list[str]=None, QUAL : int | list[int]=None, FILTER : str | list[str]=None, INFO : str | list[str]=None, FORMAT=None) -> list[RowDict]:
+		"""Gets dictionary of VCF row values, interpreted into pythonic types as well as it can. Dictionary can be
+		queried using keys (or attributes) of the same names as the keyword-arguments for this method."""
+		
+		flags = {c:locals()[c] for c in self.columns if locals()[c] is not None}
+		if len(flags) == 0:
 			LOGGER.debug("ReadVCF.where() not given any keyword arguments to search by.")
 			return None
 		
 		# Needs to find intersect of row sets.
 		sets : list[set] = []
-		for c in self.columns:
-			if c in kwargs and kwargs[c] is not None:
-				if type(kwargs[c]) in [list, tuple]:
-					s = set()
-					for key in kwargs[c]:
-						s |= self.rowsBySelection[c][key]
-					sets.append(s)
-				else:
-					sets.append(self.rowsBySelection[c][kwargs[c]])
-
+		for flag, value in flags.items():
+			if type(value) in [list, tuple]:
+				s = set()
+				for key in value:
+					s |= self.rowsBySelection[flag][key]
+				sets.append(s)
+			else:
+				sets.append(self.rowsBySelection[flag][value])
+		
 		try:
 			rowStarts = sorted(list(set.intersection(*sets)))
 		except:
@@ -304,6 +303,23 @@ class ReadVCF(VCFIOWrapper):
 				raise ValueError("Bad row in VCF file '{filename}' Row #{n}".format(filename=self.file.name, n=self.byteToRow[rowStart]))
 
 		return rows
+
+@overload
+def openVCF(filename : str, mode : str, referenceFile : None=None) -> ReadVCF: pass
+@overload
+def openVCF(filename : str, mode : str, referenceFile : str=None) -> CreateVCF: pass
+
+def openVCF(filename : str, mode : str, referenceFile : str=None) -> ReadVCF|CreateVCF:
+	if mode == "r":
+		return ReadVCF(filename=filename)
+	elif mode == "a":
+		raise NotImplementedError("Appending/building on a .vcf file is not yet implemented!")
+	elif mode == "w":
+		if referenceFile is None:
+			raise TypeError("Missing keyword argument 'referenceFile' required to create a .vcf")
+		return CreateVCF(filename=filename, referenceFile=referenceFile)
+	else:
+		raise ValueError(f"openVCF: {mode!r} is not a recognized file mode.")
 
 if __name__ == "__main__":
 	vcf = ReadVCF("specCallData.vcf")

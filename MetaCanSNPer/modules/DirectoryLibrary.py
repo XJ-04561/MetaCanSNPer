@@ -14,7 +14,7 @@ try:
 except:
 	import LogKeeper as LogKeeper
 	from DownloadReferences import DownloadQueue
-	from VCFhandler import CreateVCF, ReadVCF
+	from VCFhandler import openVCF, RowDict
 
 
 LOGGER = LogKeeper.createLogger(__name__)
@@ -31,6 +31,8 @@ pExpUser = os.path.expanduser
 pAbs = os.path.abspath
 pNorm = os.path.normpath
 pDirName = os.path.dirname
+pMakeDirs = lambda x : [os.makedirs(x), LOGGER.debug("os.makedirs('{}')".format(x))][0]
+pIsFile = os.path.isfile
 
 ''' Functions '''
 
@@ -51,18 +53,21 @@ def newRandomName(path : str, ext : str=None):
 	return Path(path, newName)
 
 class Path(str):
+	def __init__(self) -> None:
+		LOGGER.debug("<Path '{}'>".format(self))
+
 	def __new__(cls, *paths):
 		obj = super(Path, cls).__new__(cls, pJoin(*paths))
 		return obj
 
 	def __add__(self, right):
-		return Path(str.__add__(self.rstrip(pSep), right))
+		return Path(str.__add__(self.rstrip(pSep), right)) if not pIsFile(right) else FilePath(str.__add__(self.rstrip(pSep), right))
 
 	def __gt__(self, right):
-		return Path(pJoin(self, right))
+		return Path(self, right) if not pIsFile(right) else FilePath(self, right)
 	
 	def __lt__(self, left):
-		return Path(pJoin(self, left))
+		return Path(left, self)
 
 	def __or__(self, right):
 		if type(right) is DirectoryGroup:
@@ -77,12 +82,15 @@ class Path(str):
 			return DirectoryGroup(left, self)
 
 class FilePath(Path):
+	def __init__(self) -> None:
+		LOGGER.debug("<FilePath '{}'>".format(self))
 	def __lt__(self, right):
 		raise TypeError("Attempted to append path to a filepath, this behovior is not currently supported (Allowed). Attempted to combine '{}' with '{}'".format(self, right))
 
 class DisposablePath(Path):
 	def __del__(self):
 		try:
+			LOGGER.debug("shutil.rmtree('{}', ignore_errors=True)".format(self))
 			shutil.rmtree(self, ignore_errors=True)
 		except:
 			LOGGER.warning("Failed to remove content of directory: '{}'".format(self))
@@ -143,7 +151,7 @@ class DirectoryGroup:
 		for r in self._roots:
 			if os.path.exists(pJoin(r, path)):
 				if all(os.access(pJoin(r, path), PERMS_LOOKUP_OS[p]) for p in purpose):
-					return pJoin(r, path)
+					return Path(pJoin(r, path))
 		return None
 	
 	def find(self, path : str, purpose:str=None):
@@ -199,8 +207,11 @@ class DirectoryLibrary:
 	'''Dictionary keys are tuples of (reference, query). Dictionary values are the absolute paths to the file.'''
 	alignments : dict[tuple[str, str], FilePath]
 	'''Dictionary keys are tuples of (reference, query). Dictionary values are the absolute paths to the file.'''
+	targetSNPS : dict[str,FilePath]
+	'''Dictionary keys are references' genome names. Dictionary values are the absolute paths to the file.'''
 	SNPs : dict[tuple[str, str], FilePath]
 	'''Dictionary keys are tuples of (reference, query). Dictionary values are the absolute paths to the file.'''
+	
 
 	baseDirs = [
 		"workDir", "installDir", "userDir",
@@ -261,6 +272,7 @@ class DirectoryLibrary:
 
 		self.indexed = {}
 		self.maps = {}
+		self.targetSNPS = {}
 		self.SNPs = {}
 
 	def __getitem__(self, key):
@@ -360,29 +372,36 @@ class DirectoryLibrary:
 			self.references[genome] = filename
 
 	def setIndexes(self, indexes : dict[tuple[str,str],str]):
-		for (q,r),iP in indexes.items():
+		for (r,q),iP in indexes.items():
 			self.access(iP)
 		self.indexes = indexes
 	
+	def setTargetSNPs(self, targetSNPs):
+		self.targetSNPs = targetSNPs
+
 	def setSNPs(self, SNPs : dict[str,str]):
-		for r,SNP in SNPs.items():
-			self.access(SNP, mode="r")
+		for (r,q), path in SNPs.items():
+			self.access(path, mode="r")
 		self.SNPs = SNPs
 	
+	'''Get values'''
+
 	def getReferences(self) -> dict[str,(str, str, str, str, str)]:
 		'''Returns current list of references as a dictionary:
 			{GENOME_NAME : (REFERENCE_PATH, STRAIN, GENBANK_ID, REFSEQ_ID, ASSEMBLY_NAME)}'''
 		
 		return self.references
 	
-	def getSNPdata(self) -> dict[tuple[str,str],tuple[int,str,str,list[str],int,dict[str,int|str|list[float]|bool],dict[str,dict[str,int|str|list[int,int]]]]]:
+	def getSNPdata(self) -> dict[int,tuple[str,None]]:
 		'''getSNPdata() -> {POS : CALLED}
 		'''
 		SNPs = {}
-		for (reference, query), path in self.SNPs.items():
-			reader = ReadVCF(filename=path)
-			for entry in reader:
-				SNPs[entry.POS] = entry.REF # Called Base is in the "REF" field
+		for (refName, queryName), path in self.SNPs.items():
+			if path.lower().endswith(".vcf"):
+				reader = openVCF(path, "r")
+				for entry in reader:
+					SNPs[entry.POS] = (entry.REF, None) # Called Base is in the "REF" field
+					# More fields might be added instead of None.
 		
 		return SNPs
 

@@ -8,7 +8,7 @@ try:
 	import MetaCanSNPer.modules.ErrorFixes as ErrorFixes
 	from MetaCanSNPer.modules.DirectoryLibrary import DirectoryLibrary
 	from MetaCanSNPer.modules.Databases import DatabaseReader
-	from MetaCanSNPer.modules.VCFhandler import CreateVCF
+	from MetaCanSNPer.modules.VCFhandler import openVCF
 except:
 	import LogKeeper as LogKeeper
 
@@ -16,7 +16,7 @@ except:
 	import ErrorFixes as ErrorFixes
 	from DirectoryLibrary import DirectoryLibrary
 	from Databases import DatabaseReader
-	from VCFhandler import CreateVCF
+	from VCFhandler import openVCF
 
 from collections.abc import Callable
 from threading import Thread, Condition
@@ -183,7 +183,7 @@ class IndexingWrapper(ProcessWrapper):
 
 	returncodes : list[list[int]]
 	outputs : list[tuple[tuple[str,str],str]]
-	"""[((QUERY_NAME, REFERENCE_NAME), OUTPUT_PATH), ...]"""
+	"""[((refName, queryName), outputPath), ...]"""
 	threadGroup : ThreadGroup
 	solutions : dict
 
@@ -242,9 +242,8 @@ class IndexingWrapper(ProcessWrapper):
 
 			self.formatDict["refName"] = refName
 			self.formatDict["refPath"] = refPath
-			self.formatDict["mapPath"] = self.Lib.maps[(self.queryName, refName)] if (self.queryName, refName) in self.Lib.maps else None
-			self.formatDict["alignmentPath"] = self.Lib.alignments[(self.queryName, refName)] if (self.queryName, refName) in self.Lib.alignments else None
-			self.formatDict["SNPs"] = self.Lib.SNPs[refName] if refName in self.Lib.SNPs else None
+			self.formatDict["indexPath"] = self.Lib.maps.get((refName, self.queryName)) or self.Lib.alignments.get((refName, self.queryName))
+			self.formatDict["SNPs"] = self.Lib.targetSNPS.get(refName)
 			
 			output = self.outputTemplate.format(self.formatDict)
 			logfile = outDir > output+".log"
@@ -298,11 +297,11 @@ class IndexingWrapper(ProcessWrapper):
 '''
 
 class Aligner(IndexingWrapper):
-	category = "Indexes"
+	category = "Aligners"
 	pass
 	
 class Mapper(IndexingWrapper):
-	category = "Indexes"
+	category = "Mappers"
 	pass
 
 class SNPCaller(IndexingWrapper):
@@ -318,13 +317,12 @@ class SNPCaller(IndexingWrapper):
 			filename = "{ref}.vcf".format(ref=os.path.join(self.Lib.refDir.writable, os.path.basename(refPath)))
 
 			if force is True or not os.path.exists(filename):
-				vcfFile = CreateVCF(filename, referenceFile=refPath)
-				SNPs = self.database.SNPsByGenome[genome]
+				vcfFile = openVCF(filename, "w", referenceFile=refPath)
 				
-				for snpID, pos, ref, alt in SNPs:
+				for snpID, pos, ref, alt in self.database.SNPsByGenome[genome]:
 					# CHROM has to be the same as the accession id that is in the reference file.
 					vcfFile.add(CHROM=accession, POS=pos, ID=snpID, REF="N", ALT="A,T,C,G")
 				vcfFile.close()
 				
 			SNPFiles[genome] = filename
-		self.Lib.setSNPfiles(SNPFiles)
+		self.Lib.setTargetSNPs(SNPFiles)

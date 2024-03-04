@@ -9,17 +9,11 @@ import os
 import re
 import mmap
 import logging
-try:
-	import CanSNPer2.modules.LogKeeper as LogKeeper
-	import CanSNPer2.modules.VCFhandler as OpenVCF
-except:
-	import LogKeeper as LogKeeper
-	import VCFhandler as OpenVCF
+
+import MetaCanSNPer.modules.LogKeeper as LogKeeper
+import MetaCanSNPer.modules.VCFhandler as openVCF
 
 LOGGER = logging.getLogger(__name__)
-
-reference_genomes = ["FSC200","SCHUS4.1","SCHUS4.2","OSU18","LVS","FTNF002-00"]
-
 LINEWIDTH = 80
 
 class PseudoRange:
@@ -87,9 +81,9 @@ class ParseXMFA:
 	_mmap : mmap.mmap
 	coverage : list[Map]
 
-	def __init__(self, filename : str=None, mode : str="r", reference : int=1):
+	def __init__(self, filename : str=None, mode : str="r", referenceID : int=1):
 		if filename is not None:
-			self.open(filename, mode, reference)
+			self.open(filename, mode, referenceID)
 			self.mapBlocks()
 	
 	def __contains__(self, item):
@@ -102,9 +96,10 @@ class ParseXMFA:
 		else:
 			return self._mmap[offset]
 				
-	def open(self, filename, mode : str, reference : int):
+	def open(self, filename, mode : str, referenceID : int):
 		self.filename = filename
-		self.reference = reference
+		self.referenceID = referenceID
+		LOGGER.debug("open('{}', 'r+b')".format(filename))
 		self.file = open(self.filename, "r+b") # Makes the file writeable, but we do not intend to edit it
 		self.file.readline()
 		self.newlines = self.file.newlines
@@ -118,7 +113,7 @@ class ParseXMFA:
 		elif mode == "w":
 			self._mmap = mmap.mmap(self.file.fileno(), 0, prot=mmap.PROT_READ)
 		else:
-			raise ValueError("'{}' is not a valid mode for opening files.".format(mode))
+			raise ValueError(f"{mode!r} is not a valid mode for opening files.")
 	
 	def mapBlocks(self):
 		'''Can handle multiple alignments'''
@@ -127,13 +122,13 @@ class ParseXMFA:
 			ntRange = range(int(m.group("start")), int(m.group("stop")))
 			filepos = m.end()+len(self.newlines)
 			if int(m.group("seqID")) in block:
-				if self.reference not in block:
-					LOGGER.error("XMFA file must only have blocks that match the given reference sequence.")
-					raise ValueError("XMFA file must only have blocks that match the given reference sequence.")
+				if self.referenceID not in block:
+					LOGGER.error("XMFA file must have blocks that match the given referenceID sequence.")
+					raise ValueError("XMFA file must have blocks that match the given referenceID sequence.")
 				for i in block:
-					if i != self.reference:
+					if i != self.referenceID:
 						if i not in self.coverage: self.coverage[i] = Map(self.newlines)
-						self.coverage[i] += block[i][0], block[self.reference][1]
+						self.coverage[i] += block[i][0], block[self.referenceID][1]
 						
 				self.block = {}
 			else:
@@ -153,13 +148,20 @@ if __name__=="__main__":
 	aparse = argparse.ArgumentParser()
 	aparse.add_argument("XMFAfile", metavar="XMFAfile", help="Alignment .XMFA file to load.")
 	aparse.add_argument("SNPfile", metavar="SNPfile", help="A .vcf file of the SNPs to be called.")
-	aparse.add_argument("--refIndex", metavar="refIndex", help="The sequence index of the reference genome in the .XMFA file.")
+	aparse.add_argument("-o", "--output", metavar="outFile", help="Name of the .vcf file to be created.")
+	aparse.add_argument("-rID", "--referenceID", metavar="referenceID", help="The reference sequence used to create the .XMFA file.")
 
 	args = aparse.parse_args()
 
-	parser = ParseXMFA(filename=args.XMFAfile, reference=args.refIndex)
+	print("Creating Index.")
+	parser = ParseXMFA(filename=args.XMFAfile, referenceID=args.referenceID)
 
-	snpFile = OpenVCF(args.SNPfile, "r")
+	print(f"Opening {args.SNPfile!r}.")
+	snpFile = openVCF(args.SNPfile, "r")
 	
-	map(lambda *args: [args[0], int(args[1]) if args[1] != "." else args[1], *(args[2:])], snpFile)
-	
+	print(f"Creating {args.outFile!r}.")
+	outFile = openVCF(args, "w", referenceFile="")
+	for entry in snpFile:
+		outFile.add(POS=entry.POS, REF=parser[entry.POS])
+	outFile.close()
+	print("Done!")

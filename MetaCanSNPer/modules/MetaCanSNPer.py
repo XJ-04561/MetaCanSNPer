@@ -10,7 +10,6 @@ try:
 	## import MetaCanSNPer specific modules
 	import MetaCanSNPer.modules.LogKeeper as LogKeeper
 	from MetaCanSNPer.modules.Databases import DatabaseReader
-	from MetaCanSNPer.CanSNPerTree import __version__
 	from MetaCanSNPer.modules.DirectoryLibrary import DirectoryLibrary
 	from MetaCanSNPer.modules.Wrappers import Aligner, Mapper, SNPCaller, IndexingWrapper
 	import MetaCanSNPer.modules.Aligners as Aligners
@@ -195,7 +194,7 @@ class MetaCanSNPer:
 		self.database.references
 		LOGGER.info("Loaded a total of {n} References.".format(n=len(self.database.references)))
 		
-		self.runSoftware(MapperType, outputDict=self.Lib.SNPs, flags=flags)
+		self.runSoftware(MapperType, outputDict=self.Lib.maps, flags=flags)
 
 	def createAlignment(self, softwareName : str, flags : list=[]):
 		''''''
@@ -205,7 +204,7 @@ class MetaCanSNPer:
 		self.database.references
 		LOGGER.info("Loaded a total of {n} References.".format(n=len(self.database.references)))
 		
-		self.runSoftware(AlignerType, outputDict=self.Lib.SNPs, flags=flags)
+		self.runSoftware(AlignerType, outputDict=self.Lib.alignments, flags=flags)
 
 	def callSNPs(self, softwareName : str, flags : list=[]):
 		''''''
@@ -219,6 +218,8 @@ class MetaCanSNPer:
 		
 		self.runSoftware(SNPCallerType, outputDict=self.Lib.SNPs, flags=flags)
 
+		self.SNPresults = self.Lib.getSNPdata()
+	
 	def traverseTree(self):
 		'''Depth-first tree search.'''
 		nodeID = 2
@@ -240,13 +241,17 @@ class MetaCanSNPer:
 
 	'''Functions'''
 
-	def saveResults(self, where : str=None):
-		if where is None:
-			pathFile = open(os.path.join(self.Lib.resultDir, self.Lib.queryName+"_path.tsv"), "w")
-			finalFile = open(os.path.join(self.Lib.resultDir, self.Lib.queryName+"_final.tsv"), "w")
+	def saveResults(self, dst : str=None):
+		if dst is None:
+			LOGGER.debug(f"open({self.Lib.resultDir!r} > {self.Lib.queryName!r}+'_path.tsv', 'w')")
+			LOGGER.debug(f"open({self.Lib.resultDir!r} > {self.Lib.queryName!r}+'_final.tsv', 'w')")
+			pathFile = open(self.Lib.resultDir > self.Lib.queryName+"_path.tsv", "w")
+			finalFile = open(self.Lib.resultDir > self.Lib.queryName+"_final.tsv", "w")
 		else:
-			pathFile = open(os.path.join(where, self.Lib.queryName+"_path.tsv"), "w")
-			finalFile = open(os.path.join(where, self.Lib.queryName+"_final.tsv"), "w")
+			LOGGER.debug(f"open(os.path.join({dst!r}, {self.Lib.queryName!r}+'_path.tsv'), 'w')")
+			LOGGER.debug(f"open(os.path.join({dst!r}, {self.Lib.queryName!r}+'_final.tsv'), 'w')")
+			pathFile = open(os.path.join(dst, self.Lib.queryName+"_path.tsv"), "w")
+			finalFile = open(os.path.join(dst, self.Lib.queryName+"_final.tsv"), "w")
 
 		path = self.traverseTree()
 
@@ -260,11 +265,19 @@ class MetaCanSNPer:
 	def saveSNPdata(self, where : str=None):
 		""""""
 		if where is None:
+			LOGGER.debug(f"open({self.Lib.resultDir!r} > {self.Lib.queryName!r}+'_snps.tsv', 'w')")
+			LOGGER.debug(f"open({self.Lib.resultDir!r} > {self.Lib.queryName!r}+'_not_called.tsv', 'w')")
+			LOGGER.debug(f"open({self.Lib.resultDir!r} > {self.Lib.queryName!r}+'_no_coverage.tsv', 'w')")
+			LOGGER.debug(f"open({self.Lib.resultDir!r} > {self.Lib.queryName!r}+'_unique.tsv', 'w')")
 			called = open(self.Lib.resultDir > self.Lib.queryName+"_snps.tsv", "w")
 			notCalled = open(self.Lib.resultDir > self.Lib.queryName+"_not_called.tsv", "w")
 			noCoverage = open(self.Lib.resultDir > self.Lib.queryName+"_no_coverage.tsv", "w")
 			unique = open(self.Lib.resultDir > self.Lib.queryName+"_unique.tsv", "w")
 		else:
+			LOGGER.debug(f"open({where!r} > {self.Lib.queryName!r}+'_snps.tsv', 'w')")
+			LOGGER.debug(f"open({where!r} > {self.Lib.queryName!r}+'_not_called.tsv', 'w')")
+			LOGGER.debug(f"open({where!r} > {self.Lib.queryName!r}+'_no_coverage.tsv', 'w')")
+			LOGGER.debug(f"open({where!r} > {self.Lib.queryName!r}+'_unique.tsv', 'w')")
 			called = open(where > self.Lib.queryName+"_snps.tsv", "w")
 			notCalled = open(where > self.Lib.queryName+"_not_called.tsv", "w")
 			noCoverage = open(where > self.Lib.queryName+"_no_coverage.tsv", "w")
@@ -281,9 +294,8 @@ class MetaCanSNPer:
 		for genomeID, genome, genbankID, refseqID, assemblyName in self.database.references:
 			'''Print SNPs to tab separated file'''
 			for snpID, position, ancestral, derived in self.database.SNPsByGenome[genome]:
-				N : str = self.SNPresults[snpID]
-				entry = entryTemplate.format(name=snpID, reference=genome, pos=position,
-				 							 ancestral=ancestral, derived=derived, target=N)
+				N, *args = self.SNPresults[snpID]
+				entry = "\t".join([snpID, genome, position, ancestral, derived, N]) + "\n"
 				if derived == N:
 					called.write(entry)
 				elif ancestral == N:
@@ -299,6 +311,7 @@ class MetaCanSNPer:
 
 	def readQueriesFrom(self, queryFile : str):
 		'''If query input is a text file, parse file'''
+		LOGGER.debug(f"Reading queries from: {queryFile!r}")
 		with open(queryFile, "r") as f:
 			query = [query.strip() for query in f if len(query.strip())]
 		return query
