@@ -1,9 +1,11 @@
 from Wrappers import *
-import os.path
+import os.path, logging
 from shutil import copy
 
-import logging
-import LogKeeper as LogKeeper
+try:
+    import LogKeeper as LogKeeper
+except:
+    import MetaCanSNPer.modules.LogKeeper as LogKeeper
 
 LOGGER = LogKeeper.createLogger(__name__)
 

@@ -1,11 +1,9 @@
 
-import os
-import textwrap
+import os, textwrap, logging
 from threading import Thread, Condition
 from urllib.request import urlretrieve
 from typing import Callable
 
-import logging
 try:
 	from MetaCanSNPer.modules.LogKeeper import createLogger
 except:

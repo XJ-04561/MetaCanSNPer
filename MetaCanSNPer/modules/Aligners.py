@@ -1,10 +1,10 @@
 
 
 import logging
-import LogKeeper as LogKeeper
-
+import MetaCanSNPer.modules.LogKeeper as LogKeeper
 LOGGER = LogKeeper.createLogger(__name__)
-from Wrappers import Aligner
+
+from MetaCanSNPer.modules.Wrappers import Aligner
 
 '''
 	All that is needed to create a new implementation is to inherit from the correct software type ('Aligner' in this case) and set

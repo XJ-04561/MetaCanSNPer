@@ -5,15 +5,12 @@ ParseXMFA is a script that parse xmfa files and extract all SNPs
 '''
 
 #__name__="ParseXMFA"
-import os
-import re
-import mmap
-import logging
+import re, mmap, logging
 
 import MetaCanSNPer.modules.LogKeeper as LogKeeper
 import MetaCanSNPer.modules.VCFhandler as openVCF
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = LogKeeper.getLogger(__name__)
 LINEWIDTH = 80
 
 class PseudoRange:

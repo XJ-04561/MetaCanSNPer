@@ -1,17 +1,14 @@
 
-import os, sys, time
+import sys
 try:
-	import LogKeeper as LogKeeper
-
-	LOGGER = LogKeeper.createLogger(__name__)
-	from Wrappers import SNPCaller
-except:
 	import MetaCanSNPer.modules.LogKeeper as LogKeeper
+	from MetaCanSNPer.modules.Wrappers import SNPCaller
+except:
+	import LogKeeper as LogKeeper
+	from Wrappers import SNPCaller
 
 	LOGGER = LogKeeper.createLogger(__name__)
-	from MetaCanSNPer.modules.Wrappers import SNPCaller
-
-PYTHON_INTERPRETER = sys.executable 
+PYTHON_INTERPRETER = sys.executable
 
 '''
 	All that is needed to create a new implementation is to inherit from the correct software type ('Aligner' in this case) and set

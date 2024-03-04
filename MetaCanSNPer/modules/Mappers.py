@@ -1,14 +1,18 @@
 
 
 import logging
-import LogKeeper as LogKeeper
+try:
+	import MetaCanSNPer.modules.LogKeeper as LogKeeper
+	from MetaCanSNPer.modules.Wrappers import Mapper
+except:
+	import LogKeeper as LogKeeper
+	from Wrappers import Mapper
 
 LOGGER = LogKeeper.createLogger(__name__)
-from Wrappers import Mapper
 
 '''
 	All that is needed to create a new implementation is to inherit from the correct software type ('Aligner' in this case) and set
-	the two class attributes accordingly. See 'Timeout' and 'Sleep' for a minimalist example.
+	the two class attributes accordingly.
 '''
 
 class Minimap2(Mapper):

@@ -1,20 +1,18 @@
 
 
-import os
+import os, shutil, random, logging
 from functools import cached_property, cache
-import shutil
-import random
 random.seed()
-import logging
 try:
 	import MetaCanSNPer.modules.LogKeeper as LogKeeper
 	from MetaCanSNPer.modules.DownloadReferences import DownloadQueue
-	from MetaCanSNPer.modules.VCFhandler import CreateVCF, ReadVCF
+	from MetaCanSNPer.modules.VCFhandler import openVCF, RowDict
 	from MetaCanSNPer.modules.FileNameAlignment import align as fileNameAlign
 except:
 	import LogKeeper as LogKeeper
 	from DownloadReferences import DownloadQueue
 	from VCFhandler import openVCF, RowDict
+	from FileNameAlignment import align as fileNameAlign
 
 
 LOGGER = LogKeeper.createLogger(__name__)
