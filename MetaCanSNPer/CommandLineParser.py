@@ -19,17 +19,15 @@ import logging
 try:
 	## import MetaCanSNPer specific modules
 	import MetaCanSNPer.modules.LogKeeper as LogKeeper
-	from MetaCanSNPer.modules.DirectoryLibrary import DirectoryLibrary
 	from MetaCanSNPer.modules.MetaCanSNPer import MetaCanSNPer
 except:
 	## import MetaCanSNPer specific modules
 	import modules.LogKeeper as LogKeeper
-	from modules.DirectoryLibrary import DirectoryLibrary
 	from modules.MetaCanSNPer import MetaCanSNPer
 
 LOGGER = LogKeeper.createLogger(__name__)
 
-import os,sys
+import sys
 ## Basic config file
 
 """MetaCanSNPer settings"""
@@ -76,47 +74,48 @@ def createParser():
 	"""Initiate MetaCanSNPer command line argument parser"""
 	parser = argparse.ArgumentParser(description="MetaCanSNPer")
 
-	# The 'if True:' structures are used to minimize and expand sections in an IDE.
+	parser.add_argument("--version", action="store_true", help=argparse.SUPPRESS)
+	parser.add_argument("--list", action="store_true", help="To list implemented software and exit.")
 
+	# The 'if True:' structures are used to minimize and expand sections in an IDE.
 	requiredArguments = parser.add_argument_group("Required arguments")
 	if True:
-		requiredArguments.add_argument("-q", "--query",		metavar="query",		help="Raw sequence data file supported by the intended Aligner/Mapper.")
-		requiredArguments.add_argument("-d", "--database",	metavar="database",		help="Filename of CanSNP database to be used.")
-		requiredArguments.add_argument("--snpCaller",		metavar="snpCaller",	help="Name of installed and supported SNP Calling software.")
+		requiredArguments.add_argument("--query", nargs="+",	metavar="query",		help="Raw sequence data file supported by the intended Aligner/Mapper.")
+		requiredArguments.add_argument("-d", "--database",		metavar="database",		help="Filename of CanSNP database to be used.")
 		mapOrAlign = requiredArguments.add_mutually_exclusive_group(required=True)
 		if True:
 			mapOrAlign.add_argument("--mapper",					metavar="mapper",		help="Name of installed and supported mapper software.")
 			mapOrAlign.add_argument("--aligner",				metavar="aligner",		help="Name of installed and supported alignment software.")
+		requiredArguments.add_argument("--snpCaller",			metavar="snpCaller",	help="Name of installed and supported SNP Calling software.")
 
-	optionalArguments = parser.add_argument_group("Required arguments")
+	optionalArguments = parser.add_argument_group("Optional arguments")
 	if True:
 		optionalArguments.add_argument("-s", "--saveTemp",		metavar="saveTemp",		help="Path to .TOML file containing settings for MetaCanSNPer. Check the 'defaultConfig.toml' to see what can be included in a settings file.")
 		optionalArguments.add_argument("--settingsFile",		metavar="settingsFile",		help="Path to .TOML file containing settings for MetaCanSNPer. Check the 'defaultConfig.toml' to see what can be included in a settings file.")
 
-	directoryOptions = parser.add_argument_group("Directory Options")
-	if True:
-		directoryOptions.add_argument("-W", "--workDir",		metavar="DIR", default=None, help="Work directory")
-		directoryOptions.add_argument("-U", "--userDir",		metavar="DIR", default=None, help="User directory")
-		directoryOptions.add_argument("-I", "--installDir",		metavar="DIR", default=None, help="Installation directory")
-		directoryOptions.add_argument("-Q", "--targetDir",		metavar="DIR", default=None, help="Target (Query) directory")
-		directoryOptions.add_argument("-T", "--tmpDir",			metavar="DIR", default=None, help="Temporary directory")
-		directoryOptions.add_argument("-R", "--refDir",			metavar="DIR", default=None, help="References directory")
-		directoryOptions.add_argument("-D", "--databaseDir",	metavar="DIR", default=None, help="Databases directory")
-		directoryOptions.add_argument("-O", "--outDir",			metavar="DIR", default=None, help="Output directory")
-		directoryOptions.add_argument("-S", "--sessionName",	metavar="DIR", default=None, help="Session Name/Directory")
+		directoryOptions = optionalArguments.add_argument_group("Directory Options")
+		if True:
+			directoryOptions.add_argument("-W", "--workDir",		metavar="DIR", default=None, help="Work directory")
+			directoryOptions.add_argument("-U", "--userDir",		metavar="DIR", default=None, help="User directory")
+			directoryOptions.add_argument("-I", "--installDir",		metavar="DIR", default=None, help="Installation directory")
+			directoryOptions.add_argument("-Q", "--targetDir",		metavar="DIR", default=None, help="Target (Query) directory")
+			directoryOptions.add_argument("-T", "--tmpDir",			metavar="DIR", default=None, help="Temporary directory")
+			directoryOptions.add_argument("-R", "--refDir",			metavar="DIR", default=None, help="References directory")
+			directoryOptions.add_argument("-D", "--databaseDir",	metavar="DIR", default=None, help="Databases directory")
+			directoryOptions.add_argument("-O", "--outDir",			metavar="DIR", default=None, help="Output directory")
+			directoryOptions.add_argument("-S", "--sessionName",	metavar="DIR", default=None, help="Session Name/Directory")
 
-	# Only added for the --help page, are not interpreted using the argparser.
-	mapperOptions = parser.add_argument_group(title="--mapperOptions : Mapper options", description=MAPPER_OPTIONS_EXPLAINER)
-	alignerOptions = parser.add_argument_group(title="--alignerOptions : Aligner options", description=ALIGNER_OPTIONS_EXPLAINER)
-	snpCallerOptions = parser.add_argument_group(title="--snpCallerOptions : SNP Caller options", description=SNP_CALLER_OPTIONS_EXPLAINER)
-
-	debugOptions = parser.add_argument_group("Logging and debug options")
-	if True:
-		debugOptions.add_argument("--verbose",			action="store_const", const=logging.INFO,					help="Verbose output")
-		debugOptions.add_argument("--debug",			action="store_const", const=logging.DEBUG,					help="Debug output")
-		debugOptions.add_argument("--supress",			action="store_const", const=logging.ERROR,	default=logging.WARNING,	help="Supress warnings")
-	parser.add_argument("--help", action="store_true", help="Displays this help page.")
-	parser.add_argument("--version", action="store_true", help=argparse.SUPPRESS)
+		debugOptions = optionalArguments.add_argument_group("Logging and debug options")
+		if True:
+			debugOptions.add_argument("--verbose",			action="store_const", const=logging.INFO,					help="Verbose output")
+			debugOptions.add_argument("--debug",			action="store_const", const=logging.DEBUG,					help="Debug output")
+			debugOptions.add_argument("--supress",			action="store_const", const=logging.ERROR,	default=logging.WARNING,	help="Supress warnings")
+		
+		# Only added for the --help page, are not interpreted using the argparser.
+		mapperOptions = optionalArguments.add_argument_group(title="--mapperOptions : Mapper options", description=MAPPER_OPTIONS_EXPLAINER)
+		alignerOptions = optionalArguments.add_argument_group(title="--alignerOptions : Aligner options", description=ALIGNER_OPTIONS_EXPLAINER)
+		snpCallerOptions = optionalArguments.add_argument_group(title="--snpCallerOptions : SNP Caller options", description=SNP_CALLER_OPTIONS_EXPLAINER)
+	
 
 	return parser
 
@@ -126,20 +125,29 @@ def main():
 
 	parser = createParser()
 
-	args = parser.parse_args(" ".join(argsDict["args"]))
+	args = parser.parse_args(argsDict["args"])
 
-	if len(sys.argv)==1 or args.help:
+	if len(sys.argv)==1:
 		parser.print_help()
 		parser.exit()
 	elif args.version:
 		print("MetaCanSNPer - version {version}".format(version=__version__))
 		exit()
+	elif args.list:
+		from modules.Wrappers import Mapper, Aligner, SNPCaller
+		print("\nMappers:")
+		for mapper in Mapper.__subclasses__(): print("\t{}".format(mapper.softwareName))
+		print("\nAligners:")
+		for aligner in Aligner.__subclasses__(): print("\t{}".format(aligner.softwareName))
+		print("\nSNPCallers:")
+		for snpCaller in SNPCaller.__subclasses__(): print("\t{}".format(snpCaller.softwareName))
+		exit()
+		
 
 	mObj = MetaCanSNPer(settings=args, settingsFile=args["settingsFile"])
 
 	mObj.setQuery(args.query)
 	mObj.setDatabase(args.database)
-	mObj.connectDatabase()
 
 	if args.sessionName is not None: mObj.setSessionName(args.sessionName)
 
@@ -150,5 +158,11 @@ def main():
 
 	mObj.callSNPs(softwareName=args.snpCaller, kwargs=argsDict["--snpCallerOptions"] if "--snpCallerOptions" in argsDict else {})
 
+	mObj.saveResults()
+	mObj.saveSNPdata()
+
+	print("Done!")
+
 if oname=="__main__":
 	main()
+	

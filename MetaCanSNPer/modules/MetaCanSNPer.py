@@ -32,7 +32,7 @@ try:
 	import tomllib as toml
 except ModuleNotFoundError:
 	try:
-		import tomli as toml
+		import tomli as toml # type: ignore
 	except:
 		raise ModuleNotFoundError("TOML-reading module not found. For Python 3.5> it should be included as 'tomllib', if older than 2.5, then install 'tomli'.")
 
@@ -131,9 +131,9 @@ class MetaCanSNPer:
 
 	'''MetaCanSNPer set values'''
 
-	def setQuery(self, query : str):
+	def setQuery(self, query : list[str]):
 		self.Lib.setQuery(query)
-		self.queryName, self.queryFormat = os.path.splitext(os.path.basename(self.Lib.query)) ## get name of file and remove ending
+		self.queryName = self.Lib.queryName ## get name of file and remove ending
 		if self.sessionName is None:
 			self.Lib.setSessionName("Sample-{queryName}-{dateYYYYMMDD}".format(queryName=self.queryName, dateYYYYMMDD="{:0>4}.{:0>2}.{:0>2}.{:>2}{:>2},{:>2}".format(*(self.startTime[:6]))))
 
@@ -158,11 +158,11 @@ class MetaCanSNPer:
 				return types.get(softwareName)
 		return None
 
-	def runSoftware(self, softwareClass : IndexingWrapper, outputDict : dict={}, kwargs : dict={}):
+	def runSoftware(self, softwareClass : IndexingWrapper, outputDict : dict={}, flags : list=[]):
 		'''Align sequences using subprocesses.'''
 
 		LOGGER.info("Creating software wrapper for '{}' of type '{}'".format(softwareClass.softwareName, softwareClass.__name__))
-		software : IndexingWrapper = softwareClass(self.Lib, self.database, self.outputTemplate, kwargs=kwargs)
+		software : IndexingWrapper = softwareClass(self.Lib, self.database, self.outputTemplate, flags=flags)
 
 		# Check that error did not occur.
 		while software.hickups():	
@@ -187,7 +187,7 @@ class MetaCanSNPer:
 		
 		return outputDict
 	
-	def createMap(self, softwareName : str, kwargs : dict={}):
+	def createMap(self, softwareName : str, flags : list=[]):
 		''''''
 		MapperType : Mapper = Mappers.get(softwareName)
 
@@ -195,9 +195,9 @@ class MetaCanSNPer:
 		self.database.references
 		LOGGER.info("Loaded a total of {n} References.".format(n=len(self.database.references)))
 		
-		self.runSoftware(MapperType, outputDict=self.Lib.SNPs, kwargs=kwargs)
+		self.runSoftware(MapperType, outputDict=self.Lib.SNPs, flags=flags)
 
-	def createAlignment(self, softwareName : str, kwargs : dict={}):
+	def createAlignment(self, softwareName : str, flags : list=[]):
 		''''''
 		AlignerType : Aligner = Aligners.get(softwareName)
 
@@ -205,9 +205,9 @@ class MetaCanSNPer:
 		self.database.references
 		LOGGER.info("Loaded a total of {n} References.".format(n=len(self.database.references)))
 		
-		self.runSoftware(AlignerType, outputDict=self.Lib.SNPs, kwargs=kwargs)
+		self.runSoftware(AlignerType, outputDict=self.Lib.SNPs, flags=flags)
 
-	def callSNPs(self, softwareName : str, kwargs : dict={}):
+	def callSNPs(self, softwareName : str, flags : list=[]):
 		''''''
 		SNPCallerType : SNPCaller = SNPCallers.get(softwareName)
 
@@ -217,7 +217,7 @@ class MetaCanSNPer:
 		self.database.SNPsByGenome
 		LOGGER.info("Loaded a total of {n} SNPs.".format(n=sum(len(SNPs) for SNPs in self.database.SNPsByGenome.values())))
 		
-		self.runSoftware(SNPCallerType, outputDict=self.Lib.SNPs, kwargs=kwargs)
+		self.runSoftware(SNPCallerType, outputDict=self.Lib.SNPs, flags=flags)
 
 	def traverseTree(self):
 		'''Depth-first tree search.'''

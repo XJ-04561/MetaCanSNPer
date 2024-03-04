@@ -28,21 +28,13 @@ VCF_ROW =       "{CHROM}	{POS}	{ID}	{REF}	{ALT}	{QUAL}	{FILTER}	{INFO}"
 	the two class attributes accordingly. See 'Timeout' and 'Sleep' for a minimalist example.
 '''
 
-class Timeout(SNPCaller):
-	softwareName = "timeout"
-	commandTemplate = "timeout {0[options]} {0[ref]} {0[query]} > {0[output]}"
-
-class Sleep(SNPCaller):
-	softwareName = "sleep"
-	commandTemplate = "sleep {0[options]} {0[ref]} {0[query]} > {0[output]}"
-
 class GATK_Mutect2(SNPCaller):
 	softwareName = "gatk_Mutect2"
 	commandTemplate = "gatk IndexFeatureFile -I '{0[SNPs]}' && gatk Mutect2 -R {0[refPath]} -I {0[indexPath]} -L {0[SNPs]} --alleles {0[SNPs]} -O {0[output]} > {0[logFile]}"
 
 class GATK_HaplotypeCaller(SNPCaller):
 	softwareName = "gatk_HaplotypeCaller"
-	commandTemplate = "gatk --java-options '-Xmx4g' HaplotypeCaller -R {ref} -I {target} -alleles {ref}.vcf -O {out}.vcf.gz"
+	commandTemplate = "gatk IndexFeatureFile -I '{0[SNPs]}' && gatk HaplotypeCaller -R {0[refPath]} -I {0[indexPath]} -L {0[SNPs]} --alleles {0[SNPs]} -O {0[output]} > {0[logFile]}"
 
 def get(softwareName) -> SNPCaller:
 	for c in SNPCaller.__subclasses__():

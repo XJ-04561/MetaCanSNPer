@@ -11,14 +11,6 @@ from Wrappers import Mapper
 	the two class attributes accordingly. See 'Timeout' and 'Sleep' for a minimalist example.
 '''
 
-class Timeout(Mapper):
-	softwareName = "timeout"
-	commandTemplate = "timeout {0[options]} {0[ref]} {0[query]} > {0[output]}"
-
-class Sleep(Mapper):
-	softwareName = "sleep"
-	commandTemplate = "sleep {0[options]} {0[ref]} {0[query]} > {0[output]}"
-
 class Minimap2(Mapper):
 	softwareName = "minimap2"
 	commandTemplate = "minimap2 -ax {0[preset]} {0[options]} -R '@RG\tID:{0[queryName]}\tSM:{0[queryName]}' --junc-bed '{0[refPath]}.bed' --sam-hit-only '{0[refPath]}' {0[query]} | samtools sort -T '{0[tmpDir]}' -o {0[output]} && samtools index {0[output]} samtools"

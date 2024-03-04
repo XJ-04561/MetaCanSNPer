@@ -178,9 +178,7 @@ class IndexingWrapper(ProcessWrapper):
 	outFormat : str
 	# inFormat : str
 	logFormat : str
-	kwargs : dict
-	boolFlags : list[str] = []
-	valueFlags : list[str] = []
+	flags : list[str]
 	format : str
 
 	returncodes : list[list[int]]
@@ -190,13 +188,13 @@ class IndexingWrapper(ProcessWrapper):
 	solutions : dict
 
 	
-	def __init__(self, lib : DirectoryLibrary, database : DatabaseReader, outputTemplate : str, kwargs : dict={}):
+	def __init__(self, lib : DirectoryLibrary, database : DatabaseReader, outputTemplate : str, flags : list[str]=[]):
 		self.Lib = lib
 		self.database = database
-		self.queryName = os.path.splitext(os.path.basename(self.Lib.getQuery()))[0] ## get name of file and remove ending
+		self.queryName = self.Lib.queryName ## get name of file and remove ending
 		self.outputTemplate = outputTemplate
-		# self.inFormat = inFormat
-		self.kwargs = kwargs
+		
+		self.flags = flags
 		self.returncodes = [[] for _ in range(len(lib.getReferences()))]
 		self.threadGroup = None
 		self.solutions : ErrorFixes.SolutionContainer = ErrorFixes.get(self.softwareName)
@@ -207,11 +205,9 @@ class IndexingWrapper(ProcessWrapper):
 		self.formatDict = {
 			"tmpDir" : self.Lib.tmpDir,
 			"refDir" : self.Lib.refDir,
-			"query" : self.Lib.query,
+			"query" : " ".join(self.Lib.query),
 			"queryName" : self.queryName,
-			# "inFormat" : self.inFormat,
-			"options" : " ".join([flag for flag in self.boolFlags if flag in self.kwargs and self.kwargs[flag] is True]+
-			[x for flag in self.valueFlags if flag in self.kwargs for x in [flag, self.kwargs[flag]]]) # Creates list of ["--flag1", "arg1", "--flag2", "arg2", ..., "--flagN", "argN"]
+			"options" : " ".join(self.flags)
 		}
 	
 	def start(self) -> list[tuple[tuple[str,str],str]]:
@@ -234,8 +230,7 @@ class IndexingWrapper(ProcessWrapper):
 	
 	def createCommand(self) -> tuple[list[str], list[str], list[tuple[tuple[str,str],str]]]:
 		
-		outDir = os.path.join(self.Lib.tmpDir, self.softwareName)
-		os.mkdir(outDir)
+		outDir = self.Lib.tmpDir.forceFind(self.softwareName)
 
 		logs = []
 		commands = []
@@ -247,23 +242,17 @@ class IndexingWrapper(ProcessWrapper):
 
 			self.formatDict["refName"] = refName
 			self.formatDict["refPath"] = refPath
-			self.formatDict["indexPath"] = self.Lib.indexed[(self.queryName, refName)] if (self.queryName, refName) in self.Lib.indexed else None
+			self.formatDict["mapPath"] = self.Lib.maps[(self.queryName, refName)] if (self.queryName, refName) in self.Lib.maps else None
+			self.formatDict["alignmentPath"] = self.Lib.alignments[(self.queryName, refName)] if (self.queryName, refName) in self.Lib.alignments else None
 			self.formatDict["SNPs"] = self.Lib.SNPs[refName] if refName in self.Lib.SNPs else None
 			
 			output = self.outputTemplate.format(self.formatDict)
-			logfile = os.path.join(outDir, output + ".log")
-			output = os.path.join(outDir, output)
+			logfile = outDir > output+".log"
+			output = outDir > output
 
 			self.formatDict["output"] = output
-			self.formatDict["logfile"] = logfile
 
 			command = self.commandTemplate.format(self.formatDict)
-
-			'''
-			Adds on all the extra flags and arguments defined in the dict self.kwargs.
-			For flags that do not require a followup argument, set the value of the keyword as True.
-			'''
-			command = " ".join([command] + ["{key} {value}".format(key=key, value=value if value is not True else "") for key, value in self.kwargs])
 
 			commands.append(command)
 			logs.append(logfile)

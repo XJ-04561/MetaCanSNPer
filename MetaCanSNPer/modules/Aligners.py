@@ -11,14 +11,6 @@ from Wrappers import Aligner
 	the two class attributes accordingly. See 'Timeout' and 'Sleep' for a minimalist example.
 '''
 
-class Timeout(Aligner):
-	softwareName = "timeout"
-	commandTemplate = "timeout {0[options]} {0[ref]} {0[query]} > {0[output]}"
-
-class Sleep(Aligner):
-	softwareName = "sleep"
-	commandTemplate = "sleep {0[options]} {0[ref]} {0[query]} > {0[output]}"
-
 class ProgressiveMauve(Aligner):
 	softwareName = "progressiveMauve"
 	commandTemplate = "progressiveMauve {0[options]} {0[ref]} {0[query]} > {0[output]}"

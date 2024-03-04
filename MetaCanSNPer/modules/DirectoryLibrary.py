@@ -10,6 +10,7 @@ try:
 	import MetaCanSNPer.modules.LogKeeper as LogKeeper
 	from MetaCanSNPer.modules.DownloadReferences import DownloadQueue
 	from MetaCanSNPer.modules.VCFhandler import CreateVCF, ReadVCF
+	from MetaCanSNPer.modules.FileNameAlignment import align as fileNameAlign
 except:
 	import LogKeeper as LogKeeper
 	from DownloadReferences import DownloadQueue
@@ -47,7 +48,7 @@ def newRandomName(path : str, ext : str=None):
 		if n>1000000-1:
 			raise FileExistsError("Could not generate random file/directory name for path='{path}' after {n} attempts".format(path=path, n=n))
 			break
-	return pJoin(path, newName)
+	return Path(path, newName)
 
 class Path(str):
 	def __new__(cls, *paths):
@@ -79,10 +80,17 @@ class FilePath(Path):
 	def __lt__(self, right):
 		raise TypeError("Attempted to append path to a filepath, this behovior is not currently supported (Allowed). Attempted to combine '{}' with '{}'".format(self, right))
 
-class DirectoryGroup:
-	_roots : list[str]
+class DisposablePath(Path):
+	def __del__(self):
+		try:
+			shutil.rmtree(self, ignore_errors=True)
+		except:
+			LOGGER.warning("Failed to remove content of directory: '{}'".format(self))
 
-	def __init__(self, *paths : tuple[str], purpose="r"):
+class DirectoryGroup:
+	_roots : list[Path]
+
+	def __init__(self, *paths : tuple[str], purpose="r", selfCleaning=False):
 		self.defaultPurpose = purpose
 		for p in paths:
 			if not os.path.exists(p):
@@ -91,6 +99,7 @@ class DirectoryGroup:
 				except:
 					pass
 		self._roots = [p if type(p) is Path else Path(p) for p in paths]
+		self.selfCleaning = selfCleaning
 
 	def __or__(self, right):
 		if type(right) is DirectoryGroup:
@@ -121,6 +130,9 @@ class DirectoryGroup:
 			if os.path.exists(pJoin(r, path)):
 				return True
 		return False
+	
+	def __iter__(self):
+		return self._roots
 
 	def __str__(self) -> str:
 		return "<DirectoryGroup>\n" + "\n".join(["  {}:d{}{}{}".format(r, *[c if os.access(r, PERMS_LOOKUP_OS[c]) else "-" for c in "rwx"]) for r in self._roots]) + "\n</DirectoryGroup>"
@@ -141,7 +153,7 @@ class DirectoryGroup:
 	def forceFind(self, path : str, purpose:str=None):
 		'''Looks for path in the group of directories and returns first found path. Will try to create and return path
 		in the group if it does not currently exist.'''
-		return self.__getitem__(self, path, purpose=purpose if purpose is not None else self.defaultPurpose) or self.create(path=path)
+		return self.__getitem__(self, path, purpose=purpose) or self.create(path=path)
 
 	
 	@property
@@ -154,7 +166,7 @@ class DirectoryGroup:
 		for r in self._roots:
 			if os.access(r, os.W_OK):
 				os.makedirs(pJoin(r, pDirName(path)))
-				return pJoin(r, pDirName(path))
+				return DisposablePath(r, pDirName(path)) if self.selfCleaning else Path(r, pDirName(path))
 		return None
 		
 
@@ -178,18 +190,17 @@ class DirectoryLibrary:
 	outDir : DirectoryGroup
 	resultDir : Path
 	logDir : Path
-	query : FilePath
+	query : list[FilePath]
 	
 	sessionName : str
 	queryName : str
 
-	indexed : dict[tuple[str, str], FilePath]
-	'''Dictionary keys are tuples of (reference, query). Dictionary values are the absolute paths to the file.'''
 	maps : dict[tuple[str, str], FilePath]
+	'''Dictionary keys are tuples of (reference, query). Dictionary values are the absolute paths to the file.'''
+	alignments : dict[tuple[str, str], FilePath]
 	'''Dictionary keys are tuples of (reference, query). Dictionary values are the absolute paths to the file.'''
 	SNPs : dict[tuple[str, str], FilePath]
 	'''Dictionary keys are tuples of (reference, query). Dictionary values are the absolute paths to the file.'''
-
 
 	baseDirs = [
 		"workDir", "installDir", "userDir",
@@ -209,7 +220,7 @@ class DirectoryLibrary:
 	@property
 	def logDir(self):		return self.outDir.forceFind(self.sessionName)
 	@property
-	def queryName(self):	return os.path.splitext(os.path.basename(self.query))[0]
+	def queryName(self):	return fileNameAlign(*self.query)
 	
 	def __init__(self, settings : dict, reference : str=None, sessionName="Unnamed-Session", **kwargs):
 		'''Directories that can be passed as kwargs:
@@ -246,7 +257,7 @@ class DirectoryLibrary:
 		
 		LOGGER.debug(str(self))
 		
-		self.query = None
+		self.query = []
 
 		self.indexed = {}
 		self.maps = {}
@@ -263,10 +274,6 @@ class DirectoryLibrary:
 		''''''
 		# Works nicely, don't question it.
 		return "Directories in Library at 0x{:0>16}:\n".format(hex(id(self))[2:])+"\n".join(["  {:<20}='{}{}{}' '{}'".format(d,*["?" if self[d] not in self.perms else c if self.perms[self[d]][c] else " " for c in "rwx" ], self[d]) for d in (a for a in dir(self) if a in self.baseDirs)])
-
-	def __del__(self):
-		if os.path.exists(self.tmpDir) and (not self.settings["saveTemp"] if "saveTemp" in self.settings else True):
-			shutil.rmtree(self.tmpDir)
 
 	'''Set-Pathing'''
 
@@ -307,12 +314,17 @@ class DirectoryLibrary:
 			self.databaseDir = DirectoryGroup(self.workDir, purpose="r") > databaseDir
 
 	def setTmpDir(self, tmpDir : str=None):
+		"""Will by default create randomized unique temporary directories in the userDirectory as a first option, and in
+		the workDirectory as a second. If given an absolute path temporaryDirectory, all other directories created in
+		that temporary directory will be removed after the reference to that new directory is trash-collected. If given
+		a relative path, the path will first be looked for in the userDirectory and secondly in the workDirectory,
+		removes child paths once they are trash collected the same way as for absolute paths."""
 		if tmpDir is None:
-			self.tmpDir = DirectoryGroup(newRandomName(self.userDir), newRandomName(self.workDir), purpose="w")
+			self.tmpDir = DirectoryGroup(DisposablePath(newRandomName(self.userDir)), DisposablePath(newRandomName(self.workDir)), purpose="w")
 		elif pIsAbs(tmpDir):
-			self.tmpDir = DirectoryGroup(tmpDir, purpose="w")
+			self.tmpDir = DirectoryGroup(tmpDir, purpose="w", selfCleaning=True if not self.settings["saveTemp"] else False)
 		else:
-			self.tmpDir = DirectoryGroup(self.userDir, self.workDir, purpose="w") > tmpDir
+			self.tmpDir = DirectoryGroup(self.userDir, self.workDir, purpose="w", selfCleaning=True if not self.settings["saveTemp"] else False) > tmpDir
 	
 	def setOutDir(self, outDir : str=None):
 		if outDir is None:
@@ -328,12 +340,14 @@ class DirectoryLibrary:
 	def setSessionName(self, name):
 		self.sessionName = name
 
-	def setQuery(self, query : str):
-		if pIsAbs(query):
-			self.query = query
-			self.access(self.query, mode="r")
-		else:
-			self.query = self.targetDir[query]
+	def setQuery(self, query : list[str]):
+		self.query = []
+		for q in query:
+			if pIsAbs(q):
+				self.query.append(FilePath(q))
+				self.access(q, mode="r")
+			else:
+				self.query.append(self.targetDir[q])
 	
 	def setReferences(self, references : list[str,str,str,str,str]):
 		self.references = {}
@@ -425,3 +439,6 @@ if __name__ == "__main__":
 	print("p1 | p2 | p3 | p4 = ", dg2)
 
 	print("dg1 | dg2 = ", dg1 | dg2)
+
+	ex1 = p2 > "myReads.fq"+".log"
+	print(ex1)
