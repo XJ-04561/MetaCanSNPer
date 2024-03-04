@@ -1,32 +1,12 @@
 
-import numpy as np
 from typing import TextIO, overload
-import time
-import re
+import time, logging
 try:
-	import logging
-	try:
-		import MetaCanSNPer.modules.LogKeeper as LogKeeper
-	except:
-		import LogKeeper as LogKeeper
-	LOGGER = LogKeeper.createLogger(__name__)
+	import MetaCanSNPer.modules.LogKeeper as LogKeeper
 except:
-	class LOGGER:
-		@staticmethod
-		def debug(msg):
-			pass
-		@staticmethod
-		def info(msg):
-			pass
-		@staticmethod
-		def warning(msg):
-			pass
-		@staticmethod
-		def error(msg):
-			pass
-		@staticmethod
-		def critical(msg):
-			pass
+	import LogKeeper as LogKeeper
+
+LOGGER = LogKeeper.createLogger(__name__)
 
 
 EXAMPLE_VCF_HEADER = """##fileformat=VCFv4.3
@@ -61,8 +41,6 @@ COLUMNS = ["CHROM", "POS", "ID", "REF", "ALT", "QUAL", "FILTER", "INFO"]
 OPTIONAL_COLUMNS = ["FORMAT"]
 VCF_ROW =       "{CHROM}	{POS}	{ID}	{REF}	{ALT}	{QUAL}	{FILTER}	{INFO}"
 SEPARATORS = [(0, ";"), (1, ":"), (2, "|"), (3, ",")]
-
-# GET_POSITION = re.compile(b"^~[\t\n]*\t(?P<POS>[0-9]+)")
 
 class RowDict: pass
 
