@@ -22,9 +22,8 @@ setup(
 
     keywords="Bioinformatics SNP-typing sequence-data",
 
-    install_requires=["PyVCF3"], #['ete3','flextaxd'],
+    install_requires=["PseudoPathy"],
     packages=find_packages(exclued=['contrib', 'docs', 'test*']),
-    #py_modules=['CanSNPer2.modules.ParseXMFA',"CanSNPer2.modules.DatabaseConnection","CanSNPer2.modules.CanSNPer2","CanSNPer2.modules.NewickTree"],
     entry_points={"console_scripts": [
                     "MetaCanSNPer=MetaCanSNPer.CommandLineParser:main"
     ]})

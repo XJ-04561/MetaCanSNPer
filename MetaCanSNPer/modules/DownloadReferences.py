@@ -11,7 +11,6 @@ except:
 
 LOGGER = createLogger(__name__)
 SOURCED = {"refseq":"F", "genbank": "A"}
-REFERENCE_FILENAME_FORMAT = "{genome_id}_{assembly}_genomic.fna"
 NCBI_FTP_LINK = "ftp://ftp.ncbi.nlm.nih.gov/genomes/all/GC{source}/{n1}/{n2}/{n3}/{genome_id}_{assembly}/{genome_id}_{assembly}_genomic.fna.gz"
 
 ## import standard python libraries for subprocess and multiprocess
@@ -46,11 +45,11 @@ class _DownloadQueue:
 		self._queue.append({"target":_DownloadQueue.download, "args":[genbank_id, refseq_id, assembly_name, dst], "kwargs":{"source":source, "force":force}})
 
 	@staticmethod
-	def _download(genbank_id : str, refseq_id : str, assembly_name : str, dst : str, source : str="genbank", force=False) -> str | None:
+	def _download(genbank_id : str, refseq_id : str, assembly_name : str, dst : str, filename : str=None, source : str="genbank", force=False) -> str | None:
 		'''Download genomes from refseq or genbank on request. Default kwarg of force=False makes the download not take place if file already exists. Does not unzip gzipped downloads.
 			ftp://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/00x/xxx/GCF_00000xxxx.x_ASMxxxv1/GCF_00000xxxx.x_ASMxxxv1_genomic.fna.gz
 		'''
-		retrieved_file = os.path.join("{directory}", (REFERENCE_FILENAME_FORMAT)).format(genome_id=genbank_id,assembly=assembly_name,directory=dst)
+		retrieved_file = os.path.join(f"{dst}", filename or f"{assembly_name}.fna")
 		if os.path.exists(retrieved_file+".gz") and not force:
 			LOGGER.debug("Unzipping Reference file for {f}.".format(f=os.path.basename(retrieved_file).strip("_genomic.fna.gz")))
 			_DownloadQueue.gunzip(retrieved_file+".gz")
