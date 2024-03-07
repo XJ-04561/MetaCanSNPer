@@ -16,19 +16,19 @@ PYTHON_INTERPRETER = sys.executable
 '''
 class ParseXMFA2(SNPCaller):
 	softwareName = "ParseXMFA2"
-	commandTemplate = PYTHON_INTERPRETER + " ParseXMFA2 '{0[indexPath]}' '{0[SNPs]}' -rID 1 -o {0[output]} > {0[logFile]}"
+	commandTemplate = "ParseXMFA2 '{0[alignmentPath]}' '{0[targetSNPs]}' -rID 1 -o {0[output]} > {0[logFile]}"
 	inFormat = [".xmfa"]
 	outFormat = ".vcf"
 
 class GATK_Mutect2(SNPCaller):
 	softwareName = "gatk_Mutect2"
-	commandTemplate = "gatk IndexFeatureFile -I '{0[SNPs]}' && gatk Mutect2 -R {0[refPath]} -I {0[indexPath]} -L {0[SNPs]} --force-call-filtered-alleles --alleles {0[SNPs]} -O {0[output]} > {0[logFile]}"
+	commandTemplate = "gatk IndexFeatureFile -I '{0[targetSNPs]}' && gatk Mutect2 -R {0[refPath]} -I {0[mapPath]} -L {0[targetSNPs]} --force-call-filtered-alleles --alleles {0[targetSNPs]} -O {0[output]} > {0[logFile]}"
 	inFormat = [".bam"]
 	outFormat = ".vcf"
 
 class GATK_HaplotypeCaller(SNPCaller):
 	softwareName = "gatk_HaplotypeCaller"
-	commandTemplate = "gatk IndexFeatureFile -I '{0[SNPs]}' && gatk HaplotypeCaller -R {0[refPath]} -I {0[indexPath]} -L {0[SNPs]} --alleles {0[SNPs]} -O {0[output]} > {0[logFile]}"
+	commandTemplate = "gatk IndexFeatureFile -I '{0[targetSNPs]}' && gatk HaplotypeCaller -R {0[refPath]} -I {0[mapPath]} -L {0[targetSNPs]} --alleles {0[targetSNPs]} -O {0[output]} > {0[logFile]}"
 	inFormat = [".bam"]
 	outFormat = ".vcf"
 

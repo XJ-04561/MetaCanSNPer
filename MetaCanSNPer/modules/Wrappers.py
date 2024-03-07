@@ -238,20 +238,21 @@ class IndexingWrapper(ProcessWrapper):
 
 			self.formatDict["refName"] = refName
 			self.formatDict["refPath"] = refPath
-			self.formatDict["indexPath"] = self.Lib.maps.get((refName, self.queryName)) or self.Lib.alignments.get((refName, self.queryName))
-			self.formatDict["SNPs"] = self.Lib.targetSNPS.get(refName)
+			self.formatDict["mapPath"] = self.Lib.maps[refName]
+			self.formatDict["alignmentPath"] = self.Lib.alignments[refName]
+			self.formatDict["targetSNPS"] = self.Lib.targetSNPS[refName]
 			
-			output = self.outputTemplate.format(self.formatDict)
-			logfile = outDir > output+".log"
-			output = outDir > output
+			output = outDir > self.outputTemplate.format(self.formatDict)
+			logfile = output+".log"
 
 			self.formatDict["output"] = output
+			self.formatDict["logFile"] = logfile
 
 			command = self.commandTemplate.format(self.formatDict)
 
 			commands.append(command)
 			logs.append(logfile)
-			outputs.append(((self.queryName, refName), output))
+			outputs.append((refName, output))
 		return commands, logs, outputs
 
 	def updateWhileWaiting(self, outputDict : dict):

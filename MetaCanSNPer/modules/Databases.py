@@ -30,6 +30,24 @@ TREE_COLUMN_PARENT              = "parent"
 TREE_COLUMN_CHILD               = "child"
 TREE_COLUMN_RANK                = "rank_i"
 
+class Branch:
+
+
+    _connection : sqlite3.Connection
+    nodeID : int
+    parameters = [
+        TREE_COLUMN_CHILD,
+        TABLE_NAME_TREE,
+        TREE_COLUMN_PARENT
+    ]
+
+    def __init__(self, connection : sqlite3.Connection, nodeID : int):
+        self._connection = connection
+        self.nodeID = nodeID
+    
+    def children(self):
+        return [Branch(self._connection, childID) for childID in self._connection.execute("SELECT ? FROM ? WHERE ? = ?;", self.parameters+[self.nodeID]).fetchall()]
+
 class DatabaseReader:
     _connection : sqlite3.Connection
 
@@ -128,13 +146,7 @@ class DatabaseReader:
             TABLE_NAME_TREE,
             TREE_COLUMN_PARENT
         ]
-        ret = {node:self._connection.execute("SELECT ? FROM ? WHERE ? = ?;", parameters+[node]).fetchall() for node in self.nodes}
-
-        # Exception due to data structure
-        del ret[1]
-        ret[2] = [i for i in ret[2] if i != 2]
-        
-        return ret
+        return Branch(self._connection, self._connection.execute("SELECT ? FROM ? WHERE ? = ?;", parameters+[2]).fetch())
         
 
 

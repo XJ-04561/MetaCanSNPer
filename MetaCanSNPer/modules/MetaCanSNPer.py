@@ -15,6 +15,7 @@ try:
 	import MetaCanSNPer.modules.Aligners as Aligners
 	import MetaCanSNPer.modules.Mappers as Mappers
 	import MetaCanSNPer.modules.SNPCallers as SNPCallers
+	from MetaCanSNPer.modules.VCFhandler import getSNPdata
 except:
 	## import MetaCanSNPer specific modules
 	import LogKeeper as LogKeeper
@@ -24,6 +25,7 @@ except:
 	import Aligners
 	import Mappers
 	import SNPCallers
+	from VCFhandler import getSNPdata
 
 LOGGER = LogKeeper.createLogger(__name__)
 
@@ -66,6 +68,7 @@ class MetaCanSNPer:
 	Lib : DirectoryLibrary
 	settings : dict
 	sessionName : str
+	SNPresults : dict
 
 	"""docstring for MetaCanSNPer"""
 	def __init__(self, lib : DirectoryLibrary=None, database=None, settings : dict={}, settingsFile : str=None, sessionName : str=None):
@@ -92,6 +95,7 @@ class MetaCanSNPer:
 		# Need for this is unknown, might remove later.
 		self.summarySet = set()
 		self.calledGenome = {}
+		self.SNPresults = {}
 
 	'''Database functions'''
 
@@ -179,10 +183,15 @@ class MetaCanSNPer:
 				LOGGER.info("{software} failed. Fix for the specific error exists. Implementing and running again.".format(software=software.softwareName))
 				software.planB()
 			else:
-				LOGGER.error("Software error, no fix implemented. Returning empty list of outputs")
-				for key, path in output:
+				msg = [
+					f"{softwareClass.softwareName!r}: Processes finished with exit codes for which there are no implemented solutions.",
+					f"{'QUERY':<58}{'REFERENCE':<58}={'EXITCODE':>4}"
+				]
+				for (key, path), e in zip(output, software.returncodes):
 					del outputDict[key]
-				return outputDict
+					msg.append(f"{self.queryName!r:<30}{key!r:<60}={e[-1]:>4}")
+				LOGGER.error("\n".join(msg))
+				raise ChildProcessError("\n".join(msg))
 		
 		return outputDict
 	
@@ -216,26 +225,32 @@ class MetaCanSNPer:
 		self.database.SNPsByGenome
 		LOGGER.info("Loaded a total of {n} SNPs.".format(n=sum(len(SNPs) for SNPs in self.database.SNPsByGenome.values())))
 		
-		self.runSoftware(SNPCallerType, outputDict=self.Lib.SNPs, flags=flags)
+		self.runSoftware(SNPCallerType, outputDict=self.Lib.resultSNPs, flags=flags)
 
-		self.SNPresults = self.Lib.getSNPdata()
+		for genome, filePath in self.Lib.resultSNPs:
+			getSNPdata(filePath, out=self.SNPresults)
 	
 	def traverseTree(self):
 		'''Depth-first tree search.'''
-		nodeID = 2
-		snpID = self.database.nodes[nodeID]
-		path = [snpID]
-
-		while nodeID in self.database.tree:
-			for childID in self.database.tree[nodeID]:
-				childSNPID = self.database.nodes[childID]
-				if self.database.SNPsByID[childSNPID][2]  == self.SNPresults[childSNPID]:
-					nodeID = childID
-					break
-			if nodeID != childID:
-				# Node is not a leaf, but no children are matches for the target.
+		node = self.database.tree
+		path = [node.nodeID]
+		
+		for child in node.children:
+			if child.nodeID == 2: continue
+			childSNPID = self.database.nodes[child.nodeID]
+			pos, anc, der = self.database.SNPsByID[childSNPID]
+			if der == self.SNPresults[pos]:
+				node = child
 				break
-			path.append(childSNPID)
+
+		while node.nodeID not in path:
+			path.append(node.nodeID)
+			for child in node.children:
+				childSNPID = self.database.nodes[child.nodeID]
+				pos, anc, der = self.database.SNPsByID[childSNPID]
+				if der == self.SNPresults[pos]:
+					node = child
+					break
 		
 		return path
 

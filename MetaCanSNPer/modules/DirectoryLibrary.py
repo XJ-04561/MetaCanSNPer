@@ -20,7 +20,7 @@ except:
 random.seed()
 
 LOGGER = LogKeeper.createLogger(__name__)
-PseudoPathy._globals.LOGGER = LOGGER
+PseudoPathy.Globals.LOGGER = LOGGER
 
 SOFTWARE_NAME = "MetaCanSNPer"
 
@@ -51,11 +51,13 @@ class DirectoryLibrary(PathLibrary):
 	resultDir : DirectoryPath
 	logDir : DirectoryPath
 
-	references : MinimalPathLibrary
 	maps : MinimalPathLibrary
 	alignments : MinimalPathLibrary
 	targetSNPS : MinimalPathLibrary
 	resultSNPs : MinimalPathLibrary
+	references : MinimalPathLibrary
+	"""Current `MinimalPathLibrary` of reference files:
+		{GENOME_NAME : REFERENCE_PATH}"""
 
 	# Non-Pathy attributes. Must be initialized using object.__setattr__
 
@@ -226,31 +228,7 @@ class DirectoryLibrary(PathLibrary):
 			for r,path in resultSNPs.items():
 				self.access(path, mode="r")
 				self.resultSNPs[r] = path
-	
-	'''Get values'''
 
-	def getReferences(self) -> dict[str,(str, str, str, str, str)]:
-		'''Returns current list of reference files:
-			{GENOME_NAME : REFERENCE_PATH}'''
-		
-		return self.references
-	
-	#
-	#	Area of interest
-	#
-
-	def getSNPdata(self) -> dict[int,tuple[str,None]]:
-		'''getSNPdata() -> {POS : CALLED}
-		'''
-		SNPs = {}
-		for (refName, queryName), path in self.SNPs.items():
-			if path.lower().endswith(".vcf"):
-				reader = openVCF(path, "r")
-				for entry in reader:
-					SNPs[entry.POS] = (entry.REF, None) # Called Base is in the "REF" field
-					# More fields might be added instead of None.
-		
-		return SNPs
 
 if __name__ == "__main__":
 	p1 = DirectoryPath(os.path.abspath("."))
