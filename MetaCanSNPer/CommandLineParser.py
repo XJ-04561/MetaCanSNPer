@@ -96,7 +96,7 @@ def main():
 		print(f"MetaCanSNPer - version {__version__}")
 		exit()
 	elif args.list:
-		from modules.Wrappers import Mapper, Aligner, SNPCaller
+		from MetaCanSNPer.modules.Wrappers import Mapper, Aligner, SNPCaller
 		print("\nMappers:")
 		for mapper in Mapper.__subclasses__():			print(f"\t{mapper.softwareName}")
 		print("\nAligners:")
