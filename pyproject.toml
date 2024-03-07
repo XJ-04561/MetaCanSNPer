@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "MetaCanSNPer"
+readme = "README.md"
+description = "MetaCanSNPer: A toolkit for SNP-typing genomes."
+version = "1.0"
+requires-python = ">= 3.8"
+license = { file = "LICENSE"}
+keywords = ["Bioinformatics", "SNP-typing", "sequence-data"]
+authors = [
+    {name = "Fredrik Sörensen", email = "fredrik.sorensen@foi.se"},
+    {name = "David Sundell", email = "david.sundell@foi.se"}
+]
+maintainers = [
+    {name = "Fredrik Sörensen", email = "fredrik.sorensen@foi.se"}
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+
+    "Intended Audience :: Anyone",
+    "Topic :: Bioinformatics :: Variant Calling",
+
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+
+    "Operating System :: OS Independent"
+]
+dependencies = [
+    "PseudoPathy @ git+ssh://git@github.com/XJ-04561/PseudoPathy.git",
+    "VariantCallFixer @ git+ssh://git@github.com/XJ-04561/VariantCallFixer.git"
+]
+
+[project.urls]
+Repository = "https://github.com/XJ-04561/MetaCanSNPer.git"
+
+[project.scripts]
+MetaCanSNPer = "MetaCanSNPer.CommandLineParser:main"
+
+[project.optional-dependencies]
+basic = ["minimap2", "gatk"]
+all = ["ParseXMFA2 @ git+ssh://git@github.com/XJ-04561/ParseXMFA2.git", "progressiveMauve", "minimap2", "gatk"]
