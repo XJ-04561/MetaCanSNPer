@@ -1,20 +1,14 @@
 
-import os, textwrap, logging
+import os, textwrap
 from threading import Thread, Condition
 from urllib.request import urlretrieve
 from typing import Callable
+from subprocess import Popen
 
-try:
-	from MetaCanSNPer.modules.LogKeeper import createLogger
-except:
-	from LogKeeper import createLogger
+from MetaCanSNPer.modules.LogKeeper import createLogger
+from MetaCanSNPer.Globals import *
 
 LOGGER = createLogger(__name__)
-SOURCED = {"refseq":"F", "genbank": "A"}
-NCBI_FTP_LINK = "ftp://ftp.ncbi.nlm.nih.gov/genomes/all/GC{source}/{n1}/{n2}/{n3}/{genome_id}_{assembly}/{genome_id}_{assembly}_genomic.fna.gz"
-
-## import standard python libraries for subprocess and multiprocess
-from subprocess import Popen,PIPE,STDOUT
 
 class _DownloadQueue:
 	_queue : list[dict[str,Callable|list|dict]] = []

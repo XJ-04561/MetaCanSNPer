@@ -1,19 +1,13 @@
-
-
-import logging
-try:
-	import MetaCanSNPer.modules.LogKeeper as LogKeeper
-	from MetaCanSNPer.modules.Wrappers import Mapper
-except:
-	import LogKeeper as LogKeeper
-	from Wrappers import Mapper
-
-LOGGER = LogKeeper.createLogger(__name__)
-
 '''
-	All that is needed to create a new implementation is to inherit from the correct software type ('Aligner' in this case) and set
+	All that is needed to create a new implementation is to inherit from the correct software type (`Aligner` in this case) and set
 	the two class attributes accordingly.
 '''
+
+import MetaCanSNPer.modules.LogKeeper as LogKeeper
+from MetaCanSNPer.modules.Wrappers import Mapper
+from MetaCanSNPer.Globals import *
+
+LOGGER = LogKeeper.createLogger(__name__)
 
 class Minimap2(Mapper):
 	softwareName = "minimap2"

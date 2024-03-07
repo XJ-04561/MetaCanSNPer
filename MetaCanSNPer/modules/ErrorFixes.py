@@ -1,16 +1,9 @@
-import os.path, logging
+import os.path
 from shutil import copy
 
-class Aligner: pass
-class Mapper: pass
-class SNPCaller: pass
-
-try:
-    import MetaCanSNPer.modules.LogKeeper as LogKeeper
-    from MetaCanSNPer.modules.Wrappers import *
-except:
-    import LogKeeper as LogKeeper
-    from Wrappers import *
+from MetaCanSNPer.Globals import *
+import MetaCanSNPer.modules.LogKeeper as LogKeeper
+from MetaCanSNPer.modules.Wrappers import *
 
 LOGGER = LogKeeper.createLogger(__name__)
 
@@ -36,23 +29,27 @@ class SolutionContainer:
 class progressiveMauve(SolutionContainer):
     @staticmethod
     def _11(obj : Aligner):
-        tmpName = "{}.tmp".format(os.path.join([obj.Lib.tmpDir, obj.queryName]))
-        LOGGER.info("Fixing exitcode 11 by replacing occurrances of '-' with 'N' from '{query}' into '{tmpName}'.".format(query=obj.Lib.query, tmpName=tmpName))
+        outDir = obj.Lib.tmpDir.create("progressiveMauve").create("_11")
 
-        LOGGER.debug("copy('{}', '{}')".format(obj.Lib.query, tmpName))
-        copy(obj.Lib.query, tmpName)
-        LOGGER.debug("open('{}', 'r+b')".format(tmpName))
-        with open(tmpName, "r+b") as f:
-            c = b" "
-            while c != b"":
-                c = f.read(1)
-                if c == b"-":
-                    f.seek(-1, 1)
-                    f.write(b"N")
-            f.close()
+        LOGGER.info(f"Fixing exitcode 11 by replacing occurrances of '-' with 'N' from {obj.Lib.query!r} into separate new files.")
+        out = []
+        for q in obj.Lib.query:
+            tmpName = "{}{}".format(os.path.splitext(os.path.basename(q))[0], os.path.splitext(os.path.basename(q))[1])
+            LOGGER.debug(f"copy('{q}', '{tmpName}')")
+            copy(q, tmpName)
+            LOGGER.debug(f"open('{tmpName}', 'r+b')")
+            with open(tmpName, "r+b") as f:
+                c = b" "
+                while c != b"":
+                    c = f.read(1)
+                    if c == b"-":
+                        f.seek(-1, 1)
+                        f.write(b"N")
+                f.close()
+            out.append(tmpName)
         
-        LOGGER.info("New query: {nq}".format(nq=tmpName))
-        obj.Lib.setQuery(tmpName, abs=True)
+        LOGGER.info(f"New query: {out}")
+        obj.Lib.setQuery(out, abs=True)
 
 def get(softwareName) -> SolutionContainer:
 	for c in SolutionContainer.__subclasses__():

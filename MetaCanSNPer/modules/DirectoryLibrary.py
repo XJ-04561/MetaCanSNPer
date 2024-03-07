@@ -1,40 +1,25 @@
 
 
-import os, shutil, random, logging
-from functools import cached_property, cache
+import os, random
 from PseudoPathy import MinimalPathLibrary, PathLibrary, PathGroup, Path, DirectoryPath, FilePath, DisposablePath
 from PseudoPathy.Functions import createTemp
 import PseudoPathy.Globals
 
-try:
-	import MetaCanSNPer.modules.LogKeeper as LogKeeper
-	from MetaCanSNPer.modules.DownloadReferences import DownloadQueue
-	from MetaCanSNPer.modules.VCFhandler import openVCF, RowDict
-	from MetaCanSNPer.modules.FileNameAlignment import align as fileNameAlign
-except:
-	import LogKeeper as LogKeeper
-	from DownloadReferences import DownloadQueue
-	from VCFhandler import openVCF, RowDict
-	from FileNameAlignment import align as fileNameAlign
-
-random.seed()
+import MetaCanSNPer.modules.LogKeeper as LogKeeper
+from MetaCanSNPer.modules.DownloadReferences import DownloadQueue
+from MetaCanSNPer.modules.FileNameAlignment import align as fileNameAlign
+from MetaCanSNPer.Globals import *
 
 LOGGER = LogKeeper.createLogger(__name__)
 PseudoPathy.Globals.LOGGER = LOGGER
 
-SOFTWARE_NAME = "MetaCanSNPer"
-
-# OS alibis
-pSep = os.path.sep
-pJoin = os.path.join
-pIsAbs = lambda path: os.path.isabs(os.path.expandvars(os.path.expanduser(path)))
-pExpUser = os.path.expanduser
-pAbs = os.path.abspath
-pNorm = os.path.normpath
-pDirName = os.path.dirname
-pMakeDirs = lambda x : [os.makedirs(x), LOGGER.debug("os.makedirs('{}')".format(x))][0]
-pIsFile = os.path.isfile
-
+class FileList(list):
+	def __new__(cls, *data):
+		obj = super(FileList, cls).__new__(cls, *data)
+		return obj
+	
+	def __str__(self):
+		return " ".join(self)
 
 '''Container and handler of directories and files'''
 class DirectoryLibrary(PathLibrary):
@@ -61,7 +46,7 @@ class DirectoryLibrary(PathLibrary):
 
 	# Non-Pathy attributes. Must be initialized using object.__setattr__
 
-	query : list[FilePath]
+	query : FileList[FilePath]
 	sessionName : str
 	queryName : str
 	chromosomes : list[str]
@@ -178,7 +163,7 @@ class DirectoryLibrary(PathLibrary):
 		self.sessionName = name
 
 	def setQuery(self, query : list[str]):
-		self.query = []
+		self.query = FileList
 		for q in query:
 			if pIsAbs(q):
 				self.query.append(FilePath(q))

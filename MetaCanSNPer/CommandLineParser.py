@@ -1,49 +1,13 @@
 #!/usr/bin/env python3
-"""
-MetaCanSNPer
-"""
-
-oname = __name__
-__name__ 		= "MetaCanSNPer"
-__version__ 	= "0.1.0"
-__author__ 		= "Fredrik Sörensen"
-__credits__ 	= ["Fredrik Sörensen", "David Sundell"]
-__license__ 	= "GPLv3"
-__maintainer__ 	= "FOI bioinformatics group"
-__email__ 		= ["bioinformatics@foi.se", "fredrik.sorensen@foi.se"]
-__date__ 		= "2024-02-27"
-__status__ 		= "Prototype"
-
 
 import logging, sys, argparse
-try:
-	## import MetaCanSNPer specific modules
-	import MetaCanSNPer.modules.LogKeeper as LogKeeper
-	from MetaCanSNPer.modules.MetaCanSNPer import MetaCanSNPer
-except:
-	## import MetaCanSNPer specific modules
-	import modules.LogKeeper as LogKeeper
-	from modules.MetaCanSNPer import MetaCanSNPer
+
+## import MetaCanSNPer specific modules
+import MetaCanSNPer.modules.LogKeeper as LogKeeper
+from MetaCanSNPer.modules.MetaCanSNPer import MetaCanSNPer
+from MetaCanSNPer.Globals import *
 
 LOGGER = LogKeeper.createLogger(__name__)
-
-DIRECTORY_OPTIONS = ["workDir", "userDir", "installDir", "targetDir", "tmpDir", "refDir", "databaseDir", "outDir", "sessionName"]
-
-MAPPER_OPTIONS_EXPLAINER = """
-To provide flags/arguments for the chosen Mapper, provide them
-directly after the '--indexerOptions' flag, only interrupted by the end of the
-command call or the corresponding flag for an Aligner or SNP Caller options.
-"""
-ALIGNER_OPTIONS_EXPLAINER = """
-To provide flags/arguments for the chosen Aligner, provide them
-directly after the '--indexerOptions' flag, only interrupted by the end of the
-command call or the corresponding flag for a Mapper or SNP Caller options.
-"""
-SNP_CALLER_OPTIONS_EXPLAINER = """
-To provide flags/arguments for the chosen SNP Caller, provide them directly
-after the '--snpCallerOptions' flag, only interrupted by the end of the
-command call or the corresponding flag for Mapper or Aligner options.
-"""
 
 def separateCommands(argv : list[str]) -> dict[str,list[str]]:
 	order = [(0, "args")]
@@ -113,8 +77,6 @@ def createParser():
 		debugOptions.add_argument("--verbose",			action="store_const", const=logging.INFO,					help="Verbose output")
 		debugOptions.add_argument("--debug",			action="store_const", const=logging.DEBUG,					help="Debug output")
 		debugOptions.add_argument("--supress",			action="store_const", const=logging.ERROR,	default=logging.WARNING,	help="Supress warnings")
-	
-
 	
 
 	return parser

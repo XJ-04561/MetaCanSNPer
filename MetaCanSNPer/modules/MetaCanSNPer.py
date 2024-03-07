@@ -1,55 +1,23 @@
 '''
 MetaCanSNPer module: A toolkit for SNP-typing using NGS data.
-Copyright (C) 2019 David Sundell @ FOI bioinformatics group
+Copyright (C) 2024 Fredrik Sörensen @ Umeå University
 '''
 
-import os
-import time
-import logging
-try:
-	## import MetaCanSNPer specific modules
-	import MetaCanSNPer.modules.LogKeeper as LogKeeper
-	from MetaCanSNPer.modules.Databases import DatabaseReader
-	from MetaCanSNPer.modules.DirectoryLibrary import DirectoryLibrary
-	from MetaCanSNPer.modules.Wrappers import Aligner, Mapper, SNPCaller, IndexingWrapper
-	import MetaCanSNPer.modules.Aligners as Aligners
-	import MetaCanSNPer.modules.Mappers as Mappers
-	import MetaCanSNPer.modules.SNPCallers as SNPCallers
-	from MetaCanSNPer.modules.VCFhandler import getSNPdata
-except:
-	## import MetaCanSNPer specific modules
-	import LogKeeper as LogKeeper
-	from Databases import DatabaseReader
-	from DirectoryLibrary import DirectoryLibrary
-	from Wrappers import Aligner, Mapper, SNPCaller, IndexingWrapper
-	import Aligners
-	import Mappers
-	import SNPCallers
-	from VCFhandler import getSNPdata
+import os, time
+import tomllib as toml
+from VariantCallFixer import getSNPdata
+
+## import MetaCanSNPer specific modules
+import MetaCanSNPer.modules.LogKeeper as LogKeeper
+from MetaCanSNPer.modules.Databases import DatabaseReader
+from MetaCanSNPer.modules.DirectoryLibrary import DirectoryLibrary
+from MetaCanSNPer.modules.Wrappers import Aligner, Mapper, SNPCaller, IndexingWrapper
+import MetaCanSNPer.modules.Aligners as Aligners
+import MetaCanSNPer.modules.Mappers as Mappers
+import MetaCanSNPer.modules.SNPCallers as SNPCallers
+from MetaCanSNPer.Globals import *
 
 LOGGER = LogKeeper.createLogger(__name__)
-
-try:
-	import tomllib as toml
-except ModuleNotFoundError:
-	try:
-		import tomli as toml # type: ignore
-	except:
-		raise ModuleNotFoundError("TOML-reading module not found. For Python 3.5> it should be included as 'tomllib', if older than 2.5, then install 'tomli'.")
-
-import random
-random.seed()
-
-SOFTWARE_NAME = "MetaCanSNPer"
-
-# OS Alibis
-pSep = os.path.sep
-pJoin = os.path.join
-pIsAbs = lambda path: os.path.isabs(os.path.expanduser(path))
-pExpUser = os.path.expanduser
-pAbs = os.path.abspath
-pNorm = os.path.normpath
-pDirName = os.path.dirname
 
 def loadFlattenedTOML(filename):
 	tmp : dict[str,dict] = toml.load(open(filename, "rb"))

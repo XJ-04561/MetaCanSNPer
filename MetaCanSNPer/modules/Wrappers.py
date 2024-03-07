@@ -1,22 +1,17 @@
 
-import os, logging
-try:
-	import MetaCanSNPer.modules.LogKeeper as LogKeeper
-	import MetaCanSNPer.modules.ErrorFixes as ErrorFixes
-	from MetaCanSNPer.modules.DirectoryLibrary import DirectoryLibrary
-	from MetaCanSNPer.modules.Databases import DatabaseReader
-	from MetaCanSNPer.modules.VCFhandler import openVCF
-except:
-	import LogKeeper as LogKeeper
-	import ErrorFixes as ErrorFixes
-	from DirectoryLibrary import DirectoryLibrary
-	from Databases import DatabaseReader
-	from VCFhandler import openVCF
-
-LOGGER = LogKeeper.createLogger(__name__)
+import os
 from collections.abc import Callable
 from threading import Thread, Condition
 from subprocess import run, DEVNULL, PIPE, STDOUT, CompletedProcess
+from VariantCallFixer import openVCF
+
+import MetaCanSNPer.modules.LogKeeper as LogKeeper
+import MetaCanSNPer.modules.ErrorFixes as ErrorFixes
+from MetaCanSNPer.modules.DirectoryLibrary import DirectoryLibrary
+from MetaCanSNPer.modules.Databases import DatabaseReader
+from MetaCanSNPer.Globals import *
+
+LOGGER = LogKeeper.createLogger(__name__)
 
 
 '''
@@ -201,7 +196,7 @@ class IndexingWrapper(ProcessWrapper):
 		self.formatDict = {
 			"tmpDir" : self.Lib.tmpDir,
 			"refDir" : self.Lib.refDir,
-			"query" : " ".join(self.Lib.query),
+			"query" : self.Lib.query,
 			"queryName" : self.queryName,
 			"options" : " ".join(self.flags)
 		}
