@@ -90,13 +90,13 @@ def main():
 	
 	parser = createParser()
 
-	args = parser.parse_args(argsDict["args"])
-
-	if len(sys.argv)==1:
+	if len(sys.argv)<2:
 		parser.print_help()
 		parser.exit()
 
-	elif args.version:
+	args = parser.parse_args(argsDict["args"])
+
+	if args.version:
 		print(f"MetaCanSNPer - version {__version__}")
 		exit()
 
