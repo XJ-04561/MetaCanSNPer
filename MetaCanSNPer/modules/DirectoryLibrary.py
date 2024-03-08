@@ -61,11 +61,14 @@ class DirectoryLibrary(PathLibrary):
 
 		LOGGER.debug("Creating: {}".format(self))
 
+		if (workDir := kwargs.pop("workDir", None)) is not None: os.chdir(workDir)
+
+		super(DirectoryLibrary, self).__init__(self, **{name:kwargs[name] for name in {"workDir", "userDir", "installDir"}.intersection(kwargs)})
+
 		self.settings = settings
 		self.sessionName = sessionName
 
 		# Use kwargs as a first, and settings as a second.
-		if (workDir := kwargs.pop("workDir", None)) is not None: os.chdir(workDir)
 
 		LOGGER.debug(f"Work dir:    {self.workDir!r}")
 		LOGGER.debug(f"Install dir: {self.installDir!r}")
