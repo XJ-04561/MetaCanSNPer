@@ -43,7 +43,7 @@ class MetaCanSNPer:
 		self.startTime = time.localtime()
 		
 		if lib is None:
-			self.Lib = DirectoryLibrary(settings=self.settings)
+			self.Lib = DirectoryLibrary(settings=settings)
 		else:
 			self.Lib = lib
 

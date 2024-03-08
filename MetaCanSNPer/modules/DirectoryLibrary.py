@@ -73,8 +73,7 @@ class DirectoryLibrary(PathLibrary):
 
 		super(DirectoryLibrary, self).__init__()
 		
-		if "saveTemp" in self.settings:
-			PseudoPathy.Globals.DISPOSE = self.settings["saveTemp"]
+		PseudoPathy.Globals.DISPOSE = self.settings.get("saveTemp", True)
 		
 		self.setTargetDir(kwargs.pop("targetDir", None) or self.settings.get("targetDir"))
 		if reference is not None: self.setRefDir(reference, refDir=kwargs.pop("refDir", None) or self.settings.get("refDir"))
