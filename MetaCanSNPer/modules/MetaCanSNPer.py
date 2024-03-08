@@ -96,7 +96,7 @@ class MetaCanSNPer:
 
 	# Setting the same docstring for each 'set*Dir' function
 	setTargetDir.__doc__ = setRefDir.__doc__ = setDatabaseDir.__doc__ = setTmpDir.__doc__ = setOutDir.__doc__ = """
-	'path' can be relative or absolute. Check the docstring for the DirectoryLibrary to see where the relative
+	`path` can be relative or absolute. Check the docstring for the DirectoryLibrary to see where the relative
 	path will start from.
 	"""
 
@@ -136,7 +136,7 @@ class MetaCanSNPer:
 		software : IndexingWrapper = softwareClass(self.Lib, self.database, self.outputTemplate, flags=flags)
 
 		# Check that error did not occur.
-		while software.hickups():	
+		while software.hickups():
 			LOGGER.info("Checking for pre-processing for {software}.".format(software=software.softwareName))
 			software.preProcess()
 

@@ -76,10 +76,10 @@ def createParser():
 
 	debugOptions = parser.add_argument_group("Logging and debug options")
 	if True:
-		debugOptions.add_argument("--verbose",	action="store_const",	const=logging.INFO,									help="Verbose output")
-		debugOptions.add_argument("--debug",	action="store_const",	const=logging.DEBUG,								help="Debug output")
-		debugOptions.add_argument("--dry-run",	metavar="dryRun",		action="store_true",								help="Debug output")
-		debugOptions.add_argument("--supress",	action="store_const",	const=logging.ERROR,	default=logging.WARNING,	help="Supress warnings")
+		debugOptions.add_argument("--verbose",	action="store_true",	help="Verbose output")
+		debugOptions.add_argument("--debug",	action="store_true",	help="Debug output")
+		debugOptions.add_argument("--supress",	action="store_true",	help="Supress warnings")
+		debugOptions.add_argument("--dry-run",	action="store_true",	help="Debug output")
 	
 
 	return parser
@@ -95,9 +95,11 @@ def main():
 	if len(sys.argv)==1:
 		parser.print_help()
 		parser.exit()
+
 	elif args.version:
 		print(f"MetaCanSNPer - version {__version__}")
 		exit()
+
 	elif args.list:
 		from MetaCanSNPer.modules.Wrappers import Mapper, Aligner, SNPCaller
 		print("\nMappers:")
@@ -107,8 +109,18 @@ def main():
 		print("\nSNPCallers:")
 		for snpCaller in SNPCaller.__subclasses__():	print(f"\t{snpCaller.softwareName}")
 		exit()
-	elif args["dry-run"]:
+
+	if args["dry-run"]:
 		Globals.DRY_RUN = args["dry-run"]
+	
+	if args.debug:
+		Globals.LOGGER_FILEHANDLER.setLevel(logging.DEBUG)
+	elif args.verbose:
+		Globals.LOGGER_FILEHANDLER.setLevel(logging.INFO)
+	elif args.supress:
+		Globals.LOGGER_FILEHANDLER.setLevel(logging.ERROR)
+	else:
+		pass # The default logging level for the logging package is logging.WARNING
 
 	mObj = MetaCanSNPer(settings=args, settingsFile=args["settingsFile"])
 

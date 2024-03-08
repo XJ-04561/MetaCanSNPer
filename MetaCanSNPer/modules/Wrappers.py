@@ -15,23 +15,7 @@ import MetaCanSNPer.Globals as Globals
 LOGGER = LogKeeper.createLogger(__name__)
 
 
-'''
-	All that is needed to create a new implementation is to inherit from the correct software type ('Aligner' in this case) and set
-	the two class attributes accordingly. See 'Timeout' and 'Sleep' for a minimalist example.
-'''
-
-class Error(Exception):
-	"""docstring for Error"""
-	def __init__(self, value):
-		self.value = value
-	def __str__(self):
-		return repr(self.value)
-
-class MauveError(Error):
-	"""docstring for MauveE"""
-	pass
-
-'''More OOP handling of multiple processes'''
+'''OOP handling of multiple processes'''
 class ThreadGroup:
 	threads : list[Thread]
 	commands : list[str]
@@ -81,7 +65,7 @@ class ThreadGroup:
 		self.threads = [Thread(target=self.target, args=args, kwargs=kwargs, **threadKwargs) for args, kwargs in zip(self.args, self.kwargs)]
 
 	def newFinished(self) -> bool:
-		'''Returns True if any thread in self.threads is dead. Also returns True if all threads '''
+		"""Returns True if any thread in self.threads is dead. Also returns True if all threads """
 		return any(not t.is_alive() for t in self.threads if t is not None) or all(t is None for t in self.threads)
 
 	def start(self):
@@ -105,11 +89,11 @@ class ProcessWrapper:
 	returncodes : list[list[int]]
 	previousErrors : list
 	category : str
-	
-	def start(self, *args):
-		'''Not implemented for the template class, check the wrapper of the
-		specific software you are intending to use.'''
-		pass
+
+	def createCommand(self, *args, **kwargs):
+		"""Not implemented for the template class, check the wrapper of the
+		specific software you are intending to use."""
+		raise NotImplementedError(f"Called `.createCommand` on a object of a class which has not implemented it. Object class is `{type(self)}`")
 
 	def run(self, command, log : str, pReturncodes : list[int], *args, **kwargs) -> None:
 		try:
@@ -117,93 +101,22 @@ class ProcessWrapper:
 		except:
 			n="?"
 		
-		LOGGER.debug("Thread {n} - Running command: {command}".format(n=n, command=command))
+		LOGGER.info("Thread {n} - Running command: {command}".format(n=n, command=command))
 		p : CompletedProcess = run(command.split() if type(command) is str else command, *args, **kwargs)
-		LOGGER.debug("Thread {n} - Returned with exitcode: {exitcode}".format(n=n, exitcode=p.returncode))
+		LOGGER.info("Thread {n} - Returned with exitcode: {exitcode}".format(n=n, exitcode=p.returncode))
 
 		if log is not None:
-			LOGGER.debug("Thread {n} - Logging output to: {logpath}".format(n=n, logpath=log))
+			LOGGER.info("Thread {n} - Logging output to: {logpath}".format(n=n, logpath=log))
 			with open(log, "w") as logFile:
 				logFile.write(p.stdout.read().decode("utf-8"))
 				logFile.write("\n")
 		pReturncodes.append(p.returncode)
 		self.handleRetCode(p.returncode, prefix="Thread {n} - ".format(n=n))
 
-		LOGGER.debug("Thread {n} - Finished!".format(n=n))
+		LOGGER.info("Thread {n} - Finished!".format(n=n))
 
-	def createCommand(self, *args):
-		'''Not implemented for the template class, check the wrapper of the
-		specific software you are intending to use.'''
-		pass
-	
-	def handleRetCode(self, returncode : int, prefix : str=""):
-		'''Not implemented for the template class, check the wrapper of the
-		specific software you are intending to use.'''
-		if returncode == 0:
-			LOGGER.debug("{prefix}{softwareName} finished with exitcode 0.".format(prefix=prefix, softwareName=self.softwareName))
-		else:
-			LOGGER.warning("{prefix}WARNING {softwareName} finished with a non zero exitcode: {returncode}".format(prefix=prefix, softwareName=self.softwareName, returncode=returncode))
-	
-	def preProcess(self):
-		'''Not implemented for the template class, check the wrapper of the
-		specific software you are intending to use.'''
-		pass
-
-	def hickups(self):
-		'''Not implemented for the template class, check the wrapper of the
-		specific software you are intending to use.'''
-		pass
-
-	def fixable(self):
-		'''Not implemented for the template class, check the wrapper of the
-		specific software you are intending to use.'''
-		pass
-
-	def planB(self):
-		'''Not implemented for the template class, check the wrapper of the
-		specific software you are intending to use.'''
-		pass
-
-class IndexingWrapper(ProcessWrapper):
-	queryName : str
-	commandTemplate : str # Should contain format tags for {target}, {ref}, {output}, can contain more.
-	outFormat : str
-	# inFormat : str
-	logFormat : str
-	flags : list[str]
-	format : str
-
-	returncodes : list[list[int]]
-	outputs : list[tuple[tuple[str,str],str]]
-	"""[((refName, queryName), outputPath), ...]"""
-	threadGroup : ThreadGroup
-	solutions : ErrorFixes.SolutionContainer
-
-	
-	def __init__(self, lib : DirectoryLibrary, database : DatabaseReader, outputTemplate : str, flags : list[str]=[]):
-		self.Lib = lib
-		self.database = database
-		self.queryName = self.Lib.queryName ## get name of file and remove ending
-		self.outputTemplate = outputTemplate
-		
-		self.flags = flags
-		self.returncodes = [[] for _ in range(len(lib.getReferences()))]
-		self.threadGroup = None
-		self.solutions : ErrorFixes.SolutionContainer = ErrorFixes.get(self.softwareName)
-		
-		if not os.path.exists(self.Lib.tmpDir > self.softwareName):
-			os.mkdir(self.Lib.tmpDir.writable > self.softwareName)
-
-		self.formatDict = {
-			"tmpDir" : self.Lib.tmpDir,
-			"refDir" : self.Lib.refDir,
-			"query" : self.Lib.query,
-			"queryName" : self.queryName,
-			"options" : " ".join(self.flags)
-		}
-	
 	def start(self) -> list[tuple[tuple[str,str],str]]:
-		'''Starts alignment processes in new threads. Returns information of the output of the processes, but does not ensure the processes have finished.'''
+		'''Starts processes in new threads. Returns information of the output of the processes, but does not ensure the processes have finished.'''
 
 		commands, logs, outputs = self.createCommand()
 		self.threadGroup = ThreadGroup(self.run, args=zip(commands, logs, self.returncodes), stdout=PIPE, stderr=STDOUT)
@@ -219,37 +132,6 @@ class IndexingWrapper(ProcessWrapper):
 	def wait(self, timeout=5):
 		while not self.threadGroup.finished():
 			self.threadGroup.waitNext(timeout=timeout)
-	
-	def createCommand(self) -> tuple[list[str], list[str], list[tuple[tuple[str,str],str]]]:
-		
-		outDir = self.Lib.tmpDir.forceFind(self.softwareName)
-
-		logs = []
-		commands = []
-		outputs = []
-		for _, refName, _, _, _ in self.database.references:
-			refPath = self.Lib.references[refName]
-			'''Not every command needs all information, but the format function is supplied with a dictionary that has
-			everything that could ever be needed.'''
-
-			self.formatDict["refName"] = refName
-			self.formatDict["refPath"] = refPath
-			self.formatDict["mapPath"] = self.Lib.maps[refName]
-			self.formatDict["alignmentPath"] = self.Lib.alignments[refName]
-			self.formatDict["targetSNPS"] = self.Lib.targetSNPS[refName]
-			
-			output = outDir > self.outputTemplate.format(self.formatDict)
-			logfile = output+".log"
-
-			self.formatDict["output"] = output
-			self.formatDict["logFile"] = logfile
-
-			command = self.commandTemplate.format(self.formatDict) if not Globals.DRY_RUN else "sleep {}".format(random.randint(1, 5))
-
-			commands.append(command)
-			logs.append(logfile)
-			outputs.append((refName, output))
-		return commands, logs, outputs
 
 	def updateWhileWaiting(self, outputDict : dict):
 		while not self.finished():
@@ -284,20 +166,108 @@ class IndexingWrapper(ProcessWrapper):
 				failedThreads = [i for i, e2 in enumerate(current) if e == e2]
 				self.solutions[e](self, failedThreads)
 
+	def handleRetCode(self, returncode : int, prefix : str=""):
+		'''Not implemented for the template class, check the wrapper of the
+		specific software you are intending to use.'''
+		if returncode == 0:
+			LOGGER.debug("{prefix}{softwareName} finished with exitcode 0.".format(prefix=prefix, softwareName=self.softwareName))
+		else:
+			LOGGER.warning("{prefix}WARNING {softwareName} finished with a non zero exitcode: {returncode}".format(prefix=prefix, softwareName=self.softwareName, returncode=returncode))
 
-'''
-	Aligner, Mapper, and Caller classes to inherit from
-'''
+	def preProcess(self, *args, **kwargs):
+		'''Not implemented for the template class, check the wrapper of the
+		specific software you are intending to use.'''
+		pass
+
+class IndexingWrapper(ProcessWrapper):
+	queryName : str
+	commandTemplate : str # Should contain format tags for {target}, {ref}, {output}, can contain more.
+	outFormat : str
+	# inFormat : str
+	logFormat : str
+	flags : list[str]
+	format : str
+
+	returncodes : list[list[int]]
+	outputs : list[tuple[str,str]]
+	"""[((refName, queryName), outputPath), ...]"""
+	threadGroup : ThreadGroup
+	solutions : ErrorFixes.SolutionContainer
+
+	
+	def __init__(self, lib : DirectoryLibrary, database : DatabaseReader, outputTemplate : str, flags : list[str]=[]):
+		self.Lib = lib
+		self.database = database
+		self.queryName = self.Lib.queryName ## get name of file and remove ending
+		self.outputTemplate = outputTemplate
+		
+		self.flags = flags
+		self.returncodes = [[] for _ in range(len(lib.getReferences()))]
+		self.threadGroup = None
+		self.solutions : ErrorFixes.SolutionContainer = ErrorFixes.get(self.softwareName)
+		
+		if not os.path.exists(self.Lib.tmpDir > self.softwareName):
+			os.mkdir(self.Lib.tmpDir.writable > self.softwareName)
+
+		self.formatDict = {
+			"tmpDir" : self.Lib.tmpDir,
+			"refDir" : self.Lib.refDir,
+			"query" : self.Lib.query,
+			"queryName" : self.queryName,
+			"options" : " ".join(self.flags)
+		}
+	
+	def createCommand(self) -> tuple[list[str], list[str], list[tuple[tuple[str,str],str]]]:
+		
+		outDir = self.Lib.tmpDir.forceFind(self.softwareName)
+
+		logs = []
+		commands = []
+		outputs = []
+		for _, refName, _, _, _ in self.database.references:
+			refPath = self.Lib.references[refName]
+			'''Not every command needs all information, but the format function is supplied with a dictionary that has
+			everything that could ever be needed.'''
+
+			self.formatDict["refName"] = refName
+			self.formatDict["refPath"] = refPath
+			self.formatDict["mapPath"] = self.Lib.maps[refName]
+			self.formatDict["alignmentPath"] = self.Lib.alignments[refName]
+			self.formatDict["targetSNPS"] = self.Lib.targetSNPS[refName]
+			
+			output = outDir > self.outputTemplate.format(self.formatDict)
+			logfile = output+".log"
+
+			self.formatDict["output"] = output
+			self.formatDict["logFile"] = logfile
+
+			command = self.commandTemplate.format(self.formatDict) if not Globals.DRY_RUN else "sleep {}".format(random.randint(1, 5))
+
+			commands.append(command)
+			logs.append(logfile)
+			outputs.append((refName, output))
+		return commands, logs, outputs
+
+#
+#	Aligner, Mapper, and SNPCaller classes to inherit from
+#
 
 class Aligner(IndexingWrapper):
+	"""All that is needed to create a new implementation is to inherit from the correct software type ('Aligner' in this case) and set
+	the two class attributes accordingly.
+	"""
 	category = "Aligners"
-	pass
 	
 class Mapper(IndexingWrapper):
+	"""All that is needed to create a new implementation is to inherit from the correct software type ('Mapper' in this case) and set
+	the two class attributes accordingly.
+	"""
 	category = "Mappers"
-	pass
 
 class SNPCaller(IndexingWrapper):
+	"""All that is needed to create a new implementation is to inherit from the correct software type ('SNPCaller' in this case) and set
+	the two class attributes accordingly.
+	"""
 	category = "SNPCallers"
 	
 	def preProcess(self, force : bool=False):

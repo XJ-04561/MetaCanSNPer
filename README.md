@@ -3,6 +3,7 @@ MetaCanSNPer: A toolkit for SNP-typing NGS data.
 ParseXMFA2: a script/module for looking up positions in an aligned genome from an .XMFA file, without loading the file into memory.
 
 Future planned implementations
+* Allow the next process to start when the previous has finished, without waiting for sibling processes to finish.
 * Multiple SNPs per node.
 * GUI
 * Interactive Graph outputs

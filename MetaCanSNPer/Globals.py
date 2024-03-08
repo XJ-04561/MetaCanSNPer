@@ -20,8 +20,13 @@ __status__ 		= "Prototype"
 SOFTWARE_NAME = "MetaCanSNPer"
 DRY_RUN = False
 from PseudoPathy.PathShortHands import *
-import random
+import random, logging
 random.seed()
+
+## LogKeeper Globals
+
+LOGGER_FILEHANDLER = logging.FileHandler("MetaCanSNPer.log")
+LOGGER_FILEHANDLER.setFormatter(logging.Formatter("[%(name)s] %(asctime)s - %(levelname)s: %(message)s"))
 
 ## ArgParser Globals
 
