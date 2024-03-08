@@ -5,9 +5,10 @@ Copyright (C) 2024 Fredrik Sörensen @ Umeå University
 
 import os, time
 import tomllib as toml
-from VariantCallFixer import getSNPdata
+from VariantCallFixer.Functions import getSNPdata
 
 ## import MetaCanSNPer specific modules
+from MetaCanSNPer.Globals import *
 import MetaCanSNPer.modules.LogKeeper as LogKeeper
 from MetaCanSNPer.modules.Databases import DatabaseReader
 from MetaCanSNPer.modules.DirectoryLibrary import DirectoryLibrary
@@ -15,7 +16,6 @@ from MetaCanSNPer.modules.Wrappers import Aligner, Mapper, SNPCaller, IndexingWr
 import MetaCanSNPer.modules.Aligners as Aligners
 import MetaCanSNPer.modules.Mappers as Mappers
 import MetaCanSNPer.modules.SNPCallers as SNPCallers
-from MetaCanSNPer.Globals import *
 
 LOGGER = LogKeeper.createLogger(__name__)
 

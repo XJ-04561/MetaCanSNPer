@@ -3,11 +3,11 @@
 import logging, sys, argparse
 
 ## import MetaCanSNPer specific modules
+from MetaCanSNPer.Globals import *
+from MetaCanSNPer.Globals import __version__
 import MetaCanSNPer.modules.LogKeeper as LogKeeper
 from MetaCanSNPer.modules.MetaCanSNPer import MetaCanSNPer
 import MetaCanSNPer.Globals as Globals
-from MetaCanSNPer.Globals import *
-from MetaCanSNPer.Globals import __version__
 
 LOGGER = LogKeeper.createLogger(__name__)
 
