@@ -241,6 +241,7 @@ class IndexingWrapper(ProcessWrapper):
 			self.formatDict["output"] = output
 			self.formatDict["logFile"] = logfile
 
+			LOGGER.info(f"Created command (if --dry-run has been specified, this will not be the true command ran):\n{self.commandTemplate.format(self.formatDict)}")
 			command = self.commandTemplate.format(self.formatDict) if not Globals.DRY_RUN else "sleep {}".format(random.randint(1, 5))
 
 			commands.append(command)

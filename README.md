@@ -45,7 +45,7 @@ But at least an aligner/mapper and a SNPCaller is needed. (XMFA can be parsed wi
 
 2. Run genomes
 ```sh
-MetaCanSNPer --query FILE1 [,FILE2] --database DOWNLOADED_DATABASE --mapper MAPPER_COMMAND --SNPCaller SNPCALLER_COMMAND
+MetaCanSNPer --query FILE1 [FILE2] --database DOWNLOADED_DATABASE --mapper MAPPER_COMMAND --SNPCaller SNPCALLER_COMMAND
 ```
 
 For more options MetaCanSNPer --help

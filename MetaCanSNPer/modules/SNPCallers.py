@@ -17,7 +17,7 @@ class ParseXMFA2(SNPCaller):
 
 class GATK_Mutect2(SNPCaller):
 	softwareName = "gatk_Mutect2"
-	commandTemplate = "gatk IndexFeatureFile -I '{0[targetSNPs]}' && gatk Mutect2 -R {0[refPath]} -I {0[mapPath]} -L {0[targetSNPs]} --force-call-filtered-alleles --alleles {0[targetSNPs]} -O {0[output]} > {0[logFile]}"
+	commandTemplate = "gatk IndexFeatureFile -I '{0[targetSNPs]}' && gatk Mutect2 --genotype-germline-sites --genotype-pon-sites -R {0[refPath]} -I {0[mapPath]} -L {0[targetSNPs]} --force-call-filtered-alleles --alleles {0[targetSNPs]} -O {0[output]} > {0[logFile]}"
 	inFormat = [".bam"]
 	outFormat = ".vcf"
 
@@ -29,6 +29,6 @@ class GATK_HaplotypeCaller(SNPCaller):
 
 def get(softwareName) -> SNPCaller:
 	for c in SNPCaller.__subclasses__():
-		if c.softwareName == softwareName:
+		if c.softwareName.lower() == softwareName.lower():
 			return c
 	return None

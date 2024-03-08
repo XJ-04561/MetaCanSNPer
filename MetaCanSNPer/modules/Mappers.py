@@ -174,6 +174,6 @@ class Minimap2(Mapper):
 
 def get(softwareName) -> Mapper:
 	for c in Mapper.__subclasses__():
-		if c.softwareName == softwareName:
+		if c.softwareName.lower() == softwareName.lower():
 			return c
 	return None

@@ -66,6 +66,6 @@ class ProgressiveMauve(Aligner):
 
 def get(softwareName):
 	for c in Aligner.__subclasses__():
-		if c.softwareName == softwareName:
+		if c.softwareName.lower() == softwareName.lower():
 			return c
 	return None
