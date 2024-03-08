@@ -10,6 +10,7 @@ import MetaCanSNPer.modules.ErrorFixes as ErrorFixes
 from MetaCanSNPer.modules.DirectoryLibrary import DirectoryLibrary
 from MetaCanSNPer.modules.Databases import DatabaseReader
 from MetaCanSNPer.Globals import *
+import MetaCanSNPer.Globals as Globals
 
 LOGGER = LogKeeper.createLogger(__name__)
 
@@ -243,7 +244,7 @@ class IndexingWrapper(ProcessWrapper):
 			self.formatDict["output"] = output
 			self.formatDict["logFile"] = logfile
 
-			command = self.commandTemplate.format(self.formatDict)
+			command = self.commandTemplate.format(self.formatDict) if not Globals.FAKE_RUN else "sleep {}".format(random.randint(1, 5))
 
 			commands.append(command)
 			logs.append(logfile)

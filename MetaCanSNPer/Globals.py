@@ -18,6 +18,7 @@ __status__ 		= "Prototype"
 ## Common Globals
 
 SOFTWARE_NAME = "MetaCanSNPer"
+FAKE_RUN = False
 from PseudoPathy.PathShortHands import *
 import random
 random.seed()

@@ -5,7 +5,9 @@ import logging, sys, argparse
 ## import MetaCanSNPer specific modules
 import MetaCanSNPer.modules.LogKeeper as LogKeeper
 from MetaCanSNPer.modules.MetaCanSNPer import MetaCanSNPer
+import MetaCanSNPer.Globals as Globals
 from MetaCanSNPer.Globals import *
+from MetaCanSNPer.Globals import __version__
 
 LOGGER = LogKeeper.createLogger(__name__)
 
@@ -53,12 +55,12 @@ def createParser():
 	optionalArguments = parser.add_argument_group("Optional arguments")
 	if True:
 		optionalArguments.add_argument("-s", "--saveTemp",		metavar="saveTemp",		help="Path to .TOML file containing settings for MetaCanSNPer. Check the 'defaultConfig.toml' to see what can be included in a settings file.")
-		optionalArguments.add_argument("--settingsFile",		metavar="settingsFile",		help="Path to .TOML file containing settings for MetaCanSNPer. Check the 'defaultConfig.toml' to see what can be included in a settings file.")
+		optionalArguments.add_argument("--settingsFile",		metavar="settingsFile",	help="Path to .TOML file containing settings for MetaCanSNPer. Check the 'defaultConfig.toml' to see what can be included in a settings file.")
 		
 		# Not used by the argparser, but is used for the help-page and for splitting the argv
-		mapperOptions = optionalArguments.add_argument("--mapperOptions", metavar="Mapper options", help=MAPPER_OPTIONS_EXPLAINER)
-		alignerOptions = optionalArguments.add_argument("--alignerOptions", metavar="Aligner options", help=ALIGNER_OPTIONS_EXPLAINER)
-		snpCallerOptions = optionalArguments.add_argument("--snpCallerOptions", metavar="SNP Caller options", help=SNP_CALLER_OPTIONS_EXPLAINER)
+		mapperOptions = optionalArguments.add_argument("--mapperOptions",		metavar="Mapper options",		help=MAPPER_OPTIONS_EXPLAINER)
+		alignerOptions = optionalArguments.add_argument("--alignerOptions",		metavar="Aligner options",		help=ALIGNER_OPTIONS_EXPLAINER)
+		snpCallerOptions = optionalArguments.add_argument("--snpCallerOptions",	metavar="SNP Caller options",	help=SNP_CALLER_OPTIONS_EXPLAINER)
 
 	directoryOptions = parser.add_argument_group("Directory Options")
 	if True:
@@ -74,9 +76,10 @@ def createParser():
 
 	debugOptions = parser.add_argument_group("Logging and debug options")
 	if True:
-		debugOptions.add_argument("--verbose",			action="store_const", const=logging.INFO,					help="Verbose output")
-		debugOptions.add_argument("--debug",			action="store_const", const=logging.DEBUG,					help="Debug output")
-		debugOptions.add_argument("--supress",			action="store_const", const=logging.ERROR,	default=logging.WARNING,	help="Supress warnings")
+		debugOptions.add_argument("--verbose",	action="store_const",	const=logging.INFO,									help="Verbose output")
+		debugOptions.add_argument("--debug",	action="store_const",	const=logging.DEBUG,								help="Debug output")
+		debugOptions.add_argument("--fake",		action="store_true",	const=logging.DEBUG,								help="Debug output")
+		debugOptions.add_argument("--supress",	action="store_const",	const=logging.ERROR,	default=logging.WARNING,	help="Supress warnings")
 	
 
 	return parser
@@ -104,7 +107,8 @@ def main():
 		print("\nSNPCallers:")
 		for snpCaller in SNPCaller.__subclasses__():	print(f"\t{snpCaller.softwareName}")
 		exit()
-		
+	elif args.fake:
+		Globals.FAKE_RUN = args.fake
 
 	mObj = MetaCanSNPer(settings=args, settingsFile=args["settingsFile"])
 
