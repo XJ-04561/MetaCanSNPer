@@ -33,7 +33,7 @@ def separateCommands(argv : list[str]) -> dict[str,list[str]]:
 		out[order[i][1]] = argv[order[i][0]+1:order[i+1][0]]
 	
 	return out
-
+"MetaCanSNPer --query RAW_SEQUENCE_DATAFILE_R1.fq RAW_SEQUENCE_DATAFILE_R2.fq --database DATABASE_FILE.db --dry-run --debug --mapper minimap2 --snpCaller gatk_Mutect2 --mapperOptions -x sr"
 def createParser():
 	"""Initiate MetaCanSNPer command line argument parser"""
 	parser = argparse.ArgumentParser(description="MetaCanSNPer", usage="""MetaCanSNPer --query RAW_SEQUENCE_DATAFILE.* [RAW_SEQUENCE_DATAFILE_2.*] --database DATABASE_FILE.db --mapper MAPPER_COMMAND --snpCaller SNPCALLER_COMMAND \\
@@ -119,8 +119,8 @@ def main():
 		for snpCaller in SNPCaller.__subclasses__():	print(f"\t{snpCaller.softwareName}")
 		exit()
 
-	if args["dry-run"]:
-		Globals.DRY_RUN = args["dry-run"] # Don't run the processes of the mapper/aligner/snpCaller, just run a randomised `sleep` call
+	if args.dry_run:
+		Globals.DRY_RUN = args.dry_run # Don't run the processes of the mapper/aligner/snpCaller, just run a randomised `sleep` call
 	if args.saveTemp:
 		Globals.PPGlobals.DISPOSE = False # Don't dispose of temporary directories/files.
 	
@@ -133,7 +133,7 @@ def main():
 	else:
 		pass # The default logging level for the logging package is logging.WARNING
 
-	mObj = MetaCanSNPer(settings=args, settingsFile=args["settingsFile"])
+	mObj = MetaCanSNPer(settings=args, settingsFile=args.settingsFile)
 
 	mObj.setQuery(args.query)
 	mObj.setDatabase(args.database)
@@ -141,11 +141,11 @@ def main():
 	if args.sessionName is not None: mObj.setSessionName(args.sessionName)
 
 	if "mapper" in args:
-		mObj.createMap(softwareName=args.mapper, kwargs=argsDict["--mapperOptions"] if "--mapperOptions" in argsDict else {})
+		mObj.createMap(softwareName=args.mapper, kwargs=argsDict.get("--mapperOptions", {}))
 	if "aligner" in args:
-		mObj.createAlignment(softwareName=args.aligner, kwargs=argsDict["--alignerOptions"] if "--alignerOptions" in argsDict else {})
+		mObj.createAlignment(softwareName=args.aligner, kwargs=argsDict.get("--alignerOptions", {}))
 
-	mObj.callSNPs(softwareName=args.snpCaller, kwargs=argsDict["--snpCallerOptions"] if "--snpCallerOptions" in argsDict else {})
+	mObj.callSNPs(softwareName=args.snpCaller, kwargs=argsDict.get("--snpCallerOptions", {}))
 
 	mObj.saveResults()
 	mObj.saveSNPdata()
