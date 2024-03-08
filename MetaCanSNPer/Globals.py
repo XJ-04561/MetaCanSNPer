@@ -77,3 +77,8 @@ TREE_COLUMN_RANK                = "rank_i"
 
 SOURCED = {"refseq":"F", "genbank": "A"}
 NCBI_FTP_LINK = "ftp://ftp.ncbi.nlm.nih.gov/genomes/all/GC{source}/{n1}/{n2}/{n3}/{genome_id}_{assembly}/{genome_id}_{assembly}_genomic.fna.gz"
+
+## ErrorFixes Globals
+class Aligner: pass
+class Mapper: pass
+class SNPCaller: pass

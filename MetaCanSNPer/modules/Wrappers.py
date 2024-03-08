@@ -177,7 +177,7 @@ class IndexingWrapper(ProcessWrapper):
 	outputs : list[tuple[tuple[str,str],str]]
 	"""[((refName, queryName), outputPath), ...]"""
 	threadGroup : ThreadGroup
-	solutions : dict
+	solutions : ErrorFixes.SolutionContainer
 
 	
 	def __init__(self, lib : DirectoryLibrary, database : DatabaseReader, outputTemplate : str, flags : list[str]=[]):
@@ -298,7 +298,7 @@ class Mapper(IndexingWrapper):
 	pass
 
 class SNPCaller(IndexingWrapper):
-	category = "SNPs"
+	category = "SNPCallers"
 	
 	def preProcess(self, force : bool=False):
 		# Create VCF files that contain the to-be called SNPs
