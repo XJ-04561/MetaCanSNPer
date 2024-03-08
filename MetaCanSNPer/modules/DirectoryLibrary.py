@@ -59,7 +59,7 @@ class DirectoryLibrary(PathLibrary):
 		the installation directory, but keyword arguments can be used to force use directories.
 		'''
 
-		LOGGER.debug("Creating: {}".format(self))
+		LOGGER.debug(f"Creating: {self!r}")
 
 		if (workDir := kwargs.pop("workDir", None)) is not None: os.chdir(workDir)
 
