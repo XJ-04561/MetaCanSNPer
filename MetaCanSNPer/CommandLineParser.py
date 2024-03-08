@@ -54,7 +54,7 @@ def createParser():
 
 	optionalArguments = parser.add_argument_group("Optional arguments")
 	if True:
-		optionalArguments.add_argument("-s", "--saveTemp",		metavar="saveTemp",		help="Path to .TOML file containing settings for MetaCanSNPer. Check the 'defaultConfig.toml' to see what can be included in a settings file.")
+		optionalArguments.add_argument("--saveTemp",			action="store_true",	help="Don't dispose of temporary directories/files.")
 		optionalArguments.add_argument("--settingsFile",		metavar="settingsFile",	help="Path to .TOML file containing settings for MetaCanSNPer. Check the 'defaultConfig.toml' to see what can be included in a settings file.")
 		
 		# Not used by the argparser, but is used for the help-page and for splitting the argv
@@ -79,7 +79,7 @@ def createParser():
 		debugOptions.add_argument("--verbose",	action="store_true",	help="Verbose output")
 		debugOptions.add_argument("--debug",	action="store_true",	help="Debug output")
 		debugOptions.add_argument("--supress",	action="store_true",	help="Supress warnings")
-		debugOptions.add_argument("--dry-run",	action="store_true",	help="Debug output")
+		debugOptions.add_argument("--dry-run",	action="store_true",	help="Don't run the processes of the mapper/aligner/snpCaller, just run a randomised `sleep` call")
 	
 
 	return parser
@@ -111,7 +111,9 @@ def main():
 		exit()
 
 	if args["dry-run"]:
-		Globals.DRY_RUN = args["dry-run"]
+		Globals.DRY_RUN = args["dry-run"] # Don't run the processes of the mapper/aligner/snpCaller, just run a randomised `sleep` call
+	if args.saveTemp:
+		Globals.PPGlobals.DISPOSE = False # Don't dispose of temporary directories/files.
 	
 	if args.debug:
 		Globals.LOGGER_FILEHANDLER.setLevel(logging.DEBUG)

@@ -20,6 +20,7 @@ __status__ 		= "Prototype"
 SOFTWARE_NAME = "MetaCanSNPer"
 DRY_RUN = False
 from PseudoPathy.PathShortHands import *
+import PseudoPathy.Globals as PPGlobals
 import random, logging
 random.seed()
 
