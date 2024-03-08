@@ -78,7 +78,7 @@ def createParser():
 	if True:
 		debugOptions.add_argument("--verbose",	action="store_const",	const=logging.INFO,									help="Verbose output")
 		debugOptions.add_argument("--debug",	action="store_const",	const=logging.DEBUG,								help="Debug output")
-		debugOptions.add_argument("--dry-run",	metavar="dryRun",		action="store_true",	const=logging.DEBUG,		help="Debug output")
+		debugOptions.add_argument("--dry-run",	metavar="dryRun",		action="store_true",								help="Debug output")
 		debugOptions.add_argument("--supress",	action="store_const",	const=logging.ERROR,	default=logging.WARNING,	help="Supress warnings")
 	
 
@@ -107,8 +107,8 @@ def main():
 		print("\nSNPCallers:")
 		for snpCaller in SNPCaller.__subclasses__():	print(f"\t{snpCaller.softwareName}")
 		exit()
-	elif args.dryRun:
-		Globals.DRY_RUN = args.dryRun
+	elif args["dry-run"]:
+		Globals.DRY_RUN = args["dry-run"]
 
 	mObj = MetaCanSNPer(settings=args, settingsFile=args["settingsFile"])
 
