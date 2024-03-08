@@ -244,7 +244,7 @@ class IndexingWrapper(ProcessWrapper):
 			self.formatDict["output"] = output
 			self.formatDict["logFile"] = logfile
 
-			command = self.commandTemplate.format(self.formatDict) if not Globals.FAKE_RUN else "sleep {}".format(random.randint(1, 5))
+			command = self.commandTemplate.format(self.formatDict) if not Globals.DRY_RUN else "sleep {}".format(random.randint(1, 5))
 
 			commands.append(command)
 			logs.append(logfile)
