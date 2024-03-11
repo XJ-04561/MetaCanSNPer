@@ -103,7 +103,7 @@ def main():
 		parser.print_help()
 		parser.exit()
 
-	args = parser.parse_args(argsDict["args"])
+	args : argparse.Namespace = parser.parse_args(argsDict["args"])
 
 	if args.version:
 		print(f"MetaCanSNPer - version {__version__}")
@@ -132,20 +132,26 @@ def main():
 		Globals.LOGGER_FILEHANDLER.setLevel(logging.ERROR)
 	else:
 		pass # The default logging level for the logging package is logging.WARNING
+	
+	if args.installDir is not None:
+		import PseudoPathy.Globals
+		PseudoPathy.Globals.PROGRAM_DIRECTORY = args.installDir
 
-	mObj = MetaCanSNPer(settings=args, settingsFile=args.settingsFile)
+	flags = dict(args._get_kwargs())
+	
+	mObj = MetaCanSNPer(settings=flags, settingsFile=args.settingsFile)
 
-	mObj.setQuery(args.query)
-	mObj.setDatabase(args.database)
+	mObj.setQuery(flags["query"])
+	mObj.setDatabase(flags["database"])
 
-	if args.sessionName is not None: mObj.setSessionName(args.sessionName)
+	if flags["sessionName"] is not None: mObj.setSessionName(flags["sessionName"])
 
-	if "mapper" in args:
-		mObj.createMap(softwareName=args.mapper, kwargs=argsDict.get("--mapperOptions", {}))
-	if "aligner" in args:
-		mObj.createAlignment(softwareName=args.aligner, kwargs=argsDict.get("--alignerOptions", {}))
+	if "mapper" in flags:
+		mObj.createMap(softwareName=flags["mapper"], flags=argsDict.get("--mapperOptions", {}))
+	if "aligner" in flags:
+		mObj.createAlignment(softwareName=flags["aligner"], flags=argsDict.get("--alignerOptions", {}))
 
-	mObj.callSNPs(softwareName=args.snpCaller, kwargs=argsDict.get("--snpCallerOptions", {}))
+	mObj.callSNPs(softwareName=flags["snpCaller"], flags=argsDict.get("--snpCallerOptions", {}))
 
 	mObj.saveResults()
 	mObj.saveSNPdata()

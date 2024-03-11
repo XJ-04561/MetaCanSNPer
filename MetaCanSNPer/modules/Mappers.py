@@ -3,11 +3,12 @@
 	the two class attributes accordingly.
 '''
 
-import MetaCanSNPer.modules.LogKeeper as LogKeeper
-from MetaCanSNPer.modules.Wrappers import Mapper
 from MetaCanSNPer.Globals import *
+import MetaCanSNPer.modules.LogKeeper as LogKeeper
 
 LOGGER = LogKeeper.createLogger(__name__)
+
+from MetaCanSNPer.modules.Wrappers import Mapper
 
 class Minimap2(Mapper):
 	softwareName = "minimap2"

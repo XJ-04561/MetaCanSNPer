@@ -19,6 +19,7 @@ __status__ 		= "Prototype"
 
 SOFTWARE_NAME = "MetaCanSNPer"
 DRY_RUN = False
+RUNNING = True
 from PseudoPathy.PathShortHands import *
 import PseudoPathy.Globals as PPGlobals
 import random, logging
@@ -88,3 +89,26 @@ NCBI_FTP_LINK = "ftp://ftp.ncbi.nlm.nih.gov/genomes/all/GC{source}/{n1}/{n2}/{n3
 class Aligner: pass
 class Mapper: pass
 class SNPCaller: pass
+
+## Default .toml
+
+DEFAULT_TOML_TEMPLATE = """[FileManagement]
+saveTemp = false
+referenceFormats = [".fna", ".fasta"]
+
+[Software]
+# mapper = minimap2
+# aligner = progressiveMauve
+# snpCaller = gatk_Mutect2
+
+[Directories]
+# workDir = 
+# userDir = 
+# installDir = 
+# targetDir = 
+# refDir = 
+# databaseDir = 
+# tmpDir = 
+# outDir = 
+# sessionName = 
+"""

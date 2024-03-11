@@ -1,7 +1,19 @@
 [FileManagement]
-saveTemporaryFiles = false
-MergeNewResults = false
+saveTemp = false
 referenceFormats = [".fna", ".fasta"]
 
+[Software]
+# mapper = minimap2
+# aligner = progressiveMauve
+# snpCaller = gatk_Mutect2
+
 [Directories]
+# workDir = 
+# userDir = 
+# installDir = 
+# targetDir = 
+# refDir = 
+# databaseDir = 
 # tmpDir = 
+# outDir = 
+# sessionName = 

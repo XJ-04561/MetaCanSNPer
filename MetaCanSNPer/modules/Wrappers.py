@@ -1,7 +1,7 @@
 
 import os
 from collections.abc import Callable
-from threading import Thread, Condition
+from threading import Thread, Semaphore
 from subprocess import run, DEVNULL, PIPE, STDOUT, CompletedProcess
 from VariantCallFixer import openVCF
 
@@ -72,10 +72,7 @@ class ThreadGroup:
 		for t in self.threads:
 			t.start()
 
-	def waitNext(self, timeout=None) -> list[int]:
-		Condition.wait_for(self.newFinished, timeout=timeout)
-
-		# list comprehension to return all dead threads and also replace those same threads with 'None'.
+	def results(self) -> list[int]:
 		return [i for i in range(len(self.threads)) if not self.threads[i].is_alive() if self.threads.__setitem__(i, None) is None]
 
 	def finished(self) -> bool:
@@ -89,6 +86,10 @@ class ProcessWrapper:
 	returncodes : list[list[int]]
 	previousErrors : list
 	category : str
+	semaphore : Semaphore
+
+	def __init__(self):
+		self.semaphore = Semaphore() # Starts at 1.
 
 	def createCommand(self, *args, **kwargs):
 		"""Not implemented for the template class, check the wrapper of the
@@ -114,12 +115,13 @@ class ProcessWrapper:
 		self.handleRetCode(p.returncode, prefix="Thread {n} - ".format(n=n))
 
 		LOGGER.info("Thread {n} - Finished!".format(n=n))
+		self.semaphore.release()
 
 	def start(self) -> list[tuple[tuple[str,str],str]]:
 		'''Starts processes in new threads. Returns information of the output of the processes, but does not ensure the processes have finished.'''
 
 		commands, logs, outputs = self.createCommand()
-		self.threadGroup = ThreadGroup(self.run, args=zip(commands, logs, self.returncodes), stdout=PIPE, stderr=STDOUT)
+		self.threadGroup = ThreadGroup(self.run, args=zip(commands, logs, self.returncodes), daemon=True, stdout=PIPE, stderr=STDOUT)
 
 		self.threadGroup.start()
 
@@ -127,11 +129,12 @@ class ProcessWrapper:
 		return outputs
 	
 	def waitNext(self, timeout=None):
-		return self.threadGroup.waitNext(timeout=timeout)
+		self.semaphore.acquire(timeout=timeout)
+		return self.threadGroup.results()
 
 	def wait(self, timeout=5):
 		while not self.threadGroup.finished():
-			self.threadGroup.waitNext(timeout=timeout)
+			self.waitNext(timeout=timeout)
 
 	def updateWhileWaiting(self, outputDict : dict):
 		while not self.finished():
@@ -202,7 +205,7 @@ class IndexingWrapper(ProcessWrapper):
 		self.outputTemplate = outputTemplate
 		
 		self.flags = flags
-		self.returncodes = [[] for _ in range(len(lib.getReferences()))]
+		self.returncodes = [[] for _ in range(len(database.references))]
 		self.threadGroup = None
 		self.solutions : ErrorFixes.SolutionContainer = ErrorFixes.get(self.softwareName)
 		
@@ -219,7 +222,7 @@ class IndexingWrapper(ProcessWrapper):
 	
 	def createCommand(self) -> tuple[list[str], list[str], list[tuple[tuple[str,str],str]]]:
 		
-		outDir = self.Lib.tmpDir.forceFind(self.softwareName)
+		outDir = self.Lib.tmpDir.create(self.softwareName, purpose="w")
 
 		logs = []
 		commands = []
@@ -278,9 +281,9 @@ class SNPCaller(IndexingWrapper):
 		for _, genome, _, _, _ in self.database.references:
 			refPath = self.Lib.references[genome]
 			accession = open(refPath, "r").readline()[1:].split()[0]
-			filename = "{ref}.vcf".format(ref=os.path.join(self.Lib.refDir.writable, os.path.basename(refPath)))
+			filename = f"{self.Lib.refDir.writable > pName(refPath)}.vcf"
 
-			if force is True or not os.path.exists(filename):
+			if force is True or not pExists(filename):
 				vcfFile = openVCF(filename, "w", referenceFile=refPath)
 				
 				for snpID, pos, ref, alt in self.database.SNPsByGenome[genome]:
