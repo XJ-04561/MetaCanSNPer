@@ -206,7 +206,7 @@ class DirectoryLibrary(PathLibrary):
 		n=1
 		for genome, strain, genbank_id, refseq_id, assembly_name in references:
 			LOGGER.info(f"Waiting for downloads to complete {n}/{len(references)}")
-			filename = DownloadQueue.waitNext()
+			job = DownloadQueue.waitNext()
 			if not os.path.exists(filename):
 				msg = f"Could not download reference genome: [{genbank_id=}, {refseq_id=}, {assembly_name=}] -> {filename!r}"
 				LOGGER.error(msg)
