@@ -126,13 +126,22 @@ class DirectoryLibrary(PathLibrary):
 		a relative path, the path will first be looked for in the userDirectory and secondly in the workDirectory,
 		removes child paths once they are trash collected the same way as for absolute paths."""
 		if tmpDir is None:
-			self.tmpDir = createTemp(prefix=f"{SOFTWARE_NAME}{os.path.sep}tmp-[{SOFTWARE_NAME}]-[{self.sessionName}]")
+			if self.settings.get("saveTemp") == True:
+				self.tmpDir = self.commonGroups.locals > SOFTWARE_NAME > f"tmp-[{SOFTWARE_NAME}]-[{self.sessionName}]"
+			else:
+				self.tmpDir = createTemp(prefix=f"{SOFTWARE_NAME}{os.path.sep}tmp-[{SOFTWARE_NAME}]-[{self.sessionName}]")
 		else:
 			tmpDir = DirectoryPath(tmpDir, purpose="w")
 			if pIsAbs(tmpDir):
-				self.tmpDir = createTemp(dir=tmpDir, prefix=f"tmp-[{SOFTWARE_NAME}]-[{self.sessionName}]")
+				if self.settings.get("saveTemp") == True:
+					self.tmpDir = tmpDir > SOFTWARE_NAME > f"tmp-[{SOFTWARE_NAME}]-[{self.sessionName}]"
+				else:
+					self.tmpDir = createTemp(dir=tmpDir, prefix=f"tmp-[{SOFTWARE_NAME}]-[{self.sessionName}]")
 			else:
-				self.tmpDir = createTemp(dir=self.commonGroups.personal > tmpDir, prefix=f"tmp-[{SOFTWARE_NAME}]-[{self.sessionName}]")
+				if self.settings.get("saveTemp") == True:
+					self.tmpDir = self.commonGroups.locals > tmpDir > SOFTWARE_NAME > f"tmp-[{SOFTWARE_NAME}]-[{self.sessionName}]"
+				else:
+					self.tmpDir = createTemp(dir=self.commonGroups.locals > tmpDir, prefix=f"tmp-[{SOFTWARE_NAME}]-[{self.sessionName}]")
 		LOGGER.debug(f"Set tmpDir to:\n{self.tmpDir}")
 	
 	def setOutDir(self, outDir : str=None):

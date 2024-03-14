@@ -45,4 +45,5 @@ MetaCanSNPer = "MetaCanSNPer.CommandLineParser:main"
 
 [project.optional-dependencies]
 basic = ["minimap2", "gatk"]
+legacy = ["ParseXMFA2 @ git+https://github.com/XJ-04561/ParseXMFA2.git", "progressiveMauve"]
 all = ["ParseXMFA2 @ git+https://github.com/XJ-04561/ParseXMFA2.git", "progressiveMauve", "minimap2", "gatk"]
