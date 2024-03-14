@@ -46,12 +46,12 @@ class MetaCanSNPer:
 		LOGGER.info("Initializing MetaCanSNPer object.")
 		self.startTime = time.localtime()
 		self.sessionName = sessionName
-
+		
 		if lib is None:
 			self.Lib = DirectoryLibrary(settings={k:(v if type(v) is not list else tuple(v)) for k,v in settings.items()})
 		else:
 			self.Lib = lib
-
+		
 		self.settings = self.Lib.settings
 
 		if settingsFile is not None:
@@ -66,7 +66,7 @@ class MetaCanSNPer:
 		else:
 			with open(self.Lib.installDir > "defaultFlags.toml", "w") as f:
 				f.write(DEFAULT_TOML_TEMPLATE)
-
+		
 		if database is not None:
 			self.setDatabase(database=database)
 		
@@ -80,7 +80,7 @@ class MetaCanSNPer:
 			self.databaseName = path
 			self.Lib.updateSettings({"organism":pName(database)})
 			self.connectDatabase()
-			self.setReferences(self.database.references)
+			self.Lib.references = None
 		else:
 			LOGGER.warning(f"Database not found: '{database}'")
 			raise FileNotFoundError(f"Database not found: '{database}'")
@@ -88,15 +88,10 @@ class MetaCanSNPer:
 	def connectDatabase(self):
 		LOGGER.debug(f"Connecting to database:{self.databaseName}")
 		if self.databaseName is None:
-			LOGGER.error("Database not specified. Can't connect unless a valid database is set through MetaCanSNPer.setDatabase.")
-			exit(1)
-		try:
-			self.database = DatabaseReader(self.databaseName)
-			return 0
-		except Exception as e:
-			LOGGER.error(e)
-			print(e)
-			exit(1)
+			raise NameError("Database not specified. Can't connect unless a valid database is set through MetaCanSNPer.setDatabase.")
+		
+		self.database = DatabaseReader(self.databaseName)
+		return 0
 
 	'''MetaCanSNPer set directories'''
 	
@@ -116,6 +111,7 @@ class MetaCanSNPer:
 
 	def setQuery(self, query : list[str]):
 		self.Lib.setQuery(query)
+		LOGGER.debug(f"Query in DirectoryLibrary: {self.Lib.query}")
 		self.queryName = self.Lib.queryName ## get name of file and remove ending
 		if self.sessionName is None:
 			self.Lib.setSessionName("Sample-{queryName}-{dateYYYYMMDD}".format(queryName=self.queryName, dateYYYYMMDD="{:0>4}.{:0>2}.{:0>2}.{:>2}{:>2},{:>2}".format(*(self.startTime[:6]))))
@@ -148,34 +144,31 @@ class MetaCanSNPer:
 	def runSoftware(self, softwareClass : IndexingWrapper, outputDict : dict={}, flags : list=[]):
 		'''Align sequences using subprocesses.'''
 
-		LOGGER.info("Creating software wrapper for '{}' of type '{}'".format(softwareClass.softwareName, softwareClass.__name__))
+		LOGGER.info(f"Creating software wrapper for {softwareClass.softwareName!r} of type {softwareClass.__name__!r}")
 		software : IndexingWrapper = softwareClass(self.Lib, self.database, self.outputTemplate, flags=flags)
 
 		# Check that error did not occur.
 		while software.hickups():
-			LOGGER.info("Checking for pre-processing for {software}.".format(software=software.softwareName))
+			LOGGER.info(f"Checking for pre-processing for {software.softwareName}.")
 			software.preProcess()
 
-			LOGGER.info("Starting {software}.".format(software=software.softwareName))
+			LOGGER.info(f"Starting {software.softwareName}.")
 			output = software.start()
 			
-			# Run the alignment just like before, but hopefully fixed.
+			LOGGER.info(f"Waiting for {software.softwareName} to finish.")
 			software.updateWhileWaiting(outputDict)
-			LOGGER.info("Finished running all instances of {software}.".format(software=software.softwareName))
+			LOGGER.info(f"Finished running all instances of {software.softwareName}.")
 
-			if software.fixable():
-				LOGGER.info("{software} failed. Fix for the specific error exists. Implementing and running again.".format(software=software.softwareName))
+			if not software.hickups():
+				pass
+			elif software.fixable():
+				LOGGER.info(f"{software.softwareName} failed. Fix for the specific error exists. Implementing and running again.")
 				software.planB()
 			else:
-				msg = [
-					f"{softwareClass.softwareName!r}: Processes finished with exit codes for which there are no implemented solutions.",
-					f"{'QUERY':<58}{'REFERENCE':<58}={'EXITCODE':>4}"
-				]
-				for (key, path), e in zip(output, software.returncodes):
+				software.displayOutcomes(out=LOGGER.error)
+				for (key, path), e in zip(software.outputs, software.returncodes):
 					del outputDict[key]
-					msg.append(f"{self.queryName!r:<30}{key!r:<60}={e[-1]:>4}")
-				LOGGER.error("\n".join(msg))
-				raise ChildProcessError("\n".join(msg))
+				raise ChildProcessError(f"{software.softwareName} returned with a non-zero exitcode for which there is no implemented solution.")
 		
 		return outputDict
 	
@@ -184,8 +177,12 @@ class MetaCanSNPer:
 		LOGGER.info(f"Creating map using:{softwareName}")
 		MapperType : Mapper = Mappers.get(softwareName)
 
-		LOGGER.info("Loading References from database.")
-		self.database.references
+		if self.Lib.references is None:
+			LOGGER.info("Loading References from database.")
+			self.setReferences(self.database.references)
+		else:
+			LOGGER.info("References already loaded.")
+		
 		LOGGER.info("Loaded a total of {n} References.".format(n=len(self.database.references)))
 		
 		self.runSoftware(MapperType, outputDict=self.Lib.maps, flags=flags)
@@ -195,8 +192,12 @@ class MetaCanSNPer:
 		LOGGER.info(f"Creating alignment using:{softwareName}")
 		AlignerType : Aligner = Aligners.get(softwareName)
 
-		LOGGER.info("Loading References from database.")
-		self.database.references
+		if self.Lib.references is None:
+			LOGGER.info("Loading References from database.")
+			self.setReferences(self.database.references)
+		else:
+			LOGGER.info("References already loaded.")
+		
 		LOGGER.info("Loaded a total of {n} References.".format(n=len(self.database.references)))
 		
 		self.runSoftware(AlignerType, outputDict=self.Lib.alignments, flags=flags)
@@ -210,7 +211,7 @@ class MetaCanSNPer:
 		self.database.references
 		LOGGER.info("Loading SNPs from database.")
 		self.database.SNPsByGenome
-		LOGGER.info("Loaded a total of {n} SNPs.".format(n=sum(len(SNPs) for SNPs in self.database.SNPsByGenome.values())))
+		LOGGER.info("Loaded a total of {n} SNPs.".format(n=sum(sum(1 for _ in SNPs) for SNPs in self.database.SNPsByGenome.values())))
 		
 		self.runSoftware(SNPCallerType, outputDict=self.Lib.resultSNPs, flags=flags)
 
@@ -221,22 +222,14 @@ class MetaCanSNPer:
 		'''Depth-first tree search.'''
 		LOGGER.info(f"Traversing tree to get genotype called.")
 		node = self.database.tree
-		path = [node.nodeID]
-		
-		for child in node.children:
-			if child.nodeID == 2: continue
-			childSNPID = self.database.nodes[child.nodeID]
-			pos, anc, der = self.database.SNPsByID[childSNPID]
-			if der == self.SNPresults[pos]:
-				node = child
-				break
+		path = []
 
 		while node.nodeID not in path:
 			path.append(node.nodeID)
 			for child in node.children:
-				childSNPID = self.database.nodes[child.nodeID]
+				childSNPID = self.database.node(child.nodeID)
 				pos, anc, der = self.database.SNPsByID[childSNPID]
-				if der == self.SNPresults[pos]:
+				if Globals.DRY_RUN or der == self.SNPresults[pos]:
 					node = child
 					break
 		
@@ -253,8 +246,8 @@ class MetaCanSNPer:
 
 		path = self.traverseTree()
 
-		pathFile.write("\t".join(path))
-		finalFile.write(path[-1])
+		pathFile.write("\t".join(map(str,path)))
+		finalFile.write(str(path[-1]))
 		
 		pathFile.close()
 		finalFile.close()
@@ -304,8 +297,8 @@ class MetaCanSNPer:
 			query = [query.strip() for query in f if len(query.strip())]
 		return query
 	
-	def __del__(self):
-		Globals.RUNNING = False
+	# def __del__(self):
+	# 	Globals.RUNNING = False
 
 	def cleanup(self):
 		'''Remove files in temporary folder'''

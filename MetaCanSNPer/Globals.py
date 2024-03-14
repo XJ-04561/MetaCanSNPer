@@ -22,12 +22,14 @@ DRY_RUN = False
 RUNNING = True
 from PseudoPathy.PathShortHands import *
 import PseudoPathy.Globals as PPGlobals
+import VariantCallFixer.Globals as VCFGlobals
+from PseudoPathy.Library import CommonGroups
 import random, logging
 random.seed()
 
 ## LogKeeper Globals
 
-LOGGER_FILEHANDLER = logging.FileHandler("MetaCanSNPer.log")
+LOGGER_FILEHANDLER = logging.FileHandler(CommonGroups().locals.create(f"{SOFTWARE_NAME}-Results") > "MetaCanSNPer.log")
 LOGGER_FILEHANDLER.setFormatter(logging.Formatter("[%(name)s] %(asctime)s - %(levelname)s: %(message)s"))
 
 ## ArgParser Globals
@@ -82,8 +84,10 @@ TREE_COLUMN_RANK                = "rank_i"
 
 ## DownloadReferences Globals
 
+DOWNLOAD_TIMEOUT = 300
 SOURCED = {"refseq":"F", "genbank": "A"}
 NCBI_FTP_LINK = "ftp://ftp.ncbi.nlm.nih.gov/genomes/all/GC{source}/{n1}/{n2}/{n3}/{genome_id}_{assembly}/{genome_id}_{assembly}_genomic.fna.gz"
+class MissingDependancy(Exception): pass
 
 ## ErrorFixes Globals
 class Aligner: pass
@@ -112,3 +116,7 @@ referenceFormats = [".fna", ".fasta"]
 # outDir = 
 # sessionName = 
 """
+
+from MetaCanSNPer.modules.LogKeeper import createLogger
+PPGlobals.LOGGER = createLogger("PseudoPathy")
+VCFGlobals.LOGGER = createLogger("VariantCallFixer")

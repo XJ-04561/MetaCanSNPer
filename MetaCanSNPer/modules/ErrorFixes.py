@@ -8,6 +8,10 @@ from MetaCanSNPer.modules.Wrappers import *
 LOGGER = LogKeeper.createLogger(__name__)
 
 class SolutionContainer:
+
+    def __init__(self, obj : Aligner):
+         self.obj = obj
+
     def __contains__(self, key):
         try:
             self[key]
@@ -27,13 +31,13 @@ class SolutionContainer:
 
 
 class progressiveMauve(SolutionContainer):
-    @staticmethod
-    def _11(obj : Aligner):
-        outDir = obj.Lib.tmpDir.create("progressiveMauve").create("_11")
 
-        LOGGER.info(f"Fixing exitcode 11 by replacing occurrances of '-' with 'N' from {obj.Lib.query!r} into separate new files.")
+    def _11(self):
+        outDir = self.obj.Lib.tmpDir.create("progressiveMauve").create("_11")
+
+        LOGGER.info(f"Fixing exitcode 11 by replacing occurrances of '-' with 'N' from {self.obj.Lib.query!r} into separate new files.")
         out = []
-        for q in obj.Lib.query:
+        for q in self.obj.Lib.query:
             tmpName = "{}{}".format(os.path.splitext(os.path.basename(q))[0], os.path.splitext(os.path.basename(q))[1])
             LOGGER.debug(f"copy('{q}', '{tmpName}')")
             copy(q, tmpName)
@@ -49,7 +53,7 @@ class progressiveMauve(SolutionContainer):
             out.append(tmpName)
         
         LOGGER.info(f"New query: {out}")
-        obj.Lib.setQuery(out, abs=True)
+        self.obj.Lib.setQuery(out, abs=True)
 
 def get(softwareName) -> SolutionContainer:
 	for c in SolutionContainer.__subclasses__():

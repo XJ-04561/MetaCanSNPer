@@ -1,25 +1,18 @@
 
 
 import os, random
-from PseudoPathy import MinimalPathLibrary, PathLibrary, PathGroup, Path, DirectoryPath, FilePath, DisposablePath
+from PseudoPathy import MinimalPathLibrary, PathLibrary, PathGroup, Path, DirectoryPath, FilePath, DisposablePath, PathList
 from PseudoPathy.Functions import createTemp
 import PseudoPathy.Globals
 
 import MetaCanSNPer.modules.LogKeeper as LogKeeper
-from MetaCanSNPer.modules.DownloadReferences import DownloadQueue
+from MetaCanSNPer.modules.DownloadReferences import DownloadQueue, DownloadFailed
 from MetaCanSNPer.modules.FileNameAlignment import align as fileNameAlign
 from MetaCanSNPer.Globals import *
+import MetaCanSNPer.Globals as Globals
 
 LOGGER = LogKeeper.createLogger(__name__)
 PseudoPathy.Globals.LOGGER = LOGGER
-
-class FileList(list):
-	def __new__(cls, *data):
-		obj = super(FileList, cls).__new__(cls, *data)
-		return obj
-	
-	def __str__(self):
-		return " ".join(self)
 
 '''Container and handler of directories and files'''
 class DirectoryLibrary(PathLibrary):
@@ -38,7 +31,7 @@ class DirectoryLibrary(PathLibrary):
 
 	maps : MinimalPathLibrary
 	alignments : MinimalPathLibrary
-	targetSNPS : MinimalPathLibrary
+	targetSNPs : MinimalPathLibrary
 	resultSNPs : MinimalPathLibrary
 	references : MinimalPathLibrary
 	"""Current `MinimalPathLibrary` of reference files:
@@ -47,7 +40,7 @@ class DirectoryLibrary(PathLibrary):
 	# Non-Pathy attributes. Must be initialized using object.__setattr__
 
 	settings : dict
-	query : FileList[FilePath]
+	query : PathList[FilePath]
 	sessionName : str
 	queryName : str
 	chromosomes : list[str]
@@ -61,14 +54,14 @@ class DirectoryLibrary(PathLibrary):
 		"""
 
 		LOGGER.info("Creating DirectoryLibrary object.")
-
+		
 		super(DirectoryLibrary, self).__init__(self)
-
+		
 		object.__setattr__(self, "settings", {})
 		object.__setattr__(self, "sessionName", sessionName)
-
+		
 		self.updateSettings(settings | kwargs)
-
+		
 		LOGGER.debug(f"Work dir:    {self.workDir!r}")
 		LOGGER.debug(f"Install dir: {self.installDir!r}")
 		LOGGER.debug(f"User dir:    {self.userDir!r}")
@@ -79,14 +72,14 @@ class DirectoryLibrary(PathLibrary):
 		
 		LOGGER.debug(str(self))
 		
-		object.__setattr__(self, "query", [])
-		object.__setattr__(self, "queryName", [])
+		object.__setattr__(self, "query", PathList())
+		object.__setattr__(self, "queryName", "")
 		object.__setattr__(self, "sessionName", "")
 		object.__setattr__(self, "chromosomes", [])
-
+		
 		self.maps = MinimalPathLibrary()
 		self.alignments = MinimalPathLibrary()
-		self.targetSNPS = MinimalPathLibrary()
+		self.targetSNPs = MinimalPathLibrary()
 		self.resultSNPs = MinimalPathLibrary()
 
 	'''Set-Pathing'''
@@ -117,7 +110,7 @@ class DirectoryLibrary(PathLibrary):
 		LOGGER.debug(f"Set refDir to:\n{self.refDir}")
 	
 	def setDatabaseDir(self, databaseDir : str=None):
-		print(databaseDir)
+		""""""
 		if databaseDir is None:
 			self.databaseDir = (self.commonGroups.shared > (SOFTWARE_NAME+"-Data")) > "Databases"
 		elif pIsAbs(databaseDir):
@@ -133,13 +126,13 @@ class DirectoryLibrary(PathLibrary):
 		a relative path, the path will first be looked for in the userDirectory and secondly in the workDirectory,
 		removes child paths once they are trash collected the same way as for absolute paths."""
 		if tmpDir is None:
-			self.tmpDir = createTemp(self.commonGroups.personal.writable > SOFTWARE_NAME, prefix="tmp-[MetaCanSNPer]")
+			self.tmpDir = createTemp(self.commonGroups.personal.writable > SOFTWARE_NAME, prefix=f"tmp-[{SOFTWARE_NAME}]-[{self.sessionName}]")
 		else:
 			tmpDir = DirectoryPath(tmpDir, purpose="w")
 			if pIsAbs(tmpDir):
-				self.tmpDir = createTemp(tmpDir, prefix="tmp-[MetaCanSNPer]")
+				self.tmpDir = createTemp(tmpDir, prefix=f"tmp-[{SOFTWARE_NAME}]-[{self.sessionName}]")
 			else:
-				self.tmpDir = createTemp(self.commonGroups.personal > tmpDir, prefix="tmp-[MetaCanSNPer]")
+				self.tmpDir = createTemp(self.commonGroups.personal > tmpDir, prefix=f"tmp-[{SOFTWARE_NAME}]-[{self.sessionName}]")
 		LOGGER.debug(f"Set tmpDir to:\n{self.tmpDir}")
 	
 	def setOutDir(self, outDir : str=None):
@@ -180,10 +173,10 @@ class DirectoryLibrary(PathLibrary):
 
 	def setSessionName(self, name):
 		self.sessionName = name
-		LOGGER.debug(f"Setting sessionName to:{self.sessionName}")
+		LOGGER.debug(f"Setting sessionName to: {self.sessionName!r}")
 
 	def setQuery(self, query : list[str]):
-		self.query = FileList()
+		self.query = PathList()
 		for q in query:
 			if pIsAbs(q):
 				self.query.append(FilePath(q))
@@ -193,29 +186,39 @@ class DirectoryLibrary(PathLibrary):
 				if self.query[-1] is None:
 					LOGGER.error(f"Query file {q!r} could not be found.")
 					raise FileNotFoundError(f"Query file {q!r} could not be found.")
-		LOGGER.debug(f"Setting query to:{self.query}")
+		LOGGER.debug(f"Setting query to: '{self.query}'")
 		self.queryName = fileNameAlign(*[pName(q) for q in self.query])
-		LOGGER.debug(f"Setting queryName to:{self.queryName}")
+		LOGGER.debug(f"Setting queryName to: {self.queryName!r}")
 	
 	def setReferences(self, references : list[str,str,str,str,str]):
 		self.references = MinimalPathLibrary()
 		LOGGER.info(f"Downloading references:{references}")
-		for genome, strain, genbank_id, refseq_id, assembly_name in references:
-			filename = DownloadQueue.download(genbank_id, refseq_id, assembly_name, dst=self.refDir.writable, filename=f"{assembly_name}.fna")
+		DQ = DownloadQueue()
+		jobs = {}
+		for genomeID, genome, genbank_id, refseq_id, assembly_name in references:
+			filename = f"{assembly_name}.fna"
+			jobID = DQ.download(genbank_id, refseq_id, assembly_name, dst=self.refDir.writable, filename=filename)
+			if jobID != -1:
+				jobs[jobID] = (genome, self.refDir.writable > filename)
+			else:
+				LOGGER.debug(f"self.references[{genome!r}] = {self.refDir.writable!r} > {filename!r}")
+				self.references[genome] = self.refDir.writable > filename
+		for jobID in DQ.waitFor(*jobs, timeout=Globals.DOWNLOAD_TIMEOUT):
+			if jobID == -2:
+				raise DownloadFailed(f"Timeout was exceeded while downloading reference genome {jobs[DQ.active]!r}. If you are expecting long downloads, then increase the DOWNLOAD_TIMEOUT value by using the flag --downloadTimeout DOWNLOAD_TIMEOUT")
+			if jobID == -1:
+				typeOfError = str(type(DQ.worker.exception)).strip('<class \'').rsplit('.', 1)[-1][:-2]
+				raise DownloadFailed(f"Download failed due to exception - {typeOfError}: {DQ.worker.exception}")
+			if jobID == -3:
+				raise DownloadFailed("Download failed without raising exceptions.")
+			
+			genome, filename = jobs[jobID]
+			if not pExists(jobs[jobID][1]):
+				raise DownloadFailed(f"Could not download genome {genome!r} to path: {filename!r}")
+			
+			LOGGER.debug(f"self.references[{genome!r}] = {filename!r}")
 			self.references[genome] = filename
-		n=1
-		for genome, strain, genbank_id, refseq_id, assembly_name in references:
-			LOGGER.info(f"Waiting for downloads to complete {n}/{len(references)}")
-			job = DownloadQueue.waitNext()
-			if not os.path.exists(filename):
-				msg = f"Could not download reference genome: [{genbank_id=}, {refseq_id=}, {assembly_name=}] -> {filename!r}"
-				LOGGER.error(msg)
-				raise FileNotFoundError(msg)
-			self.chromosomes = [open(filename, "r").readline()[1:].split()[0]]
-			n+=1
-		LOGGER.debug(f"Finished downloading {len(references)} reference genomes!")
-		
-		LOGGER.debug(f"Setting references to:{self.references}")
+		LOGGER.info(f"Finished downloading {len(references)} reference genomes!")
 
 	def setMaps(self, maps : dict[str,str]):
 		if type(maps) is MinimalPathLibrary:
@@ -237,7 +240,7 @@ class DirectoryLibrary(PathLibrary):
 				self.alignments[r] = path
 		LOGGER.debug(f"Setting alignments to:{self.alignments}")
 	
-	def setTargetSNPs(self, targetSNPs : dict[str,str]):
+	def settargetSNPs(self, targetSNPs : dict[str,str]):
 		if type(targetSNPs) is MinimalPathLibrary:
 			self.targetSNPs = targetSNPs
 		else:

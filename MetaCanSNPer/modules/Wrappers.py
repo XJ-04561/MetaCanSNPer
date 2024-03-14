@@ -1,7 +1,7 @@
 
-import os
+import os, shutil
 from collections.abc import Callable
-from threading import Thread, Semaphore
+from threading import Thread, Semaphore, Condition, current_thread, main_thread
 from subprocess import run, DEVNULL, PIPE, STDOUT, CompletedProcess
 from VariantCallFixer import openVCF
 
@@ -62,21 +62,33 @@ class ThreadGroup:
 		
 		self.threadKwargs = threadKwargs
 
-		self.threads = [Thread(target=self.target, args=args, kwargs=kwargs, **threadKwargs) for args, kwargs in zip(self.args, self.kwargs)]
+		def targetWrapper(target, *args, **kwargs):
+			try:
+				target(*args, **kwargs)
+			except Exception as e:
+				object.__setattr__(current_thread(), "exception", e)
 
-	def newFinished(self) -> bool:
-		"""Returns True if any thread in self.threads is dead. Also returns True if all threads """
-		return any(not t.is_alive() for t in self.threads if t is not None) or all(t is None for t in self.threads)
+		self.threads = [Thread(target=targetWrapper, args=(self.target,)+args, kwargs=kwargs, **threadKwargs) for args, kwargs in zip(self.args, self.kwargs)]
+		
+		for t in self.threads:
+			object.__setattr__(t, "exception", None)
+
+	def __iter__(self):
+		return iter(self.threads)
+
+	# def newFinished(self) -> bool:
+	# 	"""Returns True if any thread in self.threads is dead. Also returns True if all threads """
+	# 	return any(not t.is_alive() for t in self.threads if t is not None) or all(t is None for t in self.threads)
 
 	def start(self):
 		for t in self.threads:
 			t.start()
 
 	def results(self) -> list[int]:
-		return [i for i in range(len(self.threads)) if not self.threads[i].is_alive() if self.threads.__setitem__(i, None) is None]
+		return [i for i in range(len(self.threads)) if not self.threads[i].is_alive() and self.threads[i].exception is None]
 
 	def finished(self) -> bool:
-		return all(t is None for t in self.threads)
+		return not any(t.is_alive() for t in self.threads)
 
 # Aligner and Mapper classes to inherit from
 class ProcessWrapper:
@@ -97,32 +109,41 @@ class ProcessWrapper:
 		raise NotImplementedError(f"Called `.createCommand` on a object of a class which has not implemented it. Object class is `{type(self)}`")
 
 	def run(self, command, log : str, pReturncodes : list[int], *args, **kwargs) -> None:
+		
 		try:
 			n=[i for i in range(len(self.returncodes)) if self.returncodes[i] is pReturncodes]
 		except:
 			n="?"
 		
-		LOGGER.info("Thread {n} - Running command: {command}".format(n=n, command=command))
-		p : CompletedProcess = run(command.split() if type(command) is str else command, *args, **kwargs)
-		LOGGER.info("Thread {n} - Returned with exitcode: {exitcode}".format(n=n, exitcode=p.returncode))
+		try:
+			LOGGER.debug(f"Thread {n} - Running command: {command}")
+			p : CompletedProcess = run(command.split() if type(command) is str else command, *args, **kwargs)
+			LOGGER.debug(f"Thread {n} - Returned with exitcode: {p.returncode}")
+			pReturncodes.append(p.returncode)
+			self.handleRetCode(p.returncode, prefix=f"Thread {n} - ")
 
-		if log is not None:
-			LOGGER.info("Thread {n} - Logging output to: {logpath}".format(n=n, logpath=log))
-			with open(log, "w") as logFile:
-				logFile.write(p.stdout.read().decode("utf-8"))
-				logFile.write("\n")
-		pReturncodes.append(p.returncode)
-		self.handleRetCode(p.returncode, prefix="Thread {n} - ".format(n=n))
+			if log is not None:
+				if p.returncode == 0:
+					LOGGER.debug(f"Thread {n} - Logging output to: {log}")
+				else:
+					LOGGER.error(f"Thread {n} - Child process encountered an issue, logging output to: {log}")
 
-		LOGGER.info("Thread {n} - Finished!".format(n=n))
-		self.semaphore.release()
+				with open(log, "w") as logFile:
+					logFile.write(p.stdout.decode("utf-8"))
+					logFile.write("\n")
+
+			LOGGER.debug(f"Thread {n} - Finished!")
+			self.semaphore.release()
+		except Exception as e:
+			e.add_note(f"Thread {n}")
+			LOGGER.exception(e)
 
 	def start(self) -> list[tuple[tuple[str,str],str]]:
 		'''Starts processes in new threads. Returns information of the output of the processes, but does not ensure the processes have finished.'''
 
 		commands, logs, outputs = self.createCommand()
-		self.threadGroup = ThreadGroup(self.run, args=zip(commands, logs, self.returncodes), daemon=True, stdout=PIPE, stderr=STDOUT)
-
+		self.threadGroup = ThreadGroup(self.run, args=list(zip(commands, logs, self.returncodes)), kwargs=[{"stdout":PIPE, "stderr":STDOUT}]*len(commands), daemon=True)
+		
 		self.threadGroup.start()
 
 		self.outputs = outputs
@@ -133,17 +154,22 @@ class ProcessWrapper:
 		return self.threadGroup.results()
 
 	def wait(self, timeout=5):
-		while not self.threadGroup.finished():
+		while not self.finished() and all(t.exception is None for t in self.threadGroup):
 			self.waitNext(timeout=timeout)
+		if any(t.exception is not None for t in self.threadGroup):
+			raise ChildProcessError(f"{self.softwareName!r} crashed/failed to start. Check logs for more details.")
 
 	def updateWhileWaiting(self, outputDict : dict):
-		while not self.finished():
-			finished = self.waitNext()
-			for i in finished:
-				key, path = self.output[i]
+		finished = set()
+		while not self.finished() and all(t.exception is None for t in self.threadGroup):
+			for i in set(self.waitNext(timeout=1)).difference(finished):
+				finished.add(i)
+				key, path = self.outputs[i]
 				if self.returncodes[i][-1] == 0:
 					outputDict[key] = path
-					LOGGER.info("Finished running {software} {n}/{N}.".format(software=self.softwareName, n=len(outputDict), N=len(self.output)))
+					LOGGER.info(f"Finished running {self.softwareName} {len(outputDict)}/{len(self.outputs)}.")
+		if any(t.exception is not None for t in self.threadGroup):
+			raise ChildProcessError(f"{self.softwareName!r} crashed/failed to start. Check logs for more details.")
 
 	def finished(self):
 		if self.threadGroup is None:
@@ -173,7 +199,7 @@ class ProcessWrapper:
 		'''Not implemented for the template class, check the wrapper of the
 		specific software you are intending to use.'''
 		if returncode == 0:
-			LOGGER.debug("{prefix}{softwareName} finished with exitcode 0.".format(prefix=prefix, softwareName=self.softwareName))
+			LOGGER.info("{prefix}{softwareName} finished with exitcode 0.".format(prefix=prefix, softwareName=self.softwareName))
 		else:
 			LOGGER.warning("{prefix}WARNING {softwareName} finished with a non zero exitcode: {returncode}".format(prefix=prefix, softwareName=self.softwareName, returncode=returncode))
 
@@ -182,11 +208,21 @@ class ProcessWrapper:
 		specific software you are intending to use.'''
 		pass
 
+	def displayOutcomes(self, out=print):
+		msg = [
+			f"{self.softwareName!r}: Processes finished with exit codes for which there are no implemented solutions.",
+			f"{'QUERY':<58}{'REFERENCE':<58}={'EXITCODE':>4}"
+		]
+		for (key, path), e in zip(self.outputs, self.returncodes):
+			msg.append(f"{self.Lib.queryName!r:<30}{key!r:<60}={e[-1]:>4}")
+		
+		out("\n".join(msg))
+
 class IndexingWrapper(ProcessWrapper):
 	queryName : str
 	commandTemplate : str # Should contain format tags for {target}, {ref}, {output}, can contain more.
 	outFormat : str
-	# inFormat : str
+	inFormat : str
 	logFormat : str
 	flags : list[str]
 	format : str
@@ -199,6 +235,7 @@ class IndexingWrapper(ProcessWrapper):
 
 	
 	def __init__(self, lib : DirectoryLibrary, database : DatabaseReader, outputTemplate : str, flags : list[str]=[]):
+		super().__init__()
 		self.Lib = lib
 		self.database = database
 		self.queryName = self.Lib.queryName ## get name of file and remove ending
@@ -207,7 +244,7 @@ class IndexingWrapper(ProcessWrapper):
 		self.flags = flags
 		self.returncodes = [[] for _ in range(len(database.references))]
 		self.threadGroup = None
-		self.solutions : ErrorFixes.SolutionContainer = ErrorFixes.get(self.softwareName)
+		self.solutions : ErrorFixes.SolutionContainer = ErrorFixes.get(self.softwareName)(self)
 		
 		if not os.path.exists(self.Lib.tmpDir > self.softwareName):
 			os.mkdir(self.Lib.tmpDir.writable > self.softwareName)
@@ -217,7 +254,8 @@ class IndexingWrapper(ProcessWrapper):
 			"refDir" : self.Lib.refDir,
 			"query" : self.Lib.query,
 			"queryName" : self.queryName,
-			"options" : " ".join(self.flags)
+			"options" : " ".join(self.flags),
+			"outFormat" : self.outFormat
 		}
 	
 	def createCommand(self) -> tuple[list[str], list[str], list[tuple[tuple[str,str],str]]]:
@@ -236,7 +274,7 @@ class IndexingWrapper(ProcessWrapper):
 			self.formatDict["refPath"] = refPath
 			self.formatDict["mapPath"] = self.Lib.maps[refName]
 			self.formatDict["alignmentPath"] = self.Lib.alignments[refName]
-			self.formatDict["targetSNPS"] = self.Lib.targetSNPS[refName]
+			self.formatDict["targetSNPs"] = self.Lib.targetSNPs[refName]
 			
 			output = outDir > self.outputTemplate.format(self.formatDict)
 			logfile = output+".log"
@@ -245,7 +283,16 @@ class IndexingWrapper(ProcessWrapper):
 			self.formatDict["logFile"] = logfile
 
 			LOGGER.info(f"Created command (if --dry-run has been specified, this will not be the true command ran):\n{self.commandTemplate.format(self.formatDict)}")
-			command = self.commandTemplate.format(self.formatDict) if not Globals.DRY_RUN else "sleep {}".format(random.randint(1, 5))
+			if not Globals.DRY_RUN:
+				command = self.commandTemplate.format(self.formatDict)
+			else:
+				if shutil.which("sleep") is not None:
+					command = "sleep {}".format(random.randint(1, 5))
+				elif shutil.which("timeout") is not None:
+					command = "timeout {}".format(random.randint(1, 5))
+				else:
+					raise MissingDependancy("To perform a --dry-run, either the command 'sleep SECONDS' or 'timeout SECONDS' is needed.")
+				open(output, "w").close()
 
 			commands.append(command)
 			logs.append(logfile)
@@ -292,4 +339,4 @@ class SNPCaller(IndexingWrapper):
 				vcfFile.close()
 				
 			SNPFiles[genome] = filename
-		self.Lib.setTargetSNPs(SNPFiles)
+		self.Lib.settargetSNPs(SNPFiles)

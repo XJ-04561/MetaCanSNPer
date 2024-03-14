@@ -1,6 +1,6 @@
 
-import os, textwrap
-from threading import Thread, Lock
+import os, textwrap, gzip, sys
+from threading import Thread, Lock, ThreadError
 from urllib.request import urlretrieve
 from typing import Callable, Any
 from subprocess import Popen
@@ -13,6 +13,9 @@ from MetaCanSNPer.Globals import *
 import MetaCanSNPer.Globals as Globals
 
 LOGGER = LogKeeper.createLogger(__name__)
+
+class DownloadFailed(Exception):
+	pass
 
 class Job:
 	"""Each query into the DownloadQueue is represented by a "job"-container.
@@ -36,6 +39,7 @@ class WorkerQueue:
 	""""""
 
 	queue : list[int]
+	active : int
 	jobs : dict[int,Job]
 	finished : set[int]
 	worker : Thread
@@ -47,38 +51,54 @@ class WorkerQueue:
 		self.queue = []
 		self.jobs = {}
 		self.finished = {}
-		self.running = True
+		self.RUNNING = True
 		self.lock = Lock()
 		self.worker = Thread(target=self.mainLoop, daemon=True)
 		self.worker.start()
 
-	def mainLoop(self):
-		while self.RUNNING:
-			if len(self.queue) == 0:
-				sleep(1)
-			else:
-				taskID = self.queue.pop(0)
-				task = self.jobs[taskID]
-				task.target(*task.args, **task.kwargs)
-
-				self.lock.release()
-				self.lock.acquire(False)
+	def __hash__(self):
+		return self.id
 
 	def __del__(self):
-		self.running *= False
+		self.RUNNING = False
 	
-	def push(self, job : Job, id : int=None):
-		if id is None and job.id is None:
+	def start(self):
+		self.worker = Thread(target=self.mainLoop, daemon=True)
+		self.worker.start()
+	
+	def mainLoop(self):
+		try:
+			while self.RUNNING:
+				if len(self.queue) == 0:
+					sleep(1)
+				else:
+					self.active = self.queue.pop(0)
+					job = self.jobs[self.active]
+					job.target(*job.args, **job.kwargs)
+
+					self.lock.release()
+					self.lock.acquire(False)
+		except Exception as e:
+			self.worker.__setattr__("exception", e)
+			self.lock.release()
+
+	def push(self, job : Job, id : int=None) -> int:
+		if job.id is not None:
+			pass
+		elif id is not None:
+			job.id = id
+		else:
 			n = 0
 			while (id := int("{}{:0>10}".format(*random.random().as_integer_ratio()))) in self.jobs:
 				if n > 10000: raise StopIteration("Couldn't find a unique id for job.")
 				n += 1
-		self.jobs[id] = job
-		self.queue.append(id)
+			job.id = id
+		
+		self.jobs[job.id] = job
+		self.queue.append(job.id)
 
-	#
-		# 	IM HERE
-		#
+		return job.id
+
 
 	def waitFor(self, *args, timeout=300):
 		querySet = set(args)
@@ -87,57 +107,71 @@ class WorkerQueue:
 		for i in range(N):
 			startOfJob = time()
 			if i >= len(querySet):
-				continue # Prevents more than one job being finished in one release-cycle and then waiting forever.
+				continue # Prevents more than one job being finished in one release-cycle and then waiting forever/timeout.
 
 			LOGGER.debug(f"Waiting for download {1+N-len(querySet)}/{N}")
-			finished : set
-			while len(finished) == 0 and time() - startOfJob < timeout:
+			finished = set()
+			while len(finished) == 0 and (time() - startOfJob < timeout or timeout == -1) and self.worker.is_alive():
 				self.lock.acquire(timeout=5)
 				finished = querySet.intersection(self.finished)
 			querySet.difference_update(finished)
 
 			if len(finished) == 0:
-				yield -1
-				raise StopAsyncIteration(f"WorkerQueue.__iter__: Timeout(={timeout}) was reached.")
+				if time() - startOfJob >= timeout:
+					yield -2
+					raise StopAsyncIteration(f"WorkerQueue.__iter__: Timeout(={timeout}) was reached.")
+				elif hasattr(self.worker, "exception"):
+					yield -1
+					raise StopAsyncIteration(f"Download failed due to exception - {type(self.worker.exception)}: {self.worker.exception}")
+				else:
+					yield -3
+					raise StopAsyncIteration("Download failed for an unknown reason.")
 			for f in list(finished):
 				yield f
 	
 	def __iter__(self, timeout=300):
-		return self.iter(*self.queue, timeout=timeout)
+		return self.waitFor(*self.queue, timeout=timeout)
 		
 
-class DownloadQueue: pass
-
-class DownloadQueue:
+class DownloadQueue(WorkerQueue):
 	""""""
 
 	queue : list[int] = []
-	jobs : dict[Job] = {}
+	jobs : dict[int,Job] = {}
 	finished : set[int] = set()
-	worker : Thread = Thread(target=WorkerQueue.mainLoop, args=[DownloadQueue], daemon=True)
+	worker : Thread = None
 	lock : Lock = Lock()
 	RUNNING : bool = Globals.RUNNING
 
+	created : list
+
 	def __init__(self) -> None:
+		self.created = []
 		try:
 			self.worker.start()
 		except RuntimeError:
 			pass # Already running
 	
 	def __del__(self):
-		pass
+		for id in self.created:
+			del self.jobs[id]
 
-	def download(self, genbank_id : str, refseq_id : str, assembly_name : str, dst : DirectoryPath, filename : str=None, source : str="genbank", force=False):
+	def download(self, genbank_id : str, refseq_id : str, assembly_name : str, dst : DirectoryPath, filename : str=None, source : str="genbank", force=False, stdout=sys.stdout):
+		"""Returns ID of job. Returns -1 if the file to be downloaded already exists and force==False."""
 		filename = dst > (filename or f"{assembly_name}.fna")
-		job = Job()
-		self.queue.append({"target":DownloadQueue._download, "args":[genbank_id, refseq_id, assembly_name], "kwargs":{"filename":filename, "source":source, "force":force}})
-		return job
+		if pExists(filename) and not force:
+			LOGGER.debug(f"File: {filename!r} already exists, not queueing for download.")
+			return -1
+		job = Job(target=DownloadQueue._download, args=[genbank_id, refseq_id, assembly_name], kwargs={"filename":filename, "source":source, "force":force, "stdout":stdout})
+		id = self.push(job)
+		return id
 
 	@staticmethod
-	def _download(genbank_id : str, refseq_id : str, assembly_name : str, filename : DirectoryPath, source : str="genbank", force=False) -> str | None:
+	def _download(genbank_id : str, refseq_id : str, assembly_name : str, filename : DirectoryPath, source : str="genbank", force=False, stdout=sys.stdout) -> str | None:
 		'''Download genomes from refseq or genbank on request. Default kwarg of force=False makes the download not take place if file already exists.
 			ftp://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/00x/xxx/GCF_00000xxxx.x_ASMxxxv1/GCF_00000xxxx.x_ASMxxxv1_genomic.fna.gz
 		'''
+		print(f"Downloading Assembly {filename} ... ", end="", file=stdout)
 		if os.path.exists(f"{filename}.gz") and not force:
 			LOGGER.debug("Unzipping Reference file for {f}.".format(f=os.path.basename(filename).strip("_genomic.fna.gz")))
 			DownloadQueue.gunzip(f"{filename}.gz")
@@ -160,16 +194,40 @@ class DownloadQueue:
 
 			LOGGER.debug("Unzipping Reference file: '{f}'".format(f=os.path.basename(filename).strip("_genomic.fna.gz")))
 			DownloadQueue.gunzip(f"{filename}.gz")
+		print("Done!", file=stdout)
 
 	@staticmethod
-	def gunzip(filename, dst=None, wait=True):
+	def gunzip(filename : str, dst : str=None, wait=True):
 		'''gunzip's given file. Only necessary for software that requires non-zipped data.'''
-		p = Popen(["gunzip", "-f", filename])
-		bnamePath, ext = os.path.splitext(filename)
 		if dst is not None:
-			try:
-				os.rename(bnamePath, dst)
-			except FileExistsError:
-				LOGGER.debug("'{}' File already exists, skip!".format(dst))
+			outFile = open(dst, "wb")
+		else:
+			outFile = open(filename.rstrip(".gz"), "wb")
+
 		if wait is True:
-			p.wait()
+			outFile.write(gzip.decompress(open(filename, "rb").read()))
+			outFile.close()
+		else:
+			t = Thread( target=lambda f : (f.write(gzip.decompress(open(filename, "rb").read())), f.close()), args=[outFile], daemon=True)
+			t.start()
+			return t
+		return None
+	
+	@staticmethod
+	def restart():
+		DownloadQueue.RUNNING = False
+		try:
+			DownloadQueue.worker.join(timeout=7)
+			if DownloadQueue.worker.is_alive():
+				raise ThreadError("Could not restart the DownloadQueue due to previous worker not finishing.")
+		except AttributeError:
+			DownloadQueue.worker = Thread(target=WorkerQueue.mainLoop, args=[DownloadQueue], daemon=True)
+		except RuntimeError:
+			del DownloadQueue.worker
+		
+		DownloadQueue.RUNNING = Globals.RUNNING
+		DownloadQueue.worker = Thread(target=WorkerQueue.mainLoop, args=[DownloadQueue], daemon=True)
+		DownloadQueue.worker.start()
+
+# Start worker thread
+DownloadQueue.worker = Thread(target=WorkerQueue.mainLoop, args=[DownloadQueue], daemon=True)

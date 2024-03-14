@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import logging, sys, argparse
+import logging, sys, argparse, traceback
 
 ## import MetaCanSNPer specific modules
 from MetaCanSNPer.Globals import *
@@ -33,7 +33,9 @@ def separateCommands(argv : list[str]) -> dict[str,list[str]]:
 		out[order[i][1]] = argv[order[i][0]+1:order[i+1][0]]
 	
 	return out
+
 "MetaCanSNPer --query RAW_SEQUENCE_DATAFILE_R1.fq RAW_SEQUENCE_DATAFILE_R2.fq --database DATABASE_FILE.db --dry-run --debug --mapper minimap2 --snpCaller gatk_Mutect2 --mapperOptions -x sr"
+
 def createParser():
 	"""Initiate MetaCanSNPer command line argument parser"""
 	parser = argparse.ArgumentParser(description="MetaCanSNPer", usage="""MetaCanSNPer --query RAW_SEQUENCE_DATAFILE.* [RAW_SEQUENCE_DATAFILE_2.*] --database DATABASE_FILE.db --mapper MAPPER_COMMAND --snpCaller SNPCALLER_COMMAND \\
@@ -55,6 +57,7 @@ def createParser():
 	if True:
 		requiredArguments.add_argument("--query", nargs="+",	metavar="query",		help="Raw sequence data file supported by the intended Aligner/Mapper.")
 		requiredArguments.add_argument("-d", "--database",		metavar="database",		help="Filename of CanSNP database to be used.")
+		
 		mapOrAlign = requiredArguments.add_mutually_exclusive_group(required=True)
 		if True:
 			mapOrAlign.add_argument("--mapper",					metavar="mapper",		help="Name of installed and supported Mapper software.")
@@ -63,8 +66,9 @@ def createParser():
 
 	optionalArguments = parser.add_argument_group("Optional arguments")
 	if True:
-		optionalArguments.add_argument("--saveTemp",			action="store_true",	help="Don't dispose of temporary directories/files.")
-		optionalArguments.add_argument("--settingsFile",		metavar="settingsFile",	help="Path to .TOML file containing settings for MetaCanSNPer. Check the 'defaultConfig.toml' to see what can be included in a settings file.")
+		optionalArguments.add_argument("--saveTemp",			action="store_true",					help="Don't dispose of temporary directories/files.")
+		optionalArguments.add_argument("--settingsFile",		metavar="settingsFile",					help="Path to .TOML file containing settings for MetaCanSNPer. Check the 'defaultConfig.toml' to see what can be included in a settings file.")
+		optionalArguments.add_argument("--downloadTimeout",		metavar="downloadTimeout", default=300,	help="Maximum time to take when downloading a reference genome file. If exceeded by the program it will throw an error and stop the current run. A value of -1 means no maximum time.")
 		
 		# Not used by the argparser, but is used for the help-page and for splitting the argv
 		mapperOptions = optionalArguments.add_argument("--mapperOptions",		metavar="Mapper options",		help=MAPPER_OPTIONS_EXPLAINER)
@@ -133,30 +137,49 @@ def main():
 	else:
 		pass # The default logging level for the logging package is logging.WARNING
 	
+	Globals.DOWNLOAD_TIMEOUT = args.downloadTimeout
+
 	if args.installDir is not None:
 		import PseudoPathy.Globals
 		PseudoPathy.Globals.PROGRAM_DIRECTORY = args.installDir
 
 	flags = dict(args._get_kwargs())
-	
-	mObj = MetaCanSNPer(settings=flags, settingsFile=args.settingsFile)
+	try:
+		mObj = MetaCanSNPer(settings=flags, settingsFile=args.settingsFile)
+		
+		mObj.setQuery(flags["query"])
+		mObj.setDatabase(flags["database"])
+		
+		if flags["sessionName"] is not None: mObj.setSessionName(flags["sessionName"])
+		
+		if flags.get("mapper") is not None:
+			mObj.createMap(softwareName=flags["mapper"], flags=argsDict.get("--mapperOptions", {}))
+		if flags.get("aligner") is not None:
+			mObj.createAlignment(softwareName=flags["aligner"], flags=argsDict.get("--alignerOptions", {}))
+		
+		mObj.callSNPs(softwareName=flags["snpCaller"], flags=argsDict.get("--snpCallerOptions", {}))
+		
+		mObj.saveResults()
+		mObj.saveSNPdata()
 
-	mObj.setQuery(flags["query"])
-	mObj.setDatabase(flags["database"])
+		print("Done!")
+	except Exception as e:
+		LOGGER.exception(e)
+		string : list = traceback.format_exc().split("\n")
+		output = []
+		for i in range(len(string[1:])):
+			row : str = string[i+1]
+			if row.strip("\r")[:1] in [" ", "\t"]:
+				continue
+			else:
+				for j in range(i, len(string[1:])):
+					output.append(string[j+1])
+				break
+		print(f"{SOFTWARE_NAME} ended before completing query. Exception that caused it:")
+		print()
+		print("\n".join(output))
 
-	if flags["sessionName"] is not None: mObj.setSessionName(flags["sessionName"])
 
-	if "mapper" in flags:
-		mObj.createMap(softwareName=flags["mapper"], flags=argsDict.get("--mapperOptions", {}))
-	if "aligner" in flags:
-		mObj.createAlignment(softwareName=flags["aligner"], flags=argsDict.get("--alignerOptions", {}))
-
-	mObj.callSNPs(softwareName=flags["snpCaller"], flags=argsDict.get("--snpCallerOptions", {}))
-
-	mObj.saveResults()
-	mObj.saveSNPdata()
-
-	print("Done!")
 
 if oname=="__main__":
 	main()
