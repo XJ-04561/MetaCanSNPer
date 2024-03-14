@@ -129,7 +129,7 @@ class DirectoryLibrary(PathLibrary):
 			if self.settings.get("saveTemp") == True:
 				self.tmpDir = self.commonGroups.locals > SOFTWARE_NAME > f"tmp-[{SOFTWARE_NAME}]-[{self.sessionName}]"
 			else:
-				self.tmpDir = createTemp(prefix=f"{SOFTWARE_NAME}{os.path.sep}tmp-[{SOFTWARE_NAME}]-[{self.sessionName}]")
+				self.tmpDir = createTemp(prefix=f"tmp-[{SOFTWARE_NAME}]-[{self.sessionName}]")
 		else:
 			tmpDir = DirectoryPath(tmpDir, purpose="w")
 			if pIsAbs(tmpDir):
