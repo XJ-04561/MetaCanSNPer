@@ -60,12 +60,15 @@ class MetaCanSNPer:
 			else:
 				settingsFlag = loadFlattenedTOML(self.Lib.targetDir[settingsFile])
 			self.Lib.updateSettings({flag:(settingsFlag[flag] if type(settingsFlag[flag]) is not list else tuple(settingsFlag[flag])) for flag in set(settingsFlag).difference(self.Lib.settings)})
-		if pExists(self.Lib.installDir > "defaultFlags.toml"):
-			defaultFlags = loadFlattenedTOML(self.Lib.installDir > "defaultFlags.toml")
+		if "defaultFlags.toml" in self.Lib.commonGroups.shared:
+			defaultFlags = loadFlattenedTOML(self.Lib.commonGroups.shared.find("defaultFlags.toml"))
 			self.Lib.updateSettings({flag:(defaultFlags[flag] if type(defaultFlags[flag]) is not list else tuple(defaultFlags[flag])) for flag in set(defaultFlags).difference(self.Lib.settings)})
 		else:
-			with open(self.Lib.installDir.writable > "defaultFlags.toml", "w") as f:
+			if self.Lib.commonGroups.shared.writable is None:
+				raise PermissionError("Could not find a directory to write program-essential files to.")
+			with open(self.Lib.commonGroups.shared.writable > "defaultFlags.toml", "w") as f:
 				f.write(DEFAULT_TOML_TEMPLATE)
+
 		
 		if database is not None:
 			self.setDatabase(database=database)
