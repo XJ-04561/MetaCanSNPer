@@ -79,13 +79,21 @@ class MetaCanSNPer:
 
 	def setDatabase(self, database : str):
 		LOGGER.debug(f"Setting database to:{database}")
-		if (path := self.Lib.databaseDir.find(database)) is not None:
+		if (path := self.Lib.databaseDir.find(database, purpose="rx")) is not None:
 			self.databasePath = path
 			self.databaseName = pName(path)
 			self.Lib.updateSettings({"organism":self.databaseName})
 			self.connectDatabase()
 			self.Lib.references = None
 		else:
+			from urllib.request import urlretrieve
+			try:
+				self.databasePath = self.Lib.databaseDir.find(database, purpose="rwx")
+				(filename, msg) = urlretrieve(f"https://github.com/FOI-Bioinformatics/CanSNPer2-data/raw/master/database/{os.path.basename(database)}", filename=self.databasePath)
+				if filename != database:
+					raise FileNotFoundError(f"No database available locally or online for {os.path.basename(database)!r} (path: {self.databasePath!r}), respectively. Tried to download but got {filename!r} instead.")
+			except:
+				raise FileNotFoundError(f"No database available locally or online for {os.path.basename(database)!r} (path: {self.databasePath!r}), respectively.")
 			LOGGER.error(f"Database not found: '{database}'")
 			raise FileNotFoundError(f"Database not found: '{database}'")
 
