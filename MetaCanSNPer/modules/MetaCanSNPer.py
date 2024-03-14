@@ -64,7 +64,7 @@ class MetaCanSNPer:
 			defaultFlags = loadFlattenedTOML(self.Lib.installDir > "defaultFlags.toml")
 			self.Lib.updateSettings({flag:(defaultFlags[flag] if type(defaultFlags[flag]) is not list else tuple(defaultFlags[flag])) for flag in set(defaultFlags).difference(self.Lib.settings)})
 		else:
-			with open(self.Lib.installDir.writeable > "defaultFlags.toml", "w") as f:
+			with open(self.Lib.installDir.writable > "defaultFlags.toml", "w") as f:
 				f.write(DEFAULT_TOML_TEMPLATE)
 		
 		if database is not None:
