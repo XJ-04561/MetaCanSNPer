@@ -38,16 +38,20 @@ def separateCommands(argv : list[str]) -> dict[str,list[str]]:
 
 def createParser():
 	"""Initiate MetaCanSNPer command line argument parser"""
-	parser = argparse.ArgumentParser(description="MetaCanSNPer", usage="""MetaCanSNPer --query RAW_SEQUENCE_DATAFILE.* [RAW_SEQUENCE_DATAFILE_2.*] --database DATABASE_FILE.db --mapper MAPPER_COMMAND --snpCaller SNPCALLER_COMMAND \\
-								  \t--mapperOptions [Flags as they would be passed to the mapper] \\
-								  \t--snpCallerOptions [Flags as they would be passed to the snpCaller]
-								  Examples:
-								  MetaCanSNPer --query RAW_SEQUENCE_DATAFILE.fq --database DATABASE_FILE.db --mapper minimap2 --snpCaller gatk_Mutect2 \\
-								  \t--mapperOptions -x ava-ont
-								  MetaCanSNPer --query RAW_SEQUENCE_DATAFILE_R1.fq RAW_SEQUENCE_DATAFILE_R2.fq --database DATABASE_FILE.db --mapper minimap2 --snpCaller gatk_Mutect2 \\
-								  \t--mapperOptions -x sr
-								  MetaCanSNPer --query SEQUENCE_ASSEMBLY.fna --database DATABASE_FILE.db --aligner progressiveMauve --snpCaller ParseXMFA2
-								  """)
+	parser = argparse.ArgumentParser(description="MetaCanSNPer", usage="""MetaCanSNPer --query RAW_SEQUENCE_DATAFILE.* [RAW_SEQUENCE_DATAFILE_2.*] \\
+--database DATABASE_FILE.db --mapper MAPPER_COMMAND --snpCaller SNPCALLER_COMMAND \\
+\t--mapperOptions [Flags as they would be passed to the mapper] \\
+\t--snpCallerOptions [Flags as they would be passed to the snpCaller]
+Examples:
+MetaCanSNPer --query RAW_SEQUENCE_DATAFILE.fq --database DATABASE_FILE.db \\
+\t--mapper minimap2 --snpCaller gatk_Mutect2 \\
+\t--mapperOptions -x ava-ont
+MetaCanSNPer --query RAW_SEQUENCE_DATAFILE_R1.fq RAW_SEQUENCE_DATAFILE_R2.fq --database DATABASE_FILE.db \\
+\t--mapper minimap2 --snpCaller gatk_Mutect2 \\
+\t--mapperOptions -x sr
+MetaCanSNPer --query SEQUENCE_ASSEMBLY.fna --database DATABASE_FILE.db \\
+\t--aligner progressiveMauve --snpCaller ParseXMFA2
+""")
 
 	parser.add_argument("--version", action="store_true", help=argparse.SUPPRESS)
 	parser.add_argument("--list", action="store_true", help="To list implemented software and exit.")
