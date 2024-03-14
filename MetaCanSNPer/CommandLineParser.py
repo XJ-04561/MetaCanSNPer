@@ -46,7 +46,8 @@ Examples:
 MetaCanSNPer --query RAW_SEQUENCE_DATAFILE.fq --database DATABASE_FILE.db \\
 \t--mapper minimap2 --snpCaller gatk_Mutect2 \\
 \t--mapperOptions -x ava-ont
-MetaCanSNPer --query RAW_SEQUENCE_DATAFILE_R1.fq RAW_SEQUENCE_DATAFILE_R2.fq --database DATABASE_FILE.db \\
+MetaCanSNPer --query RAW_SEQUENCE_DATAFILE_R1.fq RAW_SEQUENCE_DATAFILE_R2.fq \\
+\t--database DATABASE_FILE.db \\
 \t--mapper minimap2 --snpCaller gatk_Mutect2 \\
 \t--mapperOptions -x sr
 MetaCanSNPer --query SEQUENCE_ASSEMBLY.fna --database DATABASE_FILE.db \\
@@ -136,7 +137,7 @@ def main():
 		Globals.LOGGER_FILEHANDLER.setLevel(logging.DEBUG)
 	elif args.verbose:
 		Globals.LOGGER_FILEHANDLER.setLevel(logging.INFO)
-	elif args.supress:
+	elif args.suppress:
 		Globals.LOGGER_FILEHANDLER.setLevel(logging.ERROR)
 	else:
 		pass # The default logging level for the logging package is logging.WARNING
