@@ -79,21 +79,22 @@ class MetaCanSNPer:
 
 	def setDatabase(self, database : str):
 		LOGGER.debug(f"Setting database to:{database}")
-		if (path := self.Lib.databaseDir[database]) is not None:
-			self.databaseName = path
-			self.Lib.updateSettings({"organism":pName(database)})
+		if (path := self.Lib.databaseDir.find(database)) is not None:
+			self.databasePath = path
+			self.databaseName = pName(path)
+			self.Lib.updateSettings({"organism":self.databaseName})
 			self.connectDatabase()
 			self.Lib.references = None
 		else:
-			LOGGER.warning(f"Database not found: '{database}'")
+			LOGGER.error(f"Database not found: '{database}'")
 			raise FileNotFoundError(f"Database not found: '{database}'")
 
 	def connectDatabase(self):
-		LOGGER.debug(f"Connecting to database:{self.databaseName}")
-		if self.databaseName is None:
+		LOGGER.debug(f"Connecting to database:{self.databasePath}")
+		if self.databasePath is None:
 			raise NameError("Database not specified. Can't connect unless a valid database is set through MetaCanSNPer.setDatabase.")
 		
-		self.database = DatabaseReader(self.databaseName)
+		self.database = DatabaseReader(self.databasePath)
 		return 0
 
 	'''MetaCanSNPer set directories'''

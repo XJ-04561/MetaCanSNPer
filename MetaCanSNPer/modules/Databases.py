@@ -30,6 +30,14 @@ class DatabaseReader:
 	SNPs : list[tuple[str,int,str,str]]
 
 	def __init__(self, database : str):
+		if not pExists(database):
+			from urllib.request import urlretrieve
+			try:
+				(filename, msg) = urlretrieve(f"https://github.com/FOI-Bioinformatics/CanSNPer2-data/raw/master/database/{os.path.basename(database)}", filename=database)
+				if filename != database:
+					raise FileNotFoundError(f"No database available locally or online as {database!r} or {os.path.basename(database)!r}, respectively. Tried to download but got {filename!r} instead.")
+			except:
+				raise FileNotFoundError(f"No database available locally or online as {database!r} or {os.path.basename(database)!r}, respectively.")
 		self._connection = sqlite3.connect(f"file:{database}?mode=ro", uri=True)
 
 	def __del__(self):
