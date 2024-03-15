@@ -6,6 +6,7 @@ Copyright (C) 2024 Fredrik Sörensen @ Umeå University
 import os, time
 import tomllib as toml
 from VariantCallFixer.Functions import getSNPdata
+from PseudoPathy import Path
 
 ## import MetaCanSNPer specific modules
 from MetaCanSNPer.Globals import *
@@ -33,6 +34,7 @@ def loadFlattenedTOML(filename):
 
 class MetaCanSNPer:
 	outputTemplate = "{0[refName]}_{0[queryName]}.{0[outFormat]}"
+	databasePath : Path
 	databaseName : str
 	database : DatabaseReader
 	Lib : DirectoryLibrary
@@ -57,19 +59,24 @@ class MetaCanSNPer:
 		if settingsFile is not None:
 			if pIsAbs(settingsFile):
 				settingsFlag = loadFlattenedTOML(settingsFile)
-			else:
+			elif self.Lib.targetDir[settingsFile] is not None:
 				settingsFlag = loadFlattenedTOML(self.Lib.targetDir[settingsFile])
+			else:
+				raise FileNotFoundError(f"Could not found the settingsFile {settingsFile!r} in any of {self.Lib.targetDir}")
 			self.Lib.updateSettings({flag:(settingsFlag[flag] if type(settingsFlag[flag]) is not list else tuple(settingsFlag[flag])) for flag in set(settingsFlag).difference(self.Lib.settings)})
 		if "defaultFlags.toml" in self.Lib.commonGroups.shared:
-			defaultFlags = loadFlattenedTOML(self.Lib.commonGroups.shared.find("defaultFlags.toml"))
+			defaultFlags = loadFlattenedTOML(self.Lib.commonGroups.shared.find("defaultFlags.toml", "r"))
 			self.Lib.updateSettings({flag:(defaultFlags[flag] if type(defaultFlags[flag]) is not list else tuple(defaultFlags[flag])) for flag in set(defaultFlags).difference(self.Lib.settings)})
 		else:
 			if self.Lib.commonGroups.shared.writable is None:
+				LOGGER.error(f"Could not write to any of the directories in {self.Lib.commonGroups.shared}")
 				raise PermissionError("Could not find a directory to write program-essential files to.")
 			with open(self.Lib.commonGroups.shared.writable > "defaultFlags.toml", "w") as f:
 				f.write(DEFAULT_TOML_TEMPLATE)
 
-		
+		self.databasePath = None
+		self.databaseName = None
+
 		if database is not None:
 			self.setDatabase(database=database)
 		
@@ -82,14 +89,14 @@ class MetaCanSNPer:
 		self.databaseName = os.path.basename(database)
 		if (path := self.Lib.databaseDir.find(database, purpose="r")) is not None:
 			pass
-		elif (path := downloadDatabase(self.databaseName, dst=self.Lib.databaseDir.writable)) is not None:
+		elif (path := downloadDatabase(self.databaseName, dst=self.Lib.databaseDir.forceFind("", "w"))) is not None:
 			pass
 		else:
 			LOGGER.error(f"Database not found locally or online: {database!r}\nLocal directories checked: {self.Lib.databaseDir}")
 			raise FileNotFoundError(f"Database not found: {database!r}")
 
 		self.databasePath = path
-		self.Lib.updateSettings({"organism":pName(self.databaseName)})
+		self.Lib.updateSettings({"organism":pName(self.databaseName)}) # TODO : Get organism name from safer source than filename
 		self.connectDatabase()
 		self.Lib.references = None
 
