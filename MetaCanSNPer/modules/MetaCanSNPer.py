@@ -88,9 +88,9 @@ class MetaCanSNPer:
 		LOGGER.debug(f"Setting database to:{database}")
 		self.databaseName = os.path.basename(database)
 		if (path := self.Lib.databaseDir.find(database, purpose="r")) is not None:
-			pass
-		elif (path := downloadDatabase(self.databaseName, dst=self.Lib.databaseDir.forceFind("", "w"))) is not None:
-			pass
+			LOGGER.info(f"Found database {database!r} in path {path!r}")
+		elif (path := downloadDatabase(self.databaseName, dst=self.Lib.databaseDir.forceFind("", "w") > database)) is not None:
+			LOGGER.info(f"Found database {database!r} online and downloaded to path {path!r}")
 		else:
 			LOGGER.error(f"Database not found locally or online: {database!r}\nLocal directories checked: {self.Lib.databaseDir}")
 			raise FileNotFoundError(f"Database not found: {database!r}")
