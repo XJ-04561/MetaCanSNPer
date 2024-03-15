@@ -41,7 +41,7 @@ class DatabaseReader:
 		if not cDatabase.startswith("/"): # Path has to be absolute already, and windows paths need a prepended '/'
 			cDatabase = "/"+cDatabase
 		try:
-			self._connection = sqlite3.connect(f"file:{cDatabase}?immutable=1&mode=ro", uri=True)
+			self._connection = sqlite3.connect(f"file:{cDatabase}?immutable=1&nolock=1&mode=ro", uri=True)
 		except Exception as e:
 			LOGGER.error("Failed to connect to database using URI: "+f"file:{cDatabase}?immutable=1&mode=ro")
 			raise e
