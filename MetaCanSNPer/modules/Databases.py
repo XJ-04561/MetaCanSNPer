@@ -3,6 +3,9 @@ from functools import cached_property
 import sqlite3
 
 from MetaCanSNPer.Globals import *
+from MetaCanSNPer.modules.LogKeeper import createLogger
+
+LOGGER = createLogger(__name__)
 
 class Branch:
 
@@ -31,14 +34,13 @@ class DatabaseReader:
 
 	def __init__(self, database : str):
 		if not pExists(database):
-			from urllib.request import urlretrieve
-			try:
-				(filename, msg) = urlretrieve(f"https://github.com/FOI-Bioinformatics/CanSNPer2-data/raw/master/database/{os.path.basename(database)}", filename=database)
-				if filename != database:
-					raise FileNotFoundError(f"No database available locally or online as {database!r} or {os.path.basename(database)!r}, respectively. Tried to download but got {filename!r} instead.")
-			except:
-				raise FileNotFoundError(f"No database available locally or online as {database!r} or {os.path.basename(database)!r}, respectively.")
-		self._connection = sqlite3.connect(f"file:{database}?mode=ro", uri=True)
+			raise FileNotFoundError(f"Database file {database} not found on the system.")
+		
+		# Convert to URI acceptable filename
+		cDatabase = "/".join(filter(lambda s : s != "", database.replace('?', '%3f').replace('##', '%23').split(os.path.sep)))
+		if not cDatabase.startswith("/"): # Path has to be absolute already, and windows paths need a prepended '/'
+			cDatabase = "/"+cDatabase
+		self._connection = sqlite3.connect(f"file:{cDatabase}?immutable=1&mode=ro", uri=True)
 
 	def __del__(self):
 		try:
@@ -101,3 +103,17 @@ class DatabaseWriter(DatabaseReader):
 	
 	def addReference(self, genomeID, genome, strain, genbank, refseq, assemblyName):
 		self._connection.execute("INSERT (?,?,?,?,?,?) INTO ?", [genomeID, genome, strain, genbank, refseq, assemblyName, TABLE_NAME_REFERENCES])
+
+
+def downloadDatabase(databaseName : str, dst : str) -> str:
+	from urllib.request import urlretrieve
+	
+	for source in SOURCES:
+		try:
+			(filename, msg) = urlretrieve(source.format(databaseName=databaseName), filename=dst) # Throws error if 404
+			return filename
+		except Exception as e:
+			LOGGER.info(f"Database {databaseName!r} not found/accessible on {source!r}.")
+			LOGGER.exception(e, stacklevel=logging.INFO)
+	LOGGER.error(f"No database named {databaseName!r} found online. Sources tried: {SOURCES}")
+	return None

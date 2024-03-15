@@ -11,7 +11,7 @@ from VariantCallFixer.Functions import getSNPdata
 from MetaCanSNPer.Globals import *
 import MetaCanSNPer.Globals as Globals
 import MetaCanSNPer.modules.LogKeeper as LogKeeper
-from MetaCanSNPer.modules.Databases import DatabaseReader
+from MetaCanSNPer.modules.Databases import DatabaseReader, downloadDatabase
 from MetaCanSNPer.modules.DirectoryLibrary import DirectoryLibrary
 from MetaCanSNPer.modules.Wrappers import Aligner, Mapper, SNPCaller, IndexingWrapper
 import MetaCanSNPer.modules.Aligners as Aligners
@@ -79,23 +79,19 @@ class MetaCanSNPer:
 
 	def setDatabase(self, database : str):
 		LOGGER.debug(f"Setting database to:{database}")
-		if (path := self.Lib.databaseDir.find(database, purpose="rx")) is not None:
-			self.databasePath = path
-			self.databaseName = pName(path)
-			self.Lib.updateSettings({"organism":self.databaseName})
-			self.connectDatabase()
-			self.Lib.references = None
+		self.databaseName = os.path.basename(database)
+		if (path := self.Lib.databaseDir.find(database, purpose="r")) is not None:
+			pass
+		elif (path := downloadDatabase(self.databaseName, dst=self.Lib.databaseDir.writable)) is not None:
+			pass
 		else:
-			from urllib.request import urlretrieve
-			try:
-				self.databasePath = self.Lib.databaseDir.find(database, purpose="rwx")
-				(filename, msg) = urlretrieve(f"https://github.com/FOI-Bioinformatics/CanSNPer2-data/raw/master/database/{os.path.basename(database)}", filename=self.databasePath)
-				if filename != database:
-					raise FileNotFoundError(f"No database available locally or online for {os.path.basename(database)!r} (path: {self.databasePath!r}), respectively. Tried to download but got {filename!r} instead.")
-			except:
-				raise FileNotFoundError(f"No database available locally or online for {os.path.basename(database)!r} (path: {self.databasePath!r}), respectively.")
-			LOGGER.error(f"Database not found: '{database}'")
-			raise FileNotFoundError(f"Database not found: '{database}'")
+			LOGGER.error(f"Database not found locally or online: {database!r}\nLocal directories checked: {self.Lib.databaseDir}")
+			raise FileNotFoundError(f"Database not found: {database!r}")
+
+		self.databasePath = path
+		self.Lib.updateSettings({"organism":pName(self.databaseName)})
+		self.connectDatabase()
+		self.Lib.references = None
 
 	def connectDatabase(self):
 		LOGGER.debug(f"Connecting to database:{self.databasePath}")

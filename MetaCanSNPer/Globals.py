@@ -54,6 +54,8 @@ command call or the corresponding flag for Mapper or Aligner options.
 
 ## Database Globals
 
+SOURCES = ["https://github.com/FOI-Bioinformatics/CanSNPer2-data/raw/master/database/{databaseName}"]
+
 TABLE_NAME_SNP_ANNOTATION = "snp_annotation"
 TABLE_NAME_REFERENCES = "snp_references"
 TABLE_NAME_NODES = "nodes"
