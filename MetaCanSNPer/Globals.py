@@ -32,6 +32,9 @@ random.seed()
 LOGGER_FILEHANDLER = logging.FileHandler(CommonGroups().locals.create(f"{SOFTWARE_NAME}-Results") > "MetaCanSNPer.log")
 LOGGER_FILEHANDLER.setFormatter(logging.Formatter("[%(name)s] %(asctime)s - %(levelname)s: %(message)s"))
 
+PPGlobals.LOGGER.addHandler(LOGGER_FILEHANDLER)
+VCFGlobals.LOGGER.addHandler(LOGGER_FILEHANDLER)
+
 ## ArgParser Globals
 
 DIRECTORY_OPTIONS = ["workDir", "userDir", "installDir", "targetDir", "tmpDir", "refDir", "databaseDir", "outDir", "sessionName"]
@@ -118,7 +121,3 @@ referenceFormats = [".fna", ".fasta"]
 # outDir = 
 # sessionName = 
 """
-
-from MetaCanSNPer.modules.LogKeeper import createLogger
-PPGlobals.LOGGER = createLogger("PseudoPathy")
-VCFGlobals.LOGGER = createLogger("VariantCallFixer")
