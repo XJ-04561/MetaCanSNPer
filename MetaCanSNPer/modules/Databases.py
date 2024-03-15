@@ -37,10 +37,14 @@ class DatabaseReader:
 			raise FileNotFoundError(f"Database file {database} not found on the system.")
 		
 		# Convert to URI acceptable filename
-		cDatabase = "/".join(filter(lambda s : s != "", database.replace('?', '%3f').replace('##', '%23').split(os.path.sep)))
+		cDatabase = "/".join(filter(lambda s : s != "", database.replace('?', '%3f').replace('#', '%23').split(os.path.sep)))
 		if not cDatabase.startswith("/"): # Path has to be absolute already, and windows paths need a prepended '/'
 			cDatabase = "/"+cDatabase
-		self._connection = sqlite3.connect(f"file:{cDatabase}?immutable=1&mode=ro", uri=True)
+		try:
+			self._connection = sqlite3.connect(f"file:{cDatabase}?immutable=1&mode=ro", uri=True)
+		except Exception as e:
+			LOGGER.error("Failed to connect to database using URI: "+f"file:{cDatabase}?immutable=1&mode=ro")
+			raise e
 
 	def __del__(self):
 		try:
