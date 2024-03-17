@@ -1,15 +1,112 @@
 #!/usr/bin/env python3
 
 import logging, sys, argparse, traceback
+from threading import Thread
+from time import sleep
+from typing import Callable
 
 ## import MetaCanSNPer specific modules
 from MetaCanSNPer.Globals import *
 from MetaCanSNPer.Globals import __version__
 import MetaCanSNPer.modules.LogKeeper as LogKeeper
-from MetaCanSNPer.modules.MetaCanSNPer import MetaCanSNPer
+from MetaCanSNPer.modules.MetaCanSNPer import MetaCanSNPer, Hooks
 import MetaCanSNPer.Globals as Globals
 
 LOGGER = LogKeeper.createLogger(__name__)
+
+
+def showLoadingSymbol(running : bool, progress : list[float], symbols : list[str]=["\b|", "\b/", "\b-", "\b\\"], sep=" ", borders=("[", "]")):
+	if type(progress) is float:
+		progress = [progress]
+
+	sepLength = len(sep)
+	N = len(symbols)
+	backspaces = "\b" * (len(progress)+borders[0]*len(progress)+borders[1]*len(progress)+sepLength*min(0, len(progress)-1))
+	n = [0 for _ in range(len(progress))]
+	while running:
+		print(backspaces, end="", flush=True)
+		for i, prog in enumerate(progress):
+			if running:
+				n[i]=(n[i]+1)%len(symbols)
+				print(borders[0]+symbols[n[i]]+borders[1]+sep, end="", flush=True)
+			else:
+				backspaces = "\b" * (i+borders[0]*i+borders[1]*i+sepLength*min(0, i-1))
+				print(backspaces, end="", flush=True)
+				print(backspaces.replace("\b", " "), end="", flush=True)
+				print(backspaces, end="", flush=True)
+				return
+		print("\b \b", end="", flush=True)
+		sleep(0.2)
+
+def showLoadingMiniBars(running : bool, progress : list[float], symbols : list[str]= [".", "_", "\u2584", "", "\u2588"], sep=" ", borders=("[", "]")):
+	if type(progress) is float:
+		progress = [progress]
+
+	sepLength = len(sep)
+	N = len(progress)
+	backspaces = "\b" * (len(progress)+borders[0]*len(progress)+borders[1]*len(progress)+sepLength*min(0, len(progress)-1))
+	while running:
+		print(backspaces, end="", flush=True)
+		for i, prog in enumerate(progress):
+			if running:
+				print(borders[0]+symbols[int(N*prog)]+borders[1]+sep, end="", flush=True)
+			else:
+				backspaces = "\b" * (i+borders[0]*i+borders[1]*i+sepLength*min(0, i-1))
+				print(backspaces, end="", flush=True)
+				print(backspaces.replace("\b", " "), end="", flush=True)
+				print(backspaces, end="", flush=True)
+				return
+		print("\b \b", end="", flush=True)
+		sleep(0.5)
+
+def showLoadingBar(running, progress : float|list[float], length=10, border=("[", "]"), fill="\u2588", halfFill="\u258C", background=" ", sep=" "):
+	if type(progress) is float:
+		progress = [progress]
+	innerLength = length - len(border[0]) - len(border[1])
+	sepLength = len(sep)
+	backspaces = "\b" * (length * len(progress) + sepLength * min(0, len(progress) - 1))
+	while running:
+		print(f"{backspaces}", end="", flush=True)
+		for i, prog in enumerate(progress):
+			if running:
+				fillLength = int(innerLength*2*prog)
+				fillLength, halfBlock = fillLength//2, fillLength%2
+				emptyLength = innerLength - fillLength - halfBlock
+				print(f"{border[0]}{fill*fillLength}{halfFill*halfBlock}{background*emptyLength}{border[1]}{sep}", end="", flush=True)
+			else:
+				backspaces = "\b" * (length * i + sepLength * min(0, i - 1))
+				print(backspaces, end="", flush=True)
+				print(backspaces.replace("\b", " "), end="", flush=True)
+				print(backspaces, end="", flush=True)
+				return
+				
+			print("\b \b"*sepLength, end="", flush=True)
+		sleep(0.6)
+
+def updateTerminal(msg, category, hooks : Hooks, nThreads):
+
+
+	def updateProgress(eventInfo : dict, progress : float, threads : dict[int,float]):
+		threads[eventInfo["threadN"]] = eventInfo["progress"]
+		progress -= progress
+		progress += sum(threads.values()) / len(threads)
+
+	print(f"{msg} ... ", end="", flush=True)
+	notDone = True
+	progress = 0.0
+	threads = {key+1:0.0 for key in range(nThreads)}
+
+	hooks.addHook(f"{category}Progress", updateProgress, args=[progress, threads])
+	t = Thread(target=showLoadingBar, args=[notDone, progress], daemon=True)
+	t.start()
+
+	def stopLoadingbar(eventInfo : dict, t : Thread, notDone : bool, finishedThreads : dict):
+		finishedThreads[eventInfo["threadN"]] = 1
+		if sum(finishedThreads.values()) == len(finishedThreads):
+			notDone *= False
+			print("\bDone!", flush=True)
+	
+	hooks.addHook(f"{category}Finished", stopLoadingbar, args=[t, notDone, {}])
 
 def separateCommands(argv : list[str]) -> dict[str,list[str]]:
 	order = [(0, "args")]
@@ -158,32 +255,38 @@ def main():
 		if flags["sessionName"] is not None: mObj.setSessionName(flags["sessionName"])
 		
 		if flags.get("mapper") is not None:
+			updateTerminal("Creating maps ... ", "Mappers", mObj.hooks, len(mObj.database.references))
+
 			mObj.createMap(softwareName=flags["mapper"], flags=argsDict.get("--mapperOptions", {}))
+
 		if flags.get("aligner") is not None:
+			updateTerminal("Creating Alignments ... ", "Aligners", mObj.hooks, len(mObj.database.references))
+
 			mObj.createAlignment(softwareName=flags["aligner"], flags=argsDict.get("--alignerOptions", {}))
 		
-		mObj.callSNPs(softwareName=flags["snpCaller"], flags=argsDict.get("--snpCallerOptions", {}))
-		
-		mObj.saveResults()
-		mObj.saveSNPdata()
+		updateTerminal("Calling SNPs", "SNPCallers", mObj.hooks, len(mObj.database.references))
 
-		print("Done!")
+		mObj.callSNPs(softwareName=flags["snpCaller"], flags=argsDict.get("--snpCallerOptions", {}))
+
+		print(f"{SOFTWARE_NAME} finished! Results exported to: {mObj.Lib.resultDir}")
 	except Exception as e:
 		LOGGER.exception(e)
-		string : list = traceback.format_exc().split("\n")
-		output = []
-		for i in range(len(string[1:])):
-			row : str = string[i+1]
-			if row.strip("\r")[:1] in [" ", "\t"]:
-				continue
-			else:
-				for j in range(i, len(string[1:])):
-					output.append(string[j+1])
-				break
 		print(f"{SOFTWARE_NAME} ended before completing query. Exception that caused it:")
 		print()
-		print("\n".join(output))
-
+		if args.debug:
+			raise e
+		else:
+			string : list = traceback.format_exc().split("\n")
+			output = []
+			for i in range(len(string[1:])):
+				row : str = string[i+1]
+				if row.strip("\r")[:1] in [" ", "\t"]:
+					continue
+				else:
+					for j in range(i, len(string[1:])):
+						output.append(string[j+1])
+					break
+			print("\n".join(output))
 
 
 if oname=="__main__":

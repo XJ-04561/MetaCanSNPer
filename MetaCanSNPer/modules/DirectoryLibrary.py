@@ -142,17 +142,17 @@ class DirectoryLibrary(PathLibrary):
 					self.tmpDir = self.commonGroups.locals > tmpDir > SOFTWARE_NAME > f"tmp-[{SOFTWARE_NAME}]-[{self.sessionName}]"
 				else:
 					self.tmpDir = createTemp(dir=self.commonGroups.locals > tmpDir, prefix=f"tmp-[{SOFTWARE_NAME}]-[{self.sessionName}]")
+		self.tmpDir.defaultPurpose = "rw"
 		LOGGER.debug(f"Set tmpDir to:\n{self.tmpDir}")
 	
 	def setOutDir(self, outDir : str=None):
 		if outDir is None:
 			self.outDir = self.commonGroups.locals > SOFTWARE_NAME+"-Results"
-			self.outDir.defaultPurpose = "w"
 		elif pIsAbs(outDir):
 			self.outDir = Path(outDir, purpose="w")
 		else:
-			self.outDir = self.commonGroups.locals > outDir
-			self.outDir.defaultPurpose = "w"
+			self.outDir = (self.commonGroups.locals > outDir)
+		self.outDir.defaultPurpose = "w"
 		LOGGER.debug(f"Set outDir to:\n{self.outDir}")
 
 		self.resultDir = self.logDir = self.outDir.create(self.sessionName)
@@ -181,8 +181,9 @@ class DirectoryLibrary(PathLibrary):
 		if "tmpDir" in new:					self.setTmpDir(self.settings.get("tmpDir"))
 
 	def setSessionName(self, name):
-		self.sessionName = name
 		LOGGER.debug(f"Setting sessionName to: {self.sessionName!r}")
+		self.sessionName = name
+		self.resultDir = self.logDir = self.outDir.create(self.sessionName)
 
 	def setQuery(self, query : list[str]):
 		self.query = PathList()

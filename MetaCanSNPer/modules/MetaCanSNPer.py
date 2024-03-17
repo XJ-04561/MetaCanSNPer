@@ -14,6 +14,7 @@ import MetaCanSNPer.Globals as Globals
 import MetaCanSNPer.modules.LogKeeper as LogKeeper
 from MetaCanSNPer.modules.Databases import DatabaseReader, downloadDatabase
 from MetaCanSNPer.modules.DirectoryLibrary import DirectoryLibrary
+from MetaCanSNPer.modules.Hooks import Hooks
 from MetaCanSNPer.modules.Wrappers import Aligner, Mapper, SNPCaller, IndexingWrapper
 import MetaCanSNPer.modules.Aligners as Aligners
 import MetaCanSNPer.modules.Mappers as Mappers
@@ -48,6 +49,7 @@ class MetaCanSNPer:
 		LOGGER.info("Initializing MetaCanSNPer object.")
 		self.startTime = time.localtime()
 		self.sessionName = sessionName
+		self.hooks = Hooks()
 		
 		if lib is None:
 			self.Lib = DirectoryLibrary(settings={k:(v if type(v) is not list else tuple(v)) for k,v in settings.items()})
@@ -129,7 +131,7 @@ class MetaCanSNPer:
 		LOGGER.debug(f"Query in DirectoryLibrary: {self.Lib.query}")
 		self.queryName = self.Lib.queryName ## get name of file and remove ending
 		if self.sessionName is None:
-			self.Lib.setSessionName("Sample-{queryName}-{dateYYYYMMDD}".format(queryName=self.queryName, dateYYYYMMDD="{:0>4}.{:0>2}.{:0>2}.{:>2}{:>2},{:>2}".format(*(self.startTime[:6]))))
+			self.setSessionName("Sample-{queryName}-{dateYYYYMMDD}".format(queryName=self.queryName, dateYYYYMMDD="{:0>4}-{:0>2}-{:0>2}-{:0>2}.{:0>2}.{:0<3}".format(*(self.startTime[:6]))))
 
 	def setSessionName(self, name):
 		self.sessionName = name
@@ -160,7 +162,7 @@ class MetaCanSNPer:
 		'''Align sequences using subprocesses.'''
 
 		LOGGER.info(f"Creating software wrapper for {softwareClass.softwareName!r} of type {softwareClass.__name__!r}")
-		software : IndexingWrapper = softwareClass(self.Lib, self.database, self.outputTemplate, flags=flags)
+		software : IndexingWrapper = softwareClass(self.Lib, self.database, self.outputTemplate, self.hooks, flags=flags)
 
 		# Check that error did not occur.
 		while software.hickups():
@@ -181,7 +183,7 @@ class MetaCanSNPer:
 				software.planB()
 			else:
 				software.displayOutcomes(out=LOGGER.error)
-				for (key, path), e in zip(software.outputs, software.returncodes):
+				for (key, path), e in zip(software.outputs, software.returncodes[-1]):
 					del outputDict[key]
 				raise ChildProcessError(f"{software.softwareName} returned with a non-zero exitcode for which there is no implemented solution.")
 		

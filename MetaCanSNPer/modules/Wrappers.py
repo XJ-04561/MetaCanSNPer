@@ -1,66 +1,70 @@
 
 import os, shutil
 from collections.abc import Callable
-from threading import Thread, Semaphore, Condition, current_thread, main_thread
+from threading import Thread, Semaphore, Condition, current_thread, main_thread, ThreadError
 from subprocess import run, DEVNULL, PIPE, STDOUT, CompletedProcess
 from VariantCallFixer import openVCF
 
 import MetaCanSNPer.modules.LogKeeper as LogKeeper
 import MetaCanSNPer.modules.ErrorFixes as ErrorFixes
 from MetaCanSNPer.modules.DirectoryLibrary import DirectoryLibrary
+from MetaCanSNPer.modules.Hooks import Hooks
 from MetaCanSNPer.modules.Databases import DatabaseReader
 from MetaCanSNPer.Globals import *
 import MetaCanSNPer.Globals as Globals
 
 LOGGER = LogKeeper.createLogger(__name__)
 
+class ThreadGroup: pass
 
-'''OOP handling of multiple processes'''
+class Thread(Thread):
+	group : ThreadGroup
+	exception : Exception
+	def __new__(cls, group : ThreadGroup=None, **kwargs):
+		obj = super().__new__(cls, **kwargs)
+		obj.group = group
+		obj.exception = None
+		return obj
+	
+	def run(self, *args, **kwargs):
+		try:
+			super().run(self, *args, **kwargs)
+		except Exception as e:
+			self.exception = e
+
+"""OOP handling of multiple processes"""
 class ThreadGroup:
 	threads : list[Thread]
 	commands : list[str]
 	args : list[list] | list
 	kwargs : list[dict] | dict
 	threadKwargs : dict
+	returncodes : list[int]
 
-	def __init__(self, target : Callable, args : list[list] | list=None, kwargs : list[dict] | dict=None, n : int=None, **threadKwargs):
-		'''
-			Has multiple behaviors for arguments and keyword arguments supplied to the target function:
-				* args and kwargs are 2D: must be same length on axis 0, n is ignored.
-				* args is 1D and kwargs is 2D: must be same length on axis 0, n is ignored.
-					Each element of args goes to only one thread.
-				* args is 1D and kwargs is 1D (dict): n is ignored, length of args is used.
-					Each element of args goes to only one thread.
-					Given kwargs is used for every thread.
-				* args is 1D or 2D but has length 1 on axis 0: kwargs decides n if 2D else n is used.
-					The given 
-		'''
+	def __init__(self, target : Callable, args : list[list] | list=None, kwargs : list[dict] | dict=None, n : int=None, names : list=None, daemons : list[bool]|bool=True):
+		"""
+		"""
 		self.target = target
-
+		
 		# Error management for developers
-		if args is None and kwargs is None and n is None:
-			raise TypeError("""ThreadGroup created without specifying number of threads to be created.
-				   The number is hinted from the length of args or kwargs. or specified with n.""")
-		elif args is not None and kwargs is not None:
-			if len(args) != len(kwargs):
-				raise TypeError("""ThreadGroup number of threads is hinted from the length of args or kwargs.
-					They are not the same length. (They were {} and {}, respectively)""".format(len(args), len(kwargs)))
-			self.args = args
-			self.kwargs = kwargs
-		elif args is not None:
+		if n is not None:
+			self.args = [args or []] * n
+			self.kwargs = [kwargs or {}] * n
+		elif len(args) == len(kwargs):
 			self.n = len(args)
 			self.args = args
-			self.kwargs = [{} for _ in range(self.n)]
-		elif kwargs is not None:
-			self.n = len(kwargs)
 			self.kwargs = kwargs
-			self.args = [[] for _ in range(self.n)]
 		else:
-			self.n = n
-			self.args = [[] for _ in range(self.n)]
-			self.kwargs = [{} for _ in range(self.n)]
+			raise TypeError("ThreadGroup created without specifying number of threads to be created.\nThe number is hinted from the length of args or kwargs. or specified with n.")
+
+		try:	len(names); assert type(names) not in [str, bytes, type(None)]
+		except:	self.names = [names] * len(self.args)
+
+		try:	len(daemons);	self.daemons = daemons
+		except:	self.daemons = [daemons] * len(self.args)
 		
-		self.threadKwargs = threadKwargs
+		if any(self.n != x for x in map(len, [self.kwargs, self.names, self.daemons])):
+			raise ValueError("ThreadGroup entries for all kwargs except target must be contiguous, scalar, or None. The exception is for `args` and `kwargs` if `n` is given.")
 
 		def targetWrapper(target, *args, **kwargs):
 			try:
@@ -68,13 +72,16 @@ class ThreadGroup:
 			except Exception as e:
 				object.__setattr__(current_thread(), "exception", e)
 
-		self.threads = [Thread(target=targetWrapper, args=(self.target,)+args, kwargs=kwargs, **threadKwargs) for args, kwargs in zip(self.args, self.kwargs)]
-		
-		for t in self.threads:
-			object.__setattr__(t, "exception", None)
+		self.threads = []
+		for args, kwargs, name, daemon in zip(self.args, self.kwargs, self.names, self.daemons):
+			self.threads.append(Thread(group=self, target=targetWrapper, args=(self.target)+args, kwargs=kwargs, name=name, daemon=daemon))
+
 
 	def __iter__(self):
 		return iter(self.threads)
+	
+	def __getitem__(self, key):
+		return self.threads[key]
 
 	# def newFinished(self) -> bool:
 	# 	"""Returns True if any thread in self.threads is dead. Also returns True if all threads """
@@ -89,65 +96,83 @@ class ThreadGroup:
 
 	def finished(self) -> bool:
 		return not any(t.is_alive() for t in self.threads)
+	
 
 # Aligner and Mapper classes to inherit from
 class ProcessWrapper:
 	Lib : DirectoryLibrary
 	database : DatabaseReader
+	hooks : Hooks
 	softwareName : str
-	returncodes : list[list[int]]
-	previousErrors : list
+	history : list[list[int]] # History
+	# previousErrors : list
 	category : str
 	semaphore : Semaphore
+	solutions : ErrorFixes.SolutionContainer
+	skip : set
 
-	def __init__(self):
+	def __init__(self, lib : DirectoryLibrary, database : DatabaseReader, outputTemplate : str, hooks : Hooks=Hooks()):
+		self.Lib = lib
+		self.database = database
+		self.queryName = self.Lib.queryName ## get name of file and remove ending
+		self.outputTemplate = outputTemplate
+		self.hooks = hooks
 		self.semaphore = Semaphore() # Starts at 1.
+		self.history = []
 
 	def createCommand(self, *args, **kwargs):
 		"""Not implemented for the template class, check the wrapper of the
 		specific software you are intending to use."""
 		raise NotImplementedError(f"Called `.createCommand` on a object of a class which has not implemented it. Object class is `{type(self)}`")
 
-	def run(self, command, log : str, pReturncodes : list[int], *args, **kwargs) -> None:
+	def run(self, command, log : str, *args, **kwargs) -> None:
+		""""""
 		
 		try:
-			n=[i for i in range(len(self.returncodes)) if self.returncodes[i] is pReturncodes]
-		except:
-			n="?"
-		
-		try:
-			LOGGER.debug(f"Thread {n} - Running command: {command}")
+			this = current_thread()
+			threadN, TG = this.name, this.group
+			LOGGER.debug(f"{self.category} Thread {threadN} - Running command: {command}")
+			self.hooks.trigger(f"{self.category}Progress", {"progress" : 0.0, "threadN" : threadN})
+
 			p : CompletedProcess = run(command.split() if type(command) is str else command, *args, **kwargs)
-			LOGGER.debug(f"Thread {n} - Returned with exitcode: {p.returncode}")
-			pReturncodes.append(p.returncode)
-			self.handleRetCode(p.returncode, prefix=f"Thread {n} - ")
+			LOGGER.debug(f"{self.category} Thread {threadN} - Returned with exitcode: {p.returncode}")
+
+			self.hooks.trigger(f"{self.category}Progress", {"progress" : 1.0, "threadN" : threadN})
+
+			self.history[threadN][-1] = p.returncode
+			self.handleRetCode(p.returncode, prefix=f"Thread {threadN} - ")
 
 			if log is not None:
 				if p.returncode == 0:
-					LOGGER.debug(f"Thread {n} - Logging output to: {log}")
+					LOGGER.debug(f"{self.softwareName} Thread {threadN} - Logging output to: {log}")
 				else:
-					LOGGER.error(f"Thread {n} - Child process encountered an issue, logging output to: {log}")
+					LOGGER.error(f"{self.softwareName} Thread {threadN} - Child process encountered an issue, logging output to: {log}")
 
 				with open(log, "w") as logFile:
 					logFile.write(p.stdout.decode("utf-8"))
 					logFile.write("\n")
 
-			LOGGER.debug(f"Thread {n} - Finished!")
+			LOGGER.debug(f"{self.category} Thread {threadN} - Finished!")
 			self.semaphore.release()
+			self.hooks.trigger(f"{self.category}Finished", {"threadN":threadN})
 		except Exception as e:
-			e.add_note(f"Thread {n}")
+			e.add_note(f"{self.category} Thread {threadN}")
 			LOGGER.exception(e)
 
 	def start(self) -> list[tuple[tuple[str,str],str]]:
 		'''Starts processes in new threads. Returns information of the output of the processes, but does not ensure the processes have finished.'''
 
-		commands, logs, outputs = self.createCommand()
-		self.threadGroup = ThreadGroup(self.run, args=list(zip(commands, logs, self.returncodes)), kwargs=[{"stdout":PIPE, "stderr":STDOUT}]*len(commands), daemon=True)
+		commands, logs, self.outputs = self.createCommand()
+		zipped = []
+		for i, (c, l) in enumerate(zip(commands, logs)):
+			if i in self.skip:
+				zipped.append((c,l))
 		
+		self.threadGroup = ThreadGroup(self.run, args=zipped, kwargs=[{"stdout":PIPE, "stderr":STDOUT}]*len(commands), daemon=True)
+
 		self.threadGroup.start()
 
-		self.outputs = outputs
-		return outputs
+		return self.outputs
 	
 	def waitNext(self, timeout=None):
 		self.semaphore.acquire(timeout=timeout)
@@ -157,7 +182,7 @@ class ProcessWrapper:
 		while not self.finished() and all(t.exception is None for t in self.threadGroup):
 			self.waitNext(timeout=timeout)
 		if any(t.exception is not None for t in self.threadGroup):
-			raise ChildProcessError(f"{self.softwareName!r} crashed/failed to start. Check logs for more details.")
+			raise ThreadError(f"{self.softwareName!r} crashed/failed to start. Check logs for more details.")
 
 	def updateWhileWaiting(self, outputDict : dict):
 		finished = set()
@@ -165,35 +190,55 @@ class ProcessWrapper:
 			for i in set(self.waitNext(timeout=1)).difference(finished):
 				finished.add(i)
 				key, path = self.outputs[i]
-				if self.returncodes[i][-1] == 0:
+				if self.threadGroup.returncodes[i] == 0:
 					outputDict[key] = path
 					LOGGER.info(f"Finished running {self.softwareName} {len(outputDict)}/{len(self.outputs)}.")
 		if any(t.exception is not None for t in self.threadGroup):
-			raise ChildProcessError(f"{self.softwareName!r} crashed/failed to start. Check logs for more details.")
+			raise ThreadError(f"{self.softwareName!r} crashed/failed to start. Check logs for more details.")
 
 	def finished(self):
 		if self.threadGroup is None:
-			raise ValueError("{classType}.threadGroup is not initialized so it cannot be status checked with {classType}.finished()".format(classType=type(self).__name__))
+			raise ThreadError("{classType}.threadGroup is not initialized so it cannot be status checked with {classType}.finished()".format(classType=type(self).__name__))
 		return self.threadGroup.finished()
 	
 	def hickups(self):
 		'''Checks whether any process finished with a non-zero exitcode at the latest run. Returns True if process has not ran yet.'''
-		return len(self.returncodes[0])==0 or any(e[-1]!=0 for e in self.returncodes)
+		# Expects that None!=0 is evaluated as True
+		return any(e[-1]!=0 for e in self.threadGroup.returncodes)
 
 	def fixable(self):
 		'''Checks whether there is a known or suspected solution available for any errors that occured. If tried once,
 		then will not show up again for that process.'''
-		return any(e[-1] in self.solutions for e in self.returncodes)
+		return any(e in self.solutions for e in self.threadGroup.returncodes)
 
 	def planB(self):
 		'''Runs suggested solutions for non-zero exitcodes.'''
-		current = [e[-1] if e[-1] not in e[:-1] else 0 for e in self.returncodes ]
-		errors = set(current)
+		errors = {e:[] for e in self.threadGroup.returncodes}
+		previousUnsolved = []
+		for i, e in enumerate(self.threadGroup.returncodes):
+			if e not in map(lambda x:x[i], self.history):
+				previousUnsolved.append((i,e))
+			else:
+				errors[e].append(i)
+		
+		if len(previousUnsolved) != 0:
+			for e, threads in previousUnsolved:
+				for i in threads:
+					LOGGER.error(f"Thread {i+1} of {self.softwareName} ran command: {self.threadGroup.args[i][0]!r} and returned exitcode {self.threadGroup.returncodes[i]} even after applying a fix for this exitcode.")
+			raise ChildProcessError(f"{self.softwareName} process(es) returned non-zero value(s). A solution was attempted but the process returned the same exitcode. Check logs for details.")
 
+		failed = [(e,errors[e]) for e in errors if e not in self.solutions and e != 0]
+		if len(failed) != 0:
+			for e, threads in failed:
+				for i in threads:
+					LOGGER.error(f"Thread {i+1} of {self.softwareName} ran command: {self.threadGroup.args[i][0]!r} and returned exitcode {self.threadGroup.returncodes[i]}.")
+			raise ChildProcessError(f"{self.softwareName} process(es) returned non-zero value(s) which do not have an implemented fix. Check logs for details.")
+		
 		for e in errors:
-			if e in self.solutions:
-				failedThreads = [i for i, e2 in enumerate(current) if e == e2]
-				self.solutions[e](self, failedThreads)
+			if e == 0:
+				continue
+			else:
+				self.solutions[e](self, errors[e])
 
 	def handleRetCode(self, returncode : int, prefix : str=""):
 		'''Not implemented for the template class, check the wrapper of the
@@ -234,12 +279,8 @@ class IndexingWrapper(ProcessWrapper):
 	solutions : ErrorFixes.SolutionContainer
 
 	
-	def __init__(self, lib : DirectoryLibrary, database : DatabaseReader, outputTemplate : str, flags : list[str]=[]):
-		super().__init__()
-		self.Lib = lib
-		self.database = database
-		self.queryName = self.Lib.queryName ## get name of file and remove ending
-		self.outputTemplate = outputTemplate
+	def __init__(self, lib : DirectoryLibrary, database : DatabaseReader, outputTemplate : str, hooks : Hooks=Hooks(), flags : list[str]=[]):
+		super().__init__(lib=lib, database=database, outputTemplate=outputTemplate, hooks=hooks)
 		
 		self.flags = flags
 		self.returncodes = [[] for _ in range(len(database.references))]
