@@ -93,7 +93,7 @@ class ThreadGroup:
 			t.start()
 
 	def results(self) -> list[int]:
-		return [i for i in range(len(self.threads)) if not self.threads[i].is_alive() and self.threads[i].exception is None]
+		return [t.name for t in self.threads if not t.is_alive() and t.exception is None]
 
 	def finished(self) -> bool:
 		return not any(t.is_alive() for t in self.threads)
@@ -134,7 +134,7 @@ class ProcessWrapper:
 		""""""
 		
 		try:
-			this = current_thread()
+			this : Thread = current_thread()
 			threadN, TG = int(this.name), this.group
 			LOGGER.debug(f"{self.category} Thread {threadN+1} - Running command: {command}")
 			self.hooks.trigger(f"{self.category}Progress", {"progress" : 0.0, "threadN" : threadN})
@@ -212,7 +212,7 @@ class ProcessWrapper:
 	def hickups(self):
 		'''Checks whether any process finished with a non-zero exitcode at the latest run. Returns True if process has not ran yet.'''
 		# Expects that None!=0 is evaluated as True
-		return any(e[-1]!=0 for e in self.threadGroup.returncodes)
+		return any(e!=0 for e in self.threadGroup.returncodes.values())
 
 	def fixable(self):
 		'''Checks whether there is a known or suspected solution available for any errors that occured. If tried once,
@@ -224,7 +224,7 @@ class ProcessWrapper:
 		errors = {e:[] for e in self.threadGroup.returncodes}
 		previousUnsolved = []
 		for i, e in enumerate(self.threadGroup.returncodes):
-			if e not in self.history[i]:
+			if e not in self.history[i][:-1]:
 				previousUnsolved.append((i,e))
 			else:
 				errors[e].append(i)
