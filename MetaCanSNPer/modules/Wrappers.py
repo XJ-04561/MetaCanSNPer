@@ -39,12 +39,13 @@ class ThreadGroup:
 	args : list[list] | list
 	kwargs : list[dict] | dict
 	threadKwargs : dict
-	returncodes : list[int]
+	returncodes : dict[int]
 
 	def __init__(self, target : Callable, args : list[list] | list=None, kwargs : list[dict] | dict=None, n : int=None, names : list=None, daemons : list[bool]|bool=True):
 		"""
 		"""
 		self.target = target
+		self.returncodes = {}
 		
 		# Error management for developers
 		if n is not None:
@@ -104,7 +105,7 @@ class ProcessWrapper:
 	database : DatabaseReader
 	hooks : Hooks
 	softwareName : str
-	history : list[list[int]] # History
+	history : dict[int, list[int]] # History
 	# previousErrors : list
 	category : str
 	semaphore : Semaphore
@@ -118,7 +119,11 @@ class ProcessWrapper:
 		self.outputTemplate = outputTemplate
 		self.hooks = hooks
 		self.semaphore = Semaphore() # Starts at 1.
-		self.history = []
+		self.history = {}
+		self._finishedHook = self.hooks.addHook(f"{self.category}Finished", target=lambda eventInfo, self: self.history[eventInfo["threadN"]].append(eventInfo["thread"].group.returncodes) if self.threadGroup is eventInfo["thread"].group else None, args=[self])
+
+	def __del__(self):
+		self.hooks.removeHook(f"{self.category}Finished", self._finishedHook)
 
 	def createCommand(self, *args, **kwargs):
 		"""Not implemented for the template class, check the wrapper of the
@@ -130,45 +135,48 @@ class ProcessWrapper:
 		
 		try:
 			this = current_thread()
-			threadN, TG = this.name, this.group
-			LOGGER.debug(f"{self.category} Thread {threadN} - Running command: {command}")
+			threadN, TG = int(this.name), this.group
+			LOGGER.debug(f"{self.category} Thread {threadN+1} - Running command: {command}")
 			self.hooks.trigger(f"{self.category}Progress", {"progress" : 0.0, "threadN" : threadN})
 
 			p : CompletedProcess = run(command.split() if type(command) is str else command, *args, **kwargs)
-			LOGGER.debug(f"{self.category} Thread {threadN} - Returned with exitcode: {p.returncode}")
+			LOGGER.debug(f"{self.category} Thread {threadN+1} - Returned with exitcode: {p.returncode}")
 
 			self.hooks.trigger(f"{self.category}Progress", {"progress" : 1.0, "threadN" : threadN})
 
-			self.history[threadN][-1] = p.returncode
-			self.handleRetCode(p.returncode, prefix=f"Thread {threadN} - ")
+			TG.returncodes[threadN] = p.returncode
+			self.handleRetCode(p.returncode, prefix=f"Thread {threadN+1} - ")
 
 			if log is not None:
 				if p.returncode == 0:
-					LOGGER.debug(f"{self.softwareName} Thread {threadN} - Logging output to: {log}")
+					LOGGER.debug(f"{self.softwareName} Thread {threadN+1} - Logging output to: {log}")
 				else:
-					LOGGER.error(f"{self.softwareName} Thread {threadN} - Child process encountered an issue, logging output to: {log}")
+					LOGGER.error(f"{self.softwareName} Thread {threadN+1} - Child process encountered an issue, logging output to: {log}")
 
 				with open(log, "w") as logFile:
 					logFile.write(p.stdout.decode("utf-8"))
 					logFile.write("\n")
 
-			LOGGER.debug(f"{self.category} Thread {threadN} - Finished!")
+			LOGGER.debug(f"{self.category} Thread {threadN+1} - Finished!")
 			self.semaphore.release()
-			self.hooks.trigger(f"{self.category}Finished", {"threadN":threadN})
+			self.hooks.trigger(f"{self.category}Finished", {"threadN":threadN, "thread":this})
 		except Exception as e:
-			e.add_note(f"{self.category} Thread {threadN}")
+			e.add_note(f"{self.category} Thread {threadN+1}")
 			LOGGER.exception(e)
 
 	def start(self) -> list[tuple[tuple[str,str],str]]:
 		'''Starts processes in new threads. Returns information of the output of the processes, but does not ensure the processes have finished.'''
 
 		commands, logs, self.outputs = self.createCommand()
-		zipped = []
+		zipped, names = [], []
 		for i, (c, l) in enumerate(zip(commands, logs)):
-			if i in self.skip:
+			if i not in self.history:
+				self.history[i] = []
+			if i not in self.skip:
 				zipped.append((c,l))
+				names.append(i)
 		
-		self.threadGroup = ThreadGroup(self.run, args=zipped, kwargs=[{"stdout":PIPE, "stderr":STDOUT}]*len(commands), daemon=True)
+		self.threadGroup = ThreadGroup(self.run, args=zipped, kwargs=[{"stdout":PIPE, "stderr":STDOUT}]*len(commands), names=names, daemons=True)
 
 		self.threadGroup.start()
 
@@ -216,7 +224,7 @@ class ProcessWrapper:
 		errors = {e:[] for e in self.threadGroup.returncodes}
 		previousUnsolved = []
 		for i, e in enumerate(self.threadGroup.returncodes):
-			if e not in map(lambda x:x[i], self.history):
+			if e not in self.history[i]:
 				previousUnsolved.append((i,e))
 			else:
 				errors[e].append(i)
@@ -244,9 +252,9 @@ class ProcessWrapper:
 		'''Not implemented for the template class, check the wrapper of the
 		specific software you are intending to use.'''
 		if returncode == 0:
-			LOGGER.info("{prefix}{softwareName} finished with exitcode 0.".format(prefix=prefix, softwareName=self.softwareName))
+			LOGGER.info(f"{prefix}{self.softwareName} finished with exitcode 0.")
 		else:
-			LOGGER.warning("{prefix}WARNING {softwareName} finished with a non zero exitcode: {returncode}".format(prefix=prefix, softwareName=self.softwareName, returncode=returncode))
+			LOGGER.warning(f"{prefix}WARNING {self.softwareName} finished with a non zero exitcode: {returncode}")
 
 	def preProcess(self, *args, **kwargs):
 		'''Not implemented for the template class, check the wrapper of the

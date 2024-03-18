@@ -55,6 +55,17 @@ class progressiveMauve(SolutionContainer):
         LOGGER.info(f"New query: {out}")
         self.obj.Lib.setQuery(out, abs=True)
 
+class minimap2(SolutionContainer):
+
+    def _11(self):
+        LOGGER.info("Fixing exitcode 11 by changing paths to symbolic links into real paths.")
+        from PseudoPathy import Path
+        for i in range(len(self.obj.Lib.query)):
+            msg = f"{self.obj.Lib.query[i]!r} now becomes "
+            self.obj.Lib.query[i] = Path(os.path.realpath(self.obj.Lib.query[i]))
+            msg += f"{self.obj.Lib.query[i]!r}"
+            LOGGER.debug(msg)
+
 def get(softwareName) -> SolutionContainer:
 	for c in SolutionContainer.__subclasses__():
 		if c.__name__ == softwareName:

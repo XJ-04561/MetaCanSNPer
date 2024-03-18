@@ -19,7 +19,7 @@ class Hook:
 class Hooks:
 
     _eventQueue : list[tuple[str,dict]]
-    _hooks : dict
+    _hooks : dict[str, list[Hook]]
     _worker : Thread
     RUNNING : bool
 
@@ -33,13 +33,27 @@ class Hooks:
     def __del__(self):
         self.RUNNING = False
     
-    def addHook(self, eventType, target, args=[], kwargs={}):
+    def addHook(self, eventType : str, target : Callable, args : list=[], kwargs : dict={}) -> Hook:
         if eventType not in self._hooks:
             self._hooks[eventType] = []
         
-        self._hooks[eventType].append(Hook(target, args, kwargs))
+        hook = Hook(target, args, kwargs)
+        self._hooks[eventType].append(hook)
+
+        return hook
     
-    def trigger(self, eventType, eventInfo):
+    def removeHook(self, eventType : str, hook : Hook):
+        """Removes all occurances of the hook in the list of hooks associated with the eventType"""
+        # Essentially a while True: but limited to at least iterations as long as the hooks list.
+        ret = False
+        for _ in range(len(self._hooks[eventType])):
+            try:
+                self._hooks[eventType].remove(hook)
+                ret = True
+            except ValueError:
+                return ret
+
+    def trigger(self, eventType : str, eventInfo : dict):
         self._eventQueue.append((eventType, eventInfo))
     
     def mainLoop(self):
