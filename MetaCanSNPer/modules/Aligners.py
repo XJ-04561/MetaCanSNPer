@@ -14,7 +14,7 @@ from MetaCanSNPer.modules.Wrappers import Aligner
 
 class ProgressiveMauve(Aligner):
 	softwareName = "progressiveMauve"
-	commandTemplate = "progressiveMauve {0[options]} {0[ref]} {0[query]} > {0[output]}"
+	commandTemplate = "progressiveMauve {options} {ref} {query} > {output}"
 	outFormat = "xmfa"
 
 	'''This is probably not needed.'''

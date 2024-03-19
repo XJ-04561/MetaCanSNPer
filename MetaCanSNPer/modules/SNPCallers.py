@@ -12,19 +12,19 @@ from MetaCanSNPer.modules.Wrappers import SNPCaller
 '''
 class ParseXMFA2(SNPCaller):
 	softwareName = "ParseXMFA2"
-	commandTemplate = "ParseXMFA2 '{0[alignmentPath]}' '{0[targetSNPs]}' -rID 1 -o {0[output]} > {0[logFile]}"
+	commandTemplate = "ParseXMFA2 '{alignmentPath}' '{targetSNPs}' -rID 1 -o {output} > {logFile}"
 	inFormat = ["xmfa"]
 	outFormat = "vcf"
 
 class GATK_Mutect2(SNPCaller):
 	softwareName = "gatk_Mutect2"
-	commandTemplate = "gatk IndexFeatureFile -I '{0[targetSNPs]}' && gatk Mutect2 --genotype-germline-sites --genotype-pon-sites -R {0[refPath]} -I {0[mapPath]} -L {0[targetSNPs]} --force-call-filtered-alleles --alleles {0[targetSNPs]} -O {0[output]} > {0[logFile]}"
+	commandTemplate = "gatk IndexFeatureFile -I '{targetSNPs}' && gatk Mutect2 --genotype-germline-sites --genotype-pon-sites -R {refPath} -I {mapPath} -L {targetSNPs} --force-call-filtered-alleles --alleles {targetSNPs} -O {output} > {logFile}"
 	inFormat = ["bam"]
 	outFormat = "vcf"
 
 class GATK_HaplotypeCaller(SNPCaller):
 	softwareName = "gatk_HaplotypeCaller"
-	commandTemplate = "gatk IndexFeatureFile -I '{0[targetSNPs]}' && gatk HaplotypeCaller -R {0[refPath]} -I {0[mapPath]} -L {0[targetSNPs]} --alleles {0[targetSNPs]} -O {0[output]} > {0[logFile]}"
+	commandTemplate = "gatk IndexFeatureFile -I '{targetSNPs}' && gatk HaplotypeCaller -R {refPath} -I {mapPath} -L {targetSNPs} --alleles {targetSNPs} -O {output} > {logFile}"
 	inFormat = ["bam"]
 	outFormat = "vcf"
 

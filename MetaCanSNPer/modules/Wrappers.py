@@ -106,7 +106,7 @@ class ProcessWrapper:
 	hooks : Hooks
 	softwareName : str
 	history : dict[int, list[int]] # History
-	# previousErrors : list
+	ignoredErrors : set
 	category : str
 	semaphore : Semaphore
 	solutions : ErrorFixes.SolutionContainer
@@ -198,11 +198,12 @@ class ProcessWrapper:
 			for i in set(self.waitNext(timeout=1)).difference(finished):
 				finished.add(i)
 				key, path = self.outputs[i]
-				if self.threadGroup.returncodes[i] == 0:
-					outputDict[key] = path
+				try:
+					if self.threadGroup.returncodes[i] == 0:
+						outputDict[key] = path
 					LOGGER.info(f"Finished running {self.softwareName} {len(outputDict)}/{len(self.outputs)}.")
-		if any(t.exception is not None for t in self.threadGroup):
-			raise ThreadError(f"{self.softwareName!r} crashed/failed to start. Check logs for more details.")
+				except:
+					raise ThreadError(f"{self.softwareName!r} crashed/failed to start. Check logs for more details.")
 
 	def finished(self):
 		if self.threadGroup is None:
@@ -217,25 +218,24 @@ class ProcessWrapper:
 	def fixable(self):
 		'''Checks whether there is a known or suspected solution available for any errors that occured. If tried once,
 		then will not show up again for that process.'''
-		return any(e in self.solutions for e in self.threadGroup.returncodes)
+		return any(e in self.solutions for i,e in self.threadGroup.returncodes.items() if e not in self.histroy[i][:-1])
 
 	def planB(self):
 		'''Runs suggested solutions for non-zero exitcodes.'''
-		errors = {e:[] for e in self.threadGroup.returncodes}
+		errors = {e:[] for e in set(self.threadGroup.returncodes.values())}
 		previousUnsolved = []
-		for i, e in enumerate(self.threadGroup.returncodes):
-			if e not in self.history[i][:-1]:
+		for i, e in self.threadGroup.returncodes.items():
+			if e in self.history[i][:-1]:
 				previousUnsolved.append((i,e))
 			else:
 				errors[e].append(i)
 		
-		if len(previousUnsolved) != 0:
-			for e, threads in previousUnsolved:
-				for i in threads:
-					LOGGER.error(f"Thread {i+1} of {self.softwareName} ran command: {self.threadGroup.args[i][0]!r} and returned exitcode {self.threadGroup.returncodes[i]} even after applying a fix for this exitcode.")
+		if len(previousUnsolved) > 0:
+			for i, e in previousUnsolved:
+				LOGGER.error(f"Thread {i+1} of {self.softwareName} ran command: {self.threadGroup.args[i][0]!r} and returned exitcode {self.threadGroup.returncodes[i]} even after applying a fix for this exitcode.")
 			raise ChildProcessError(f"{self.softwareName} process(es) returned non-zero value(s). A solution was attempted but the process returned the same exitcode. Check logs for details.")
 
-		failed = [(e,errors[e]) for e in errors if e not in self.solutions and e != 0]
+		failed = [(e,errors[e]) for e in errors if e not in self.solutions and e != 0 and e not in self.ignoredErrors]
 		if len(failed) != 0:
 			for e, threads in failed:
 				for i in threads:
@@ -243,7 +243,7 @@ class ProcessWrapper:
 			raise ChildProcessError(f"{self.softwareName} process(es) returned non-zero value(s) which do not have an implemented fix. Check logs for details.")
 		
 		for e in errors:
-			if e == 0:
+			if e == 0 or e in self.ignoredErrors:
 				continue
 			else:
 				self.solutions[e](self, errors[e])
@@ -266,8 +266,8 @@ class ProcessWrapper:
 			f"{self.softwareName!r}: Processes finished with exit codes for which there are no implemented solutions.",
 			f"{'QUERY':<58}{'REFERENCE':<58}={'EXITCODE':>4}"
 		]
-		for (key, path), e in zip(self.outputs, self.returncodes):
-			msg.append(f"{self.Lib.queryName!r:<30}{key!r:<60}={e[-1]:>4}")
+		for (key, path), e in zip(self.outputs, self.threadGroup.returncodes):
+			msg.append(f"{self.Lib.queryName:<30}{key:<60} = {e[-1]:>4}")
 		
 		out("\n".join(msg))
 
@@ -280,7 +280,6 @@ class IndexingWrapper(ProcessWrapper):
 	flags : list[str]
 	format : str
 
-	returncodes : list[list[int]]
 	outputs : list[tuple[str,str]]
 	"""[((refName, queryName), outputPath), ...]"""
 	threadGroup : ThreadGroup
@@ -291,7 +290,6 @@ class IndexingWrapper(ProcessWrapper):
 		super().__init__(lib=lib, database=database, outputTemplate=outputTemplate, hooks=hooks)
 		
 		self.flags = flags
-		self.returncodes = [[] for _ in range(len(database.references))]
 		self.threadGroup = None
 		self.solutions : ErrorFixes.SolutionContainer = ErrorFixes.get(self.softwareName)(self)
 		
@@ -331,7 +329,7 @@ class IndexingWrapper(ProcessWrapper):
 			self.formatDict["output"] = output
 			self.formatDict["logFile"] = logfile
 
-			LOGGER.info(f"Created command (if --dry-run has been specified, this will not be the true command ran):\n{self.commandTemplate.format(self.formatDict)}")
+			LOGGER.info(f"Created command (if --dry-run has been specified, this will not be the true command ran):\n{self.commandTemplate.format(**self.formatDict)}")
 			if not Globals.DRY_RUN:
 				command = self.commandTemplate.format(self.formatDict)
 			else:
@@ -389,3 +387,4 @@ class SNPCaller(IndexingWrapper):
 				
 			SNPFiles[genome] = filename
 		self.Lib.settargetSNPs(SNPFiles)
+
