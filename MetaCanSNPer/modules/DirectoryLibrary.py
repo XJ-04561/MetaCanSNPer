@@ -152,7 +152,7 @@ class DirectoryLibrary(PathLibrary):
 			self.outDir = Path(outDir, purpose="w")
 		else:
 			self.outDir = (self.commonGroups.locals > outDir)
-		self.outDir.defaultPurpose = "w"
+		self.outDir.defaultPurpose = "rwx"
 		LOGGER.debug(f"Set outDir to:\n{self.outDir}")
 
 		self.resultDir = self.logDir = self.outDir.create(self.sessionName)
