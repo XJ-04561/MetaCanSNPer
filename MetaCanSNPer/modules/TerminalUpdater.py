@@ -34,7 +34,6 @@ class TerminalUpdater:
 		self.thread = Thread(target=printFunc, args=args, kwargs=kwargs, daemon=True)
 
 	def start(self):
-		print(f"{self.message} ... ", end="", flush=True)
 		self.thread.start()
 	
 	def stop(self):
@@ -60,11 +59,13 @@ class TerminalUpdater:
 		backspaces = "\b" * (N + (len(borders[0])+len(borders[1]))*N + sepLength*min(0, N-1))
 		m = len(symbols)
 		n = [0 for _ in range(len(self.threads))]
+		print(f"{self.message} ... ", end="", flush=True, file=self.out)
 		while self.running:
 			for i, key in enumerate(keys):
 				prog = self.threads[key]
 				if self.running:
 					print(f"{borders[0]}{symbols[n[i]]}{borders[1]}", end="" if key == keys[-1] else sep, flush=True, file=self.out)
+					print()
 					n[i]=(n[i]+1)%m
 				else:
 					backspaces = "\b" * ((1+borders[0]+borders[1]+sepLength)*i)
@@ -81,6 +82,7 @@ class TerminalUpdater:
 		sepLength = len(sep)
 		N = len(self.threads)
 		backspaces = "\b" * (N + (len(borders[0])+len(borders[1]))*N + sepLength*min(0, len(self.threads)-1))
+		print(f"{self.message} ... ", end="", flush=True, file=self.out)
 		while self.running:
 			for i, key in enumerate(keys):
 				prog = self.threads[key]
@@ -101,6 +103,7 @@ class TerminalUpdater:
 		innerLength = length - len(border[0]) - len(border[1])
 		sepLength = len(sep)
 		backspaces = "\b" * (length * len(self.threads) + sepLength * min(0, len(self.threads) - 1))
+		print(f"{self.message} ... ", end="", flush=True, file=self.out)
 		while self.running:
 			for i, key in enumerate(keys):
 				prog = self.threads[key]
