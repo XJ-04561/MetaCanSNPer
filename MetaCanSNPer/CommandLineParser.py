@@ -30,7 +30,7 @@ def showLoadingSymbol(running : bool, threads : dict[float], symbols : list[str]
 		for i, key in enumerate(keys):
 			prog = threads[key]
 			if running:
-				print(borders[0]+symbols[n[i]]+borders[1]+sep, end="", flush=True)
+				print(f"{borders[0]}{symbols[n[i]]}{borders[1]}", end="" if key == keys[-1] else sep, flush=True)
 				n[i]=(n[i]+1)%m
 			else:
 				backspaces = "\b" * (i+borders[0]*i+borders[1]*i+sepLength*min(0, i-1))
@@ -53,7 +53,7 @@ def showLoadingMiniBars(running : bool, threads : list[float], symbols : list[st
 		for i, key in enumerate(keys):
 			prog = threads[key]
 			if running:
-				print(borders[0]+symbols[int(N*prog)]+borders[1]+sep, end="", flush=True)
+				print(f"{borders[0]}{symbols[int(N*prog)]}{borders[1]}", end="" if key == keys[-1] else sep, flush=True)
 			else:
 				backspaces = "\b" * (i+borders[0]*i+borders[1]*i+sepLength*min(0, i-1))
 				print(backspaces, end="", flush=True)
@@ -78,7 +78,8 @@ def showLoadingBar(running, threads : float|list[float], length=10, border=("[",
 				fillLength = int(innerLength*2*prog)
 				fillLength, halfBlock = fillLength//2, fillLength%2
 				emptyLength = innerLength - fillLength - halfBlock
-				print(f"{border[0]}{fill*fillLength}{halfFill*halfBlock}{background*emptyLength}{border[1]}{sep}", end="", flush=True)
+				
+				print(f"{border[0]}{fill*fillLength}{halfFill*halfBlock}{background*emptyLength}{border[1]}", end="" if key == keys[-1] else sep, flush=True)
 			else:
 				backspaces = "\b" * (length * i + sepLength * min(0, i - 1))
 				print(backspaces, end="", flush=True)
