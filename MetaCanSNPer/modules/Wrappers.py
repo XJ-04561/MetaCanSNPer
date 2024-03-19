@@ -122,6 +122,7 @@ class ProcessWrapper:
 		self.hooks = hooks
 		self.semaphore = Semaphore() # Starts at 1.
 		self.history = {}
+		self.skip = set()
 		self._finishedHook = self.hooks.addHook(f"{self.category}Finished", target=lambda eventInfo, self: self.history[eventInfo["threadN"]].append(eventInfo["thread"].group.returncodes) if self.threadGroup is eventInfo["thread"].group else None, args=[self])
 
 	def __del__(self):
@@ -173,9 +174,9 @@ class ProcessWrapper:
 		zipped, names = [], []
 		for i, (c, l) in enumerate(zip(commands, logs)):
 			i += 1
-			if i not in self.history:
-				self.history[i] = []
 			if i not in self.skip:
+				if i not in self.history:
+					self.history[i] = []
 				zipped.append((c,l))
 				names.append(i)
 		
@@ -216,7 +217,7 @@ class ProcessWrapper:
 	def hickups(self):
 		'''Checks whether any process finished with a non-zero exitcode at the latest run. Returns True if process has not ran yet.'''
 		# Expects that None!=0 is evaluated as True
-		return any(e!=0 for e in self.threadGroup.returncodes.values())
+		return self.threadGroup is None or any(e!=0 for e in self.threadGroup.returncodes.values())
 
 	def fixable(self):
 		'''Checks whether there is a known or suspected solution available for any errors that occured. If tried once,
@@ -247,7 +248,8 @@ class ProcessWrapper:
 		
 		for e in errors:
 			if e == 0 or e in self.ignoredErrors:
-				continue
+				for i in errors[e]:
+					self.skip.add(i)
 			else:
 				self.solutions[e](self, errors[e])
 
