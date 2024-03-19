@@ -27,6 +27,8 @@ class TerminalUpdater:
 
 		self.hooks.addHook(f"{self.category}Progress", self.updateProgress)
 		self.hooks.addHook(f"{self.category}Finished", self.stopLoadingbar)
+
+		self.setPrintFunc(self.showLoadingSymbol)
 	
 	def setPrintFunc(self, printFunc, args=[], kwargs={}):
 		self.thread = Thread(target=printFunc, args=args, kwargs=kwargs, daemon=True)
