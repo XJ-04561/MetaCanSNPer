@@ -15,14 +15,14 @@ import MetaCanSNPer.Globals as Globals
 LOGGER = LogKeeper.createLogger(__name__)
 
 
-def showLoadingSymbol(running : bool, threads : dict[float], symbols : list[str]=["\b|", "\b/", "\b-", "\b\\"], sep=" ", borders=("[", "]")):
+def showLoadingSymbol(running : bool, threads : dict[float], symbols : list[str]=["|", "/", "-", "\\"], sep=" ", borders=("[", "]")):
 	if type(threads) is float:
 		threads = {1:threads}
 
 	keys = sorted(threads.keys())
 	sepLength = len(sep)
 	N = len(threads)
-	backspaces = "\b" * (N + (len(borders[0])+len(borders[1]))*N + sepLength*min(0, len(threads)-1))
+	backspaces = "\b" * (N + (len(borders[0])+len(borders[1]))*N + sepLength*min(0, N-1))
 	m = len(symbols)
 	n = [0 for _ in range(len(threads))]
 	while len(keys) > 0:
@@ -30,8 +30,8 @@ def showLoadingSymbol(running : bool, threads : dict[float], symbols : list[str]
 		for i, key in enumerate(keys):
 			prog = threads[key]
 			if running:
-				n[i]=(n[i]+1)%m
 				print(borders[0]+symbols[n[i]]+borders[1]+sep, end="", flush=True)
+				n[i]=(n[i]+1)%m
 			else:
 				backspaces = "\b" * (i+borders[0]*i+borders[1]*i+sepLength*min(0, i-1))
 				print(backspaces, end="", flush=True)
