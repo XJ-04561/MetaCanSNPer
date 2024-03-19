@@ -19,19 +19,23 @@ LOGGER = LogKeeper.createLogger(__name__)
 class ThreadGroup: pass
 
 class Thread(_Thread):
+
 	group : ThreadGroup
 	exception : Exception
-	def __new__(cls, group : ThreadGroup=None, **kwargs):
-		obj = super().__new__(cls)
-		obj.group = group
-		obj.exception = None
-		return obj
+
+	# def __new__(cls, group : ThreadGroup=None, **kwargs):
+	# 	obj = super().__new__(cls)
+	# 	obj.group = group
+	# 	obj.exception = None
+	# 	return obj
 	
 	def __init__(self, group : ThreadGroup=None, **kwargs):
 		if "daemon" not in kwargs:
 			kwargs["daemon"] = True
-		kwargs.__delitem__("group")
-		super().__init__(self, **kwargs)
+		
+		super().__init__(**kwargs)
+		self.group = group
+		self.exception = None
 	
 	def run(self, *args, **kwargs):
 		try:
