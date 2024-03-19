@@ -27,7 +27,7 @@ class Thread(_Thread):
 		obj.exception = None
 		return obj
 	
-	def __init__(self, group, **kwargs):
+	def __init__(self, group : ThreadGroup=None, **kwargs):
 		if "daemon" not in kwargs:
 			kwargs["daemon"] = True
 		super().__init__(self, **kwargs)
