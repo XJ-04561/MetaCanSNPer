@@ -65,12 +65,12 @@ class TerminalUpdater:
 				prog = self.threads[key]
 				if self.running:
 					print(f"{borders[0]}{symbols[n[i]]}{borders[1]}", end="" if key == keys[-1] else sep, flush=True, file=self.out)
-					print()
 					n[i]=(n[i]+1)%m
 				else:
 					backspaces = "\b" * ((1+borders[0]+borders[1]+sepLength)*i)
 					print(backspaces+backspaces.replace("\b", " ")+backspaces, end="", flush=True, file=self.out)
 					return print("Done!", flush=True, file=self.out)
+			print()
 			sleep(0.2)
 			print(backspaces, end="", flush=True, file=self.out)
 		print(backspaces.replace("\b", " ")+backspaces, end="", flush=True, file=self.out)
