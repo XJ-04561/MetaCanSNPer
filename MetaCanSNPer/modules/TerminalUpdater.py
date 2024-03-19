@@ -61,7 +61,6 @@ class TerminalUpdater:
 		m = len(symbols)
 		n = [0 for _ in range(len(self.threads))]
 		while self.running:
-			print(backspaces, end="", flush=True, file=self.out)
 			for i, key in enumerate(keys):
 				prog = self.threads[key]
 				if self.running:
@@ -72,7 +71,8 @@ class TerminalUpdater:
 					print(backspaces+backspaces.replace("\b", " ")+backspaces, end="", flush=True, file=self.out)
 					return print("Done!", flush=True, file=self.out)
 			sleep(0.2)
-		print(backspaces+backspaces.replace("\b", " ")+backspaces, end="", flush=True, file=self.out)
+			print(backspaces, end="", flush=True, file=self.out)
+		print(backspaces.replace("\b", " ")+backspaces, end="", flush=True, file=self.out)
 		print("Done!", flush=True, file=self.out)
 
 	def showLoadingMiniBars(self, symbols : list[str]= [".", "_", "\u2584", "", "\u2588"], sep=" ", borders=("[", "]")):
@@ -82,7 +82,6 @@ class TerminalUpdater:
 		N = len(self.threads)
 		backspaces = "\b" * (N + (len(borders[0])+len(borders[1]))*N + sepLength*min(0, len(self.threads)-1))
 		while self.running:
-			print(backspaces, end="", flush=True, file=self.out)
 			for i, key in enumerate(keys):
 				prog = self.threads[key]
 				if self.running:
@@ -92,7 +91,8 @@ class TerminalUpdater:
 					print(backspaces+backspaces.replace("\b", " ")+backspaces, end="", flush=True, file=self.out)
 					return print("Done!", flush=True, file=self.out)
 			sleep(0.5)
-		print(backspaces+backspaces.replace("\b", " ")+backspaces, end="", flush=True, file=self.out)
+			print(backspaces, end="", flush=True, file=self.out)
+		print(backspaces.replace("\b", " ")+backspaces, end="", flush=True, file=self.out)
 		print("Done!", flush=True, file=self.out)
 
 	def showLoadingBar(self, length=10, border=("[", "]"), fill="\u2588", halfFill="\u258C", background=" ", sep=" "):
@@ -102,7 +102,6 @@ class TerminalUpdater:
 		sepLength = len(sep)
 		backspaces = "\b" * (length * len(self.threads) + sepLength * min(0, len(self.threads) - 1))
 		while self.running:
-			print(backspaces, end="", flush=True, file=self.out)
 			for i, key in enumerate(keys):
 				prog = self.threads[key]
 				if self.running:
@@ -116,5 +115,6 @@ class TerminalUpdater:
 					print(backspaces+backspaces.replace("\b", " ")+backspaces, end="", flush=True, file=self.out)
 					return print("Done!", flush=True, file=self.out)
 			sleep(0.6)
-		print(backspaces+backspaces.replace("\b", " ")+backspaces, end="", flush=True, file=self.out)
+			print(backspaces, end="", flush=True, file=self.out)
+		print(backspaces.replace("\b", " ")+backspaces, end="", flush=True, file=self.out)
 		print("Done!", flush=True, file=self.out)
