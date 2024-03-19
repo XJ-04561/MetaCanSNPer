@@ -2,6 +2,10 @@
 from typing import Callable
 from threading import Thread, Condition
 
+from MetaCanSNPer.modules.LogKeeper import createLogger
+
+LOGGER = createLogger(__name__)
+
 class Hook:
 
     target : Callable
@@ -34,6 +38,8 @@ class Hooks:
         self.RUNNING = False
     
     def addHook(self, eventType : str, target : Callable, args : list=[], kwargs : dict={}) -> Hook:
+        
+        LOGGER.debug(f"Adding Hook to {self}. Hook has: {eventType=}, {target=}, {args=}, {kwargs=}")
         if eventType not in self._hooks:
             self._hooks[eventType] = []
         
@@ -54,6 +60,7 @@ class Hooks:
                 return ret
 
     def trigger(self, eventType : str, eventInfo : dict):
+        LOGGER.debug(f"Event triggered: {eventType=}, {eventInfo=}")
         self._eventQueue.append((eventType, eventInfo))
     
     def mainLoop(self):
@@ -63,5 +70,6 @@ class Hooks:
             cond.wait_for(lambda :len(self._eventQueue)>0, timeout=1)
             if len(self._eventQueue)>0:
                 eventType, eventInfo = self._eventQueue.pop(0)
+                if eventType not in self._hooks or self._hooks.get(eventType) == []: LOGGER.warning(f"{eventType=} triggered, but no hooks registered in {self!r}")
                 for hook in self._hooks.get(eventType, []):
                     if self.RUNNING: hook(eventInfo)

@@ -176,7 +176,7 @@ def main():
 
 			mObj.createMap(softwareName=flags["mapper"], flags=argsDict.get("--mapperOptions", {}))
 
-			TU.stop()
+			TU.wait()
 
 		if flags.get("aligner") is not None:
 			TU = TerminalUpdater("Creating Alignments", "Aligners", mObj.hooks, len(mObj.database.references), out=open(os.devnull, "w") if args.silent else sys.stdout)
@@ -184,18 +184,22 @@ def main():
 
 			mObj.createAlignment(softwareName=flags["aligner"], flags=argsDict.get("--alignerOptions", {}))
 			
-			TU.stop()
+			TU.wait()
 		
 		TU = TerminalUpdater("Calling SNPs", "SNPCallers", mObj.hooks, len(mObj.database.references), out=open(os.devnull, "w") if args.silent else sys.stdout)
 		TU.start()
 
 		mObj.callSNPs(softwareName=flags["snpCaller"], flags=argsDict.get("--snpCallerOptions", {}))
 		
-		TU.stop()
+		TU.wait()
 
 		if not args.silent:
 			print(f"{SOFTWARE_NAME} finished! Results exported to: {mObj.Lib.resultDir}")
 	except Exception as e:
+		try:
+			TU.stop()
+		except:
+			pass
 		LOGGER.exception(e)
 		print(f"{SOFTWARE_NAME} ended before completing query. Exception that caused it:", file=sys.stderr)
 		print("", file=sys.stderr)

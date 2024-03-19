@@ -113,7 +113,6 @@ class MetaCanSNPer:
 		
 		self.database = DatabaseReader(self.databasePath)
 		LOGGER.debug(f"Connected to database:{self.databasePath}")
-		self.setReferenceFiles(self.database.references)
 		return 0
 
 	'''MetaCanSNPer set directories'''
@@ -174,27 +173,27 @@ class MetaCanSNPer:
 		software : IndexingWrapper = softwareClass(self.Lib, self.database, self.outputTemplate, self.hooks, flags=flags)
 
 		# Check that error did not occur.
-		while software.hickups():
+		while software.canRun():
 			LOGGER.info(f"Checking for pre-processing for {software.softwareName}.")
 			software.preProcess()
 
 			LOGGER.info(f"Starting {software.softwareName}.")
-			output = software.start()
+			software.start()
 			
 			LOGGER.info(f"Waiting for {software.softwareName} to finish.")
 			software.updateWhileWaiting(outputDict)
 			LOGGER.info(f"Finished running all instances of {software.softwareName}.")
 
-			if not software.hickups():
-				pass
-			elif software.fixable():
-				LOGGER.info(f"{software.softwareName} failed. Fix for the specific error exists. Implementing and running again.")
-				software.planB()
-			else:
-				software.displayOutcomes(out=LOGGER.error)
-				for (key, path), e in zip(software.outputs, software.returncodes[-1]):
-					del outputDict[key]
-				raise ChildProcessError(f"{software.softwareName} returned with a non-zero exitcode for which there is no implemented solution.")
+			if software.hickups():
+				if software.fixable():
+					LOGGER.info(f"{software.softwareName} failed. Fix for the specific exitcodes exist. Implementing and running again.")
+					software.planB()
+				else:
+					software.displayOutcomes(out=LOGGER.error)
+					# for i in software.history:
+					# 	(key, path) = software.outputs[i]
+					# 	del outputDict[key]
+					raise ChildProcessError(f"{software.softwareName} returned with a non-zero exitcode for which there is no implemented solution.")
 		
 		return outputDict
 	

@@ -1,4 +1,5 @@
 import os.path
+from copy import copy as copyObject
 from shutil import copy
 
 from MetaCanSNPer.Globals import *
@@ -53,6 +54,8 @@ class progressiveMauve(SolutionContainer):
             out.append(tmpName)
         
         LOGGER.info(f"New query: {out}")
+        self.obj.Lib = copyObject(self.obj.Lib)
+        object.__setattr__(self.obj.Lib, "_lib", object.__getattribute__(self.obj.Lib, "_lib").copy())
         self.obj.Lib.setQuery(out, abs=True)
 
 class minimap2(SolutionContainer):
@@ -64,6 +67,12 @@ class minimap2(SolutionContainer):
             msg = f"{self.obj.Lib.query[i]!r} now becomes "
             self.obj.Lib.query[i] = Path(os.path.realpath(self.obj.Lib.query[i]))
             msg += f"{self.obj.Lib.query[i]!r}"
+            LOGGER.debug(msg)
+        
+        for genome, path in self.obj.Lib.references.items():
+            msg = f"{path!r} now becomes "
+            self.obj.Lib.references[genome] = Path(os.path.realpath(path))
+            msg += f"{path!r}"
             LOGGER.debug(msg)
 
 def get(softwareName) -> SolutionContainer:

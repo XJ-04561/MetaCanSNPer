@@ -39,7 +39,7 @@ class Thread(_Thread):
 	
 	def run(self, *args, **kwargs):
 		try:
-			super().run(self, *args, **kwargs)
+			super().run(*args, **kwargs)
 		except Exception as e:
 			self.exception = e
 
@@ -82,15 +82,15 @@ class ThreadGroup:
 		if any(self.n != x for x in map(len, [self.kwargs, self.names, self.daemons])):
 			raise ValueError("ThreadGroup entries for all kwargs except target must be contiguous, scalar, or None. The exception is for `args` and `kwargs` if `n` is given.")
 
-		def targetWrapper(target, *args, **kwargs):
-			try:
-				target(*args, **kwargs)
-			except Exception as e:
-				object.__setattr__(current_thread(), "exception", e)
+		# def targetWrapper(target, *args, **kwargs):
+		# 	try:
+		# 		target(*args, **kwargs)
+		# 	except Exception as e:
+		# 		object.__setattr__(current_thread(), "exception", e)
 
 		self.threads = []
 		for args, kwargs, name, daemon in zip(self.args, self.kwargs, self.names, self.daemons):
-			self.threads.append(Thread(group=self, target=targetWrapper, args=(self.target,)+args, kwargs=kwargs, name=name, daemon=daemon))
+			self.threads.append(Thread(group=self, target=target, args=args, kwargs=kwargs, name=name, daemon=daemon))
 
 
 	def __iter__(self):
@@ -126,6 +126,7 @@ class ProcessWrapper:
 	semaphore : Semaphore
 	solutions : ErrorFixes.SolutionContainer
 	skip : set
+	threadGroup : ThreadGroup
 
 	def __init__(self, lib : DirectoryLibrary, database : DatabaseReader, outputTemplate : str, hooks : Hooks=Hooks()):
 		self.Lib = lib
@@ -133,13 +134,11 @@ class ProcessWrapper:
 		self.queryName = self.Lib.queryName ## get name of file and remove ending
 		self.outputTemplate = outputTemplate
 		self.hooks = hooks
+		self.threadGroup = None
 		self.semaphore = Semaphore() # Starts at 1.
 		self.history = {}
 		self.skip = set()
-		self._finishedHook = self.hooks.addHook(f"{self.category}Finished", target=lambda eventInfo, self: self.history[eventInfo["threadN"]].append(eventInfo["thread"].group.returncodes) if self.threadGroup is eventInfo["thread"].group else None, args=[self])
-
-	def __del__(self):
-		self.hooks.removeHook(f"{self.category}Finished", self._finishedHook)
+		self.outputs = {}
 
 	def createCommand(self, *args, **kwargs):
 		"""Not implemented for the template class, check the wrapper of the
@@ -174,8 +173,8 @@ class ProcessWrapper:
 					logFile.write("\n")
 
 			LOGGER.debug(f"{self.category} Thread {threadN} - Finished!")
-			self.semaphore.release()
 			self.hooks.trigger(f"{self.category}Finished", {"threadN":threadN, "thread":this})
+			self.semaphore.release()
 		except Exception as e:
 			e.add_note(f"{self.category} Thread {threadN}")
 			LOGGER.exception(e)
@@ -183,7 +182,7 @@ class ProcessWrapper:
 	def start(self) -> list[tuple[tuple[str,str],str]]:
 		'''Starts processes in new threads. Returns information of the output of the processes, but does not ensure the processes have finished.'''
 
-		commands, logs, self.outputs = self.createCommand()
+		commands, logs, outputs = self.createCommand()
 		zipped, names = [], []
 		for i, (c, l) in enumerate(zip(commands, logs)):
 			i += 1
@@ -192,8 +191,9 @@ class ProcessWrapper:
 					self.history[i] = []
 				zipped.append((c,l))
 				names.append(i)
+				self.outputs[i] = outputs[i-1]
 		
-		self.threadGroup = ThreadGroup(self.run, args=zipped, kwargs=[{"stdout":PIPE, "stderr":STDOUT}]*len(commands), names=names, daemons=True)
+		self.threadGroup = ThreadGroup(self.run, args=zipped, kwargs=[{"stdout":PIPE, "stderr":PIPE}]*len(commands), names=names, daemons=True)
 
 		self.threadGroup.start()
 
@@ -201,7 +201,7 @@ class ProcessWrapper:
 	
 	def waitNext(self, timeout=None):
 		self.semaphore.acquire(timeout=timeout)
-		return self.threadGroup.results()
+		return map(int, self.threadGroup.results())
 
 	def wait(self, timeout=5):
 		while not self.finished() and all(t.exception is None for t in self.threadGroup):
@@ -227,25 +227,31 @@ class ProcessWrapper:
 			raise ThreadError("{classType}.threadGroup is not initialized so it cannot be status checked with {classType}.finished()".format(classType=type(self).__name__))
 		return self.threadGroup.finished()
 	
+	def canRun(self):
+		'''Checks whether any process finished with a non-zero exitcode at the latest run. Returns True if process has not ran yet.'''
+		# Expects that None!=0 is evaluated as True
+		return self.threadGroup is None
+	
 	def hickups(self):
 		'''Checks whether any process finished with a non-zero exitcode at the latest run. Returns True if process has not ran yet.'''
 		# Expects that None!=0 is evaluated as True
-		return self.threadGroup is None or any(e!=0 for e in self.threadGroup.returncodes.values())
+		return any(e!=0 for e in self.threadGroup.returncodes.values())
 
 	def fixable(self):
 		'''Checks whether there is a known or suspected solution available for any errors that occured. If tried once,
 		then will not show up again for that process.'''
-		return any(e in self.solutions for i,e in self.threadGroup.returncodes.items() if e not in self.histroy[i][:-1])
+		return any(e in self.solutions for i,e in self.threadGroup.returncodes.items() if e not in self.history[i][:-1])
 
 	def planB(self):
 		'''Runs suggested solutions for non-zero exitcodes.'''
 		errors = {e:[] for e in set(self.threadGroup.returncodes.values())}
 		previousUnsolved = []
 		for i, e in self.threadGroup.returncodes.items():
-			if e in self.history[i][:-1]:
+			if e in self.history[i]:
 				previousUnsolved.append((i,e))
 			else:
 				errors[e].append(i)
+				self.history[i].append(e)
 		
 		if len(previousUnsolved) > 0:
 			for i, e in previousUnsolved:
@@ -265,14 +271,15 @@ class ProcessWrapper:
 					self.skip.add(i)
 			else:
 				self.solutions[e](self, errors[e])
+		self.threadGroup = None
 
 	def handleRetCode(self, returncode : int, prefix : str=""):
 		'''Not implemented for the template class, check the wrapper of the
 		specific software you are intending to use.'''
 		if returncode == 0:
-			LOGGER.info(f"{prefix}{self.softwareName} finished with exitcode 0.")
+			LOGGER.info(f"{prefix} {self.softwareName} finished with exitcode 0.")
 		else:
-			LOGGER.warning(f"{prefix}WARNING {self.softwareName} finished with a non zero exitcode: {returncode}")
+			LOGGER.warning(f"{prefix} {self.softwareName} finished with a non zero exitcode: {returncode}")
 
 	def preProcess(self, *args, **kwargs):
 		'''Not implemented for the template class, check the wrapper of the
@@ -284,9 +291,14 @@ class ProcessWrapper:
 			f"{self.softwareName!r}: Processes finished with exit codes for which there are no implemented solutions.",
 			f"{'QUERY':<30}|{'REFERENCE':<58} = {'EXITCODE':<8}"
 		]
-		for (key, path), i in zip(self.outputs, sorted(self.threadGroup.returncodes.keys())):
-			e = self.threadGroup.returncodes[i]
-			msg.append(f"{self.Lib.queryName:<30}|{key:<58} = {e:^8}")
+		if self.threadGroup is None:
+			for (key, path), i in zip(self.outputs, sorted(self.history.keys())):
+				e = self.history[i][-1]
+				msg.append(f"{self.Lib.queryName:<30}|{key:<58} = {e:^8}")
+		else:
+			for (key, path), i in zip(self.outputs, sorted(self.threadGroup.returncodes.keys())):
+				e = self.threadGroup.returncodes[i]
+				msg.append(f"{self.Lib.queryName:<30}|{key:<58} = {e:^8}")
 		
 		out("\n".join(msg))
 
