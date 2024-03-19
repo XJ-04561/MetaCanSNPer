@@ -9,107 +9,12 @@ from typing import Callable
 from MetaCanSNPer.Globals import *
 from MetaCanSNPer.Globals import __version__
 import MetaCanSNPer.modules.LogKeeper as LogKeeper
-from MetaCanSNPer.modules.MetaCanSNPer import MetaCanSNPer, Hooks
+from MetaCanSNPer.modules.MetaCanSNPer import MetaCanSNPer
+from MetaCanSNPer.modules.TerminalUpdater import TerminalUpdater
 import MetaCanSNPer.Globals as Globals
 
 LOGGER = LogKeeper.createLogger(__name__)
 
-
-def showLoadingSymbol(running : bool, threads : dict[float], symbols : list[str]=["|", "/", "-", "\\"], sep=" ", borders=("[", "]")):
-	if type(threads) is float:
-		threads = {1:threads}
-
-	keys = sorted(threads.keys())
-	sepLength = len(sep)
-	N = len(threads)
-	backspaces = "\b" * (N + (len(borders[0])+len(borders[1]))*N + sepLength*min(0, N-1))
-	m = len(symbols)
-	n = [0 for _ in range(len(threads))]
-	while len(keys) > 0:
-		print(backspaces, end="", flush=True)
-		for i, key in enumerate(keys):
-			prog = threads[key]
-			if running:
-				print(f"{borders[0]}{symbols[n[i]]}{borders[1]}", end="" if key == keys[-1] else sep, flush=True)
-				n[i]=(n[i]+1)%m
-			else:
-				backspaces = "\b" * (i+borders[0]*i+borders[1]*i+sepLength*min(0, i-1))
-				print(backspaces, end="", flush=True)
-				print(backspaces.replace("\b", " "), end="", flush=True)
-				print(backspaces, end="", flush=True)
-				return
-		sleep(0.2)
-
-def showLoadingMiniBars(running : bool, threads : list[float], symbols : list[str]= [".", "_", "\u2584", "", "\u2588"], sep=" ", borders=("[", "]")):
-	if type(threads) is float:
-		threads = {1:threads}
-
-	keys = sorted(threads.keys())
-	sepLength = len(sep)
-	N = len(threads)
-	backspaces = "\b" * (N + (len(borders[0])+len(borders[1]))*N + sepLength*min(0, len(threads)-1))
-	while len(keys) > 0:
-		print(backspaces, end="", flush=True)
-		for i, key in enumerate(keys):
-			prog = threads[key]
-			if running:
-				print(f"{borders[0]}{symbols[int(N*prog)]}{borders[1]}", end="" if key == keys[-1] else sep, flush=True)
-			else:
-				backspaces = "\b" * (i+borders[0]*i+borders[1]*i+sepLength*min(0, i-1))
-				print(backspaces, end="", flush=True)
-				print(backspaces.replace("\b", " "), end="", flush=True)
-				print(backspaces, end="", flush=True)
-				return
-		sleep(0.5)
-
-def showLoadingBar(running, threads : float|list[float], length=10, border=("[", "]"), fill="\u2588", halfFill="\u258C", background=" ", sep=" "):
-	if type(threads) is float:
-		threads = {1:threads}
-
-	keys = sorted(threads.keys())
-	innerLength = length - len(border[0]) - len(border[1])
-	sepLength = len(sep)
-	backspaces = "\b" * (length * len(threads) + sepLength * min(0, len(threads) - 1))
-	while len(keys) > 0:
-		print(f"{backspaces}", end="", flush=True)
-		for i, key in enumerate(keys):
-			prog = threads[key]
-			if running:
-				fillLength = int(innerLength*2*prog)
-				fillLength, halfBlock = fillLength//2, fillLength%2
-				emptyLength = innerLength - fillLength - halfBlock
-				
-				print(f"{border[0]}{fill*fillLength}{halfFill*halfBlock}{background*emptyLength}{border[1]}", end="" if key == keys[-1] else sep, flush=True)
-			else:
-				backspaces = "\b" * (length * i + sepLength * min(0, i - 1))
-				print(backspaces, end="", flush=True)
-				print(backspaces.replace("\b", " "), end="", flush=True)
-				print(backspaces, end="", flush=True)
-				return
-		sleep(0.6)
-
-def updateTerminal(msg, category, hooks : Hooks, nThreads, printFunc = showLoadingSymbol):
-
-	def updateProgress(eventInfo : dict, threads : dict[int,float]):
-		threads[eventInfo["threadN"]] *= 0.0
-		threads[eventInfo["threadN"]] += eventInfo["progress"]
-
-	print(f"{msg} ... ", end="", flush=True)
-	notDone = True
-	threads = {key+1:0.0 for key in range(nThreads)}
-
-	hooks.addHook(f"{category}Progress", updateProgress, args=[threads])
-	t = Thread(target=printFunc, args=[notDone, threads], daemon=True)
-	t.start()
-
-	def stopLoadingbar(eventInfo : dict, t : Thread, notDone : bool, finishedThreads : dict):
-		finishedThreads[eventInfo["threadN"]] = 1
-		if sum(finishedThreads.values()) == len(finishedThreads):
-			notDone *= False
-			t.join()
-			print("Done!", flush=True)
-	
-	hooks.addHook(f"{category}Finished", stopLoadingbar, args=[t, notDone, {}])
 
 def separateCommands(argv : list[str]) -> dict[str,list[str]]:
 	order = [(0, "args")]
@@ -266,18 +171,24 @@ def main():
 		if flags["sessionName"] is not None: mObj.setSessionName(flags["sessionName"])
 		
 		if flags.get("mapper") is not None:
-			if not args.silent: updateTerminal("Creating maps ... ", "Mappers", mObj.hooks, len(mObj.database.references))
+			TU = TerminalUpdater("Creating maps ... ", "Mappers", mObj.hooks, len(mObj.database.references), out=open(os.devnull, "w") if args.silent else sys.stdout)
 
 			mObj.createMap(softwareName=flags["mapper"], flags=argsDict.get("--mapperOptions", {}))
 
+			TU.stop()
+
 		if flags.get("aligner") is not None:
-			if not args.silent: updateTerminal("Creating Alignments ... ", "Aligners", mObj.hooks, len(mObj.database.references))
+			TU = TerminalUpdater("Creating Alignments ... ", "Aligners", mObj.hooks, len(mObj.database.references), out=open(os.devnull, "w") if args.silent else sys.stdout)
 
 			mObj.createAlignment(softwareName=flags["aligner"], flags=argsDict.get("--alignerOptions", {}))
+			
+			TU.stop()
 		
-		if not args.silent: updateTerminal("Calling SNPs", "SNPCallers", mObj.hooks, len(mObj.database.references))
+		TU = TerminalUpdater("Calling SNPs", "SNPCallers", mObj.hooks, len(mObj.database.references), out=open(os.devnull, "w") if args.silent else sys.stdout)
 
 		mObj.callSNPs(softwareName=flags["snpCaller"], flags=argsDict.get("--snpCallerOptions", {}))
+		
+		TU.stop()
 
 		if not args.silent:
 			print(f"{SOFTWARE_NAME} finished! Results exported to: {mObj.Lib.resultDir}")
