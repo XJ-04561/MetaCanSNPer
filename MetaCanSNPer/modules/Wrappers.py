@@ -30,6 +30,7 @@ class Thread(_Thread):
 	def __init__(self, group : ThreadGroup=None, **kwargs):
 		if "daemon" not in kwargs:
 			kwargs["daemon"] = True
+		kwargs.__delitem__("group")
 		super().__init__(self, **kwargs)
 	
 	def run(self, *args, **kwargs):
