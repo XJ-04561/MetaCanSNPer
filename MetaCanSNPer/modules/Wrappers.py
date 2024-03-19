@@ -22,12 +22,15 @@ class Thread(_Thread):
 	group : ThreadGroup
 	exception : Exception
 	def __new__(cls, group : ThreadGroup=None, **kwargs):
-		if "daemon" not in kwargs:
-			kwargs["daemon"] = True
-		obj = super().__new__(cls, **kwargs)
+		obj = super().__new__(cls)
 		obj.group = group
 		obj.exception = None
 		return obj
+	
+	def __init__(self, group, **kwargs):
+		if "daemon" not in kwargs:
+			kwargs["daemon"] = True
+		super().__init__(self, **kwargs)
 	
 	def run(self, *args, **kwargs):
 		try:
