@@ -172,6 +172,7 @@ def main():
 		
 		if flags.get("mapper") is not None:
 			TU = TerminalUpdater("Creating maps ... ", "Mappers", mObj.hooks, len(mObj.database.references), out=open(os.devnull, "w") if args.silent else sys.stdout)
+			TU.start()
 
 			mObj.createMap(softwareName=flags["mapper"], flags=argsDict.get("--mapperOptions", {}))
 
@@ -179,12 +180,14 @@ def main():
 
 		if flags.get("aligner") is not None:
 			TU = TerminalUpdater("Creating Alignments ... ", "Aligners", mObj.hooks, len(mObj.database.references), out=open(os.devnull, "w") if args.silent else sys.stdout)
+			TU.start()
 
 			mObj.createAlignment(softwareName=flags["aligner"], flags=argsDict.get("--alignerOptions", {}))
 			
 			TU.stop()
 		
 		TU = TerminalUpdater("Calling SNPs", "SNPCallers", mObj.hooks, len(mObj.database.references), out=open(os.devnull, "w") if args.silent else sys.stdout)
+		TU.start()
 
 		mObj.callSNPs(softwareName=flags["snpCaller"], flags=argsDict.get("--snpCallerOptions", {}))
 		
