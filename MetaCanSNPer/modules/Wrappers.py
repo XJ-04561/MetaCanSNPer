@@ -81,7 +81,7 @@ class ThreadGroup:
 
 		self.threads = []
 		for args, kwargs, name, daemon in zip(self.args, self.kwargs, self.names, self.daemons):
-			self.threads.append(Thread(group=self, target=targetWrapper, args=(self.target)+args, kwargs=kwargs, name=name, daemon=daemon))
+			self.threads.append(Thread(group=self, target=targetWrapper, args=(self.target,)+args, kwargs=kwargs, name=name, daemon=daemon))
 
 
 	def __iter__(self):
