@@ -60,8 +60,12 @@ class ThreadGroup:
 		else:
 			raise TypeError("ThreadGroup created without specifying number of threads to be created.\nThe number is hinted from the length of args or kwargs. or specified with n.")
 
-		try:	len(names); assert type(names) not in [str, bytes, type(None)]
-		except:	self.names = [names] * len(self.args)
+		try:
+			assert type(names) not in [str, bytes, type(None)]
+			assert len(names) == self.n
+			self.names = names
+		except:
+			self.names = list(range(1, self.n+1))
 
 		try:	len(daemons);	self.daemons = daemons
 		except:	self.daemons = [daemons] * len(self.args)
