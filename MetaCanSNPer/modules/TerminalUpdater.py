@@ -56,7 +56,7 @@ class TerminalUpdater:
 		keys = sorted(self.threads.keys())
 		sepLength = len(sep)
 		N = len(self.threads)
-		backspaces = "\b" * (N + (len(borders[0])+len(borders[1]))*N + sepLength*min(0, N-1))
+		backspaces = "\b" * ((len(borders[0])+1+len(borders[1]))*N + sepLength*max(0, N-1))
 		m = len(symbols)
 		n = [0 for _ in range(len(self.threads))]
 		print(f"{self.message} ... ", end="", flush=True, file=self.out)
@@ -70,7 +70,6 @@ class TerminalUpdater:
 					backspaces = "\b" * ((1+borders[0]+borders[1]+sepLength)*i)
 					print(backspaces+backspaces.replace("\b", " ")+backspaces, end="", flush=True, file=self.out)
 					return print("Done!", flush=True, file=self.out)
-			print()
 			sleep(0.2)
 			print(backspaces, end="", flush=True, file=self.out)
 		print(backspaces.replace("\b", " ")+backspaces, end="", flush=True, file=self.out)
@@ -81,7 +80,7 @@ class TerminalUpdater:
 		keys = sorted(self.threads.keys())
 		sepLength = len(sep)
 		N = len(self.threads)
-		backspaces = "\b" * (N + (len(borders[0])+len(borders[1]))*N + sepLength*min(0, len(self.threads)-1))
+		backspaces = "\b" * (N + (len(borders[0])+len(borders[1]))*N + sepLength*max(0, len(self.threads)-1))
 		print(f"{self.message} ... ", end="", flush=True, file=self.out)
 		while self.running:
 			for i, key in enumerate(keys):
@@ -102,7 +101,7 @@ class TerminalUpdater:
 		keys = sorted(self.threads.keys())
 		innerLength = length - len(border[0]) - len(border[1])
 		sepLength = len(sep)
-		backspaces = "\b" * (length * len(self.threads) + sepLength * min(0, len(self.threads) - 1))
+		backspaces = "\b" * (length * len(self.threads) + sepLength * max(0, len(self.threads) - 1))
 		print(f"{self.message} ... ", end="", flush=True, file=self.out)
 		while self.running:
 			for i, key in enumerate(keys):
