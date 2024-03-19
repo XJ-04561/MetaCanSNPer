@@ -21,6 +21,8 @@ class Thread(Thread):
 	group : ThreadGroup
 	exception : Exception
 	def __new__(cls, group : ThreadGroup=None, **kwargs):
+		if "daemon" not in kwargs:
+			kwargs["daemon"] = True
 		obj = super().__new__(cls, **kwargs)
 		obj.group = group
 		obj.exception = None
@@ -136,32 +138,32 @@ class ProcessWrapper:
 		try:
 			this : Thread = current_thread()
 			threadN, TG = int(this.name), this.group
-			LOGGER.debug(f"{self.category} Thread {threadN+1} - Running command: {command}")
+			LOGGER.debug(f"{self.category} Thread {threadN} - Running command: {command}")
 			self.hooks.trigger(f"{self.category}Progress", {"progress" : 0.0, "threadN" : threadN})
 
 			p : CompletedProcess = run(command.split() if type(command) is str else command, *args, **kwargs)
-			LOGGER.debug(f"{self.category} Thread {threadN+1} - Returned with exitcode: {p.returncode}")
+			LOGGER.debug(f"{self.category} Thread {threadN} - Returned with exitcode: {p.returncode}")
 
 			self.hooks.trigger(f"{self.category}Progress", {"progress" : 1.0, "threadN" : threadN})
 
 			TG.returncodes[threadN] = p.returncode
-			self.handleRetCode(p.returncode, prefix=f"Thread {threadN+1} - ")
+			self.handleRetCode(p.returncode, prefix=f"Thread {threadN} - ")
 
 			if log is not None:
 				if p.returncode == 0:
-					LOGGER.debug(f"{self.softwareName} Thread {threadN+1} - Logging output to: {log}")
+					LOGGER.debug(f"{self.softwareName} Thread {threadN} - Logging output to: {log}")
 				else:
-					LOGGER.error(f"{self.softwareName} Thread {threadN+1} - Child process encountered an issue, logging output to: {log}")
+					LOGGER.error(f"{self.softwareName} Thread {threadN} - Child process encountered an issue, logging output to: {log}")
 
 				with open(log, "w") as logFile:
 					logFile.write(p.stdout.decode("utf-8"))
 					logFile.write("\n")
 
-			LOGGER.debug(f"{self.category} Thread {threadN+1} - Finished!")
+			LOGGER.debug(f"{self.category} Thread {threadN} - Finished!")
 			self.semaphore.release()
 			self.hooks.trigger(f"{self.category}Finished", {"threadN":threadN, "thread":this})
 		except Exception as e:
-			e.add_note(f"{self.category} Thread {threadN+1}")
+			e.add_note(f"{self.category} Thread {threadN}")
 			LOGGER.exception(e)
 
 	def start(self) -> list[tuple[tuple[str,str],str]]:
@@ -170,6 +172,7 @@ class ProcessWrapper:
 		commands, logs, self.outputs = self.createCommand()
 		zipped, names = [], []
 		for i, (c, l) in enumerate(zip(commands, logs)):
+			i += 1
 			if i not in self.history:
 				self.history[i] = []
 			if i not in self.skip:
@@ -232,14 +235,14 @@ class ProcessWrapper:
 		
 		if len(previousUnsolved) > 0:
 			for i, e in previousUnsolved:
-				LOGGER.error(f"Thread {i+1} of {self.softwareName} ran command: {self.threadGroup.args[i][0]!r} and returned exitcode {self.threadGroup.returncodes[i]} even after applying a fix for this exitcode.")
+				LOGGER.error(f"Thread {i} of {self.softwareName} ran command: {self.threadGroup.args[i][0]!r} and returned exitcode {self.threadGroup.returncodes[i]} even after applying a fix for this exitcode.")
 			raise ChildProcessError(f"{self.softwareName} process(es) returned non-zero value(s). A solution was attempted but the process returned the same exitcode. Check logs for details.")
 
 		failed = [(e,errors[e]) for e in errors if e not in self.solutions and e != 0 and e not in self.ignoredErrors]
 		if len(failed) != 0:
 			for e, threads in failed:
 				for i in threads:
-					LOGGER.error(f"Thread {i+1} of {self.softwareName} ran command: {self.threadGroup.args[i][0]!r} and returned exitcode {self.threadGroup.returncodes[i]}.")
+					LOGGER.error(f"Thread {i} of {self.softwareName} ran command: {self.threadGroup.args[i][0]!r} and returned exitcode {self.threadGroup.returncodes[i]}.")
 			raise ChildProcessError(f"{self.softwareName} process(es) returned non-zero value(s) which do not have an implemented fix. Check logs for details.")
 		
 		for e in errors:
@@ -264,10 +267,11 @@ class ProcessWrapper:
 	def displayOutcomes(self, out=print):
 		msg = [
 			f"{self.softwareName!r}: Processes finished with exit codes for which there are no implemented solutions.",
-			f"{'QUERY':<58}{'REFERENCE':<58}={'EXITCODE':>4}"
+			f"{'QUERY':<30}|{'REFERENCE':<58} = {'EXITCODE':<8}"
 		]
-		for (key, path), e in zip(self.outputs, self.threadGroup.returncodes):
-			msg.append(f"{self.Lib.queryName:<30}{key:<60} = {e[-1]:>4}")
+		for (key, path), i in zip(self.outputs, sorted(self.threadGroup.returncodes.keys())):
+			e = self.threadGroup.returncodes[i]
+			msg.append(f"{self.Lib.queryName:<30}|{key:<58} = {e:^8}")
 		
 		out("\n".join(msg))
 

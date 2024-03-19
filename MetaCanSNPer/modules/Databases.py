@@ -29,13 +29,15 @@ class Branch:
 class DatabaseReader:
 	_connection : sqlite3.Connection
 
+	filename : str
+
 	references : list[tuple[int,str,str,str,str]]
 	SNPs : list[tuple[str,int,str,str]]
 
 	def __init__(self, database : str):
 		if not pExists(database):
 			raise FileNotFoundError(f"Database file {database} not found on the system.")
-		
+		self.filename = database
 		# Convert to URI acceptable filename
 		cDatabase = "/".join(filter(lambda s : s != "", database.replace('?', '%3f').replace('#', '%23').split(os.path.sep)))
 		if not cDatabase.startswith("/"): # Path has to be absolute already, and windows paths need a prepended '/'

@@ -1,6 +1,6 @@
 
 
-import os, random
+import os, random, sys
 from PseudoPathy import MinimalPathLibrary, PathLibrary, PathGroup, Path, DirectoryPath, FilePath, DisposablePath, PathList
 from PseudoPathy.Functions import createTemp
 import PseudoPathy.Globals
@@ -200,14 +200,17 @@ class DirectoryLibrary(PathLibrary):
 		self.queryName = fileNameAlign(*[pName(q) for q in self.query])
 		LOGGER.debug(f"Setting queryName to: {self.queryName!r}")
 	
-	def setReferences(self, references : list[str,str,str,str,str]):
+	def setReferences(self, references : list[str,str,str,str,str], silent : bool=False):
 		self.references = MinimalPathLibrary()
 		LOGGER.info(f"Downloading references:{references}")
 		DQ = DownloadQueue()
 		jobs = {}
 		for genomeID, genome, genbank_id, refseq_id, assembly_name in references:
 			filename = f"{assembly_name}.fna"
-			jobID = DQ.download(genbank_id, refseq_id, assembly_name, dst=self.refDir.writable, filename=filename)
+			if silent:
+				jobID = DQ.download(genbank_id, refseq_id, assembly_name, dst=self.refDir.writable, filename=filename, stdout=open(os.devnull, "w"))
+			else:
+				jobID = DQ.download(genbank_id, refseq_id, assembly_name, dst=self.refDir.writable, filename=filename)
 			if jobID != -1:
 				jobs[jobID] = (genome, self.refDir.writable > filename)
 			else:

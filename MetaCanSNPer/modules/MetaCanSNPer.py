@@ -86,21 +86,25 @@ class MetaCanSNPer:
 
 	'''Database functions'''
 
-	def setDatabase(self, database : str):
+	def setDatabase(self, database : str, silent : bool=False):
 		LOGGER.debug(f"Setting database to:{database}")
 		self.databaseName = os.path.basename(database)
 		if (path := self.Lib.databaseDir.find(database, purpose="r")) is not None:
 			LOGGER.info(f"Found database {database!r} in path {path!r}")
-		elif (path := downloadDatabase(self.databaseName, dst=self.Lib.databaseDir.forceFind("", "w") > database)) is not None:
-			LOGGER.info(f"Found database {database!r} online and downloaded to path {path!r}")
 		else:
-			LOGGER.error(f"Database not found locally or online: {database!r}\nLocal directories checked: {self.Lib.databaseDir}")
-			raise FileNotFoundError(f"Database not found: {database!r}")
+			if not silent: print(f"Downloading database {self.databaseName} ... ", end="", flush=True)
+			if (path := downloadDatabase(self.databaseName, dst=self.Lib.databaseDir.forceFind("", "w") > database)) is not None:
+				LOGGER.info(f"Found database {database!r} online and downloaded to path {path!r}")
+				if not silent: print("Done!", flush=True)
+			else:
+				if not silent: print("Failed!", flush=True)
+				LOGGER.error(f"Database not found locally or online: {database!r}\nLocal directories checked: {self.Lib.databaseDir}")
+				raise FileNotFoundError(f"Database not found: {database!r}")
 
 		self.databasePath = path
 		self.Lib.updateSettings({"organism":pName(self.databaseName)}) # TODO : Get organism name from safer source than filename
-		self.connectDatabase()
 		self.Lib.references = None
+		self.connectDatabase()
 
 	def connectDatabase(self):
 		LOGGER.debug(f"Connecting to database:{self.databasePath}")
@@ -108,6 +112,8 @@ class MetaCanSNPer:
 			raise NameError("Database not specified. Can't connect unless a valid database is set through MetaCanSNPer.setDatabase.")
 		
 		self.database = DatabaseReader(self.databasePath)
+		LOGGER.debug(f"Connected to database:{self.databasePath}")
+		self.setReferenceFiles(self.database.references)
 		return 0
 
 	'''MetaCanSNPer set directories'''
@@ -137,10 +143,13 @@ class MetaCanSNPer:
 		self.sessionName = name
 		self.Lib.setSessionName(name)
 
-	def setReferences(self, references : list[str,str,str,str,str]):
-		self.Lib.setReferences(references=references)
+	def setReferenceFiles(self, references : list[str,str,str,str,str]=None, silent : bool=False):
+		self.Lib.setReferences(references=references or self.database.references, silent=silent)
 
 	'''MetaCanSNPer get functions'''
+
+	def getReferenceFiles(self) -> dict[str,Path]:
+		self.Lib.references
 
 	def getReferences(self):
 		'''Fetch names of reference genomes in connected database. Download any reference genomes not present locally.'''
@@ -195,10 +204,8 @@ class MetaCanSNPer:
 		MapperType : Mapper = Mappers.get(softwareName)
 
 		if self.Lib.references is None:
-			LOGGER.info("Loading References from database.")
-			self.setReferences(self.database.references)
-		else:
-			LOGGER.info("References already loaded.")
+			LOGGER.error("References not set.")
+			raise FileNotFoundError("References not set. Can be set with MetaCanSNPer.setReferences")
 		
 		LOGGER.info("Loaded a total of {n} References.".format(n=len(self.database.references)))
 		
@@ -210,10 +217,8 @@ class MetaCanSNPer:
 		AlignerType : Aligner = Aligners.get(softwareName)
 
 		if self.Lib.references is None:
-			LOGGER.info("Loading References from database.")
-			self.setReferences(self.database.references)
-		else:
-			LOGGER.info("References already loaded.")
+			LOGGER.error("References not set.")
+			raise FileNotFoundError("References not set. Can be set with MetaCanSNPer.setReferences")
 		
 		LOGGER.info("Loaded a total of {n} References.".format(n=len(self.database.references)))
 		
@@ -224,6 +229,10 @@ class MetaCanSNPer:
 		LOGGER.info(f"Calling SNPs using:{softwareName}")
 		SNPCallerType : SNPCaller = SNPCallers.get(softwareName)
 
+		if self.Lib.references is None:
+			LOGGER.error("References not set.")
+			raise FileNotFoundError("References not set. Can be set with MetaCanSNPer.setReferences")
+		
 		LOGGER.info("Loading References from database.")
 		self.database.references
 		LOGGER.info("Loading SNPs from database.")
