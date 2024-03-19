@@ -1,7 +1,8 @@
 
 import os, shutil
 from collections.abc import Callable
-from threading import Thread, Semaphore, Condition, current_thread, main_thread, ThreadError
+from threading import Semaphore, Condition, current_thread, main_thread, ThreadError
+from threading import Thread as _Thread
 from subprocess import run, DEVNULL, PIPE, STDOUT, CompletedProcess
 from VariantCallFixer import openVCF
 
@@ -17,7 +18,7 @@ LOGGER = LogKeeper.createLogger(__name__)
 
 class ThreadGroup: pass
 
-class Thread(Thread):
+class Thread(_Thread):
 	group : ThreadGroup
 	exception : Exception
 	def __new__(cls, group : ThreadGroup=None, **kwargs):
