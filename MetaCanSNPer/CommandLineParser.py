@@ -21,15 +21,16 @@ def showLoadingSymbol(running : bool, threads : dict[float], symbols : list[str]
 
 	keys = sorted(threads.keys())
 	sepLength = len(sep)
-	N = len(symbols)
-	backspaces = "\b" * (len(threads)+borders[0]*len(threads)+borders[1]*len(threads)+sepLength*min(0, len(threads)-1))
+	N = len(threads)
+	backspaces = "\b" * (N + (len(borders[0])+len(borders[1]))*N + sepLength*min(0, len(threads)-1))
+	m = len(symbols)
 	n = [0 for _ in range(len(threads))]
 	while len(keys) > 0:
 		print(backspaces, end="", flush=True)
 		for i, key in enumerate(keys):
 			prog = threads[key]
 			if running:
-				n[i]=(n[i]+1)%len(symbols)
+				n[i]=(n[i]+1)%m
 				print(borders[0]+symbols[n[i]]+borders[1]+sep, end="", flush=True)
 			else:
 				backspaces = "\b" * (i+borders[0]*i+borders[1]*i+sepLength*min(0, i-1))
@@ -46,7 +47,7 @@ def showLoadingMiniBars(running : bool, threads : list[float], symbols : list[st
 	keys = sorted(threads.keys())
 	sepLength = len(sep)
 	N = len(threads)
-	backspaces = "\b" * (len(threads)+borders[0]*len(threads)+borders[1]*len(threads)+sepLength*min(0, len(threads)-1))
+	backspaces = "\b" * (N + (len(borders[0])+len(borders[1]))*N + sepLength*min(0, len(threads)-1))
 	while len(keys) > 0:
 		print(backspaces, end="", flush=True)
 		for i, key in enumerate(keys):
