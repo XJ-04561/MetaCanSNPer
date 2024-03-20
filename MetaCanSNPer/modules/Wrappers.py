@@ -3,7 +3,7 @@ import os, shutil
 from collections.abc import Callable
 from threading import Semaphore, Condition, current_thread, main_thread, ThreadError
 from threading import Thread as _Thread
-from subprocess import run, DEVNULL, PIPE, STDOUT, CompletedProcess
+from subprocess import Popen, DEVNULL, PIPE, STDOUT, CompletedProcess
 from VariantCallFixer import openVCF
 
 import MetaCanSNPer.modules.LogKeeper as LogKeeper
@@ -11,6 +11,7 @@ import MetaCanSNPer.modules.ErrorFixes as ErrorFixes
 from MetaCanSNPer.modules.DirectoryLibrary import DirectoryLibrary
 from MetaCanSNPer.modules.Hooks import Hooks
 from MetaCanSNPer.modules.Databases import DatabaseReader
+from MetaCanSNPer.modules.Commands import Command
 from MetaCanSNPer.Globals import *
 import MetaCanSNPer.Globals as Globals
 
@@ -149,41 +150,35 @@ class ProcessWrapper:
 		specific software you are intending to use."""
 		raise NotImplementedError(f"Called `.createCommand` on a object of a class which has not implemented it. Object class is `{type(self)}`")
 
-	def run(self, command, log : str, *args, **kwargs) -> None:
+	def run(self, command : str, log : str, *args, **kwargs) -> None:
 		""""""
 		
 		try:
 			this : Thread = current_thread()
 			threadN, TG = int(this.name), this.group
 			LOGGER.debug(f"{self.category} Thread {threadN} - Running command: {command}")
+
+			logFile = open(log or os.devnull, "wb")
+			LOGGER.debug(f"{self.softwareName} Thread {threadN} - Logging output to: {log or os.devnull}")
+
 			self.hooks.trigger(f"{self.category}Progress", {"progress" : 0.0, "threadN" : threadN})
-
-			p : CompletedProcess = run(command.split() if type(command) is str else command, *args, stdout=PIPE, stderr=PIPE, **kwargs)
-			LOGGER.debug(f"{self.category} Thread {threadN} - Returned with exitcode: {p.returncode}")
-
+			C = Command(command, logFile=logFile)
+			processes = C.run()
 			self.hooks.trigger(f"{self.category}Progress", {"progress" : 1.0, "threadN" : threadN})
+			
+			logFile.close()
+			returncode = processes[-1].returncode if len(processes) > 0 else None
+			LOGGER.debug(f"{self.category} Thread {threadN} - Returned with exitcode: {returncode}")
+			TG.returncodes[threadN] = returncode
+			self.handleRetCode(returncode, prefix=f"Thread {threadN} - ")
 
-			TG.returncodes[threadN] = p.returncode
-			self.handleRetCode(p.returncode, prefix=f"Thread {threadN} - ")
+			if returncode != 0:
+				LOGGER.error(f"{self.softwareName} Thread {threadN} - Child process encountered an issue, logging output to: {log or os.devnull}")
 
-			if log is not None:
-				if p.returncode == 0:
-					LOGGER.debug(f"{self.softwareName} Thread {threadN} - Logging output to: {log}")
-				else:
-					LOGGER.error(f"{self.softwareName} Thread {threadN} - Child process encountered an issue, logging output to: {log}")
-
-				with open(log, "w") as logFile:
-					logFile.write("[STDOUT]\n")
-					logFile.write(p.stdout.decode("utf-8"))
-
-					logFile.write("[STDERR]\n")
-					logFile.write(p.stderr.decode("utf-8"))
-					
-					logFile.write("\n")
-
-			LOGGER.debug(f"{self.category} Thread {threadN} - Finished!")
+			
 			self.hooks.trigger(f"{self.category}Finished", {"threadN":threadN, "thread":this})
 			self.semaphore.release()
+			LOGGER.debug(f"{self.category} Thread {threadN} - Finished!")
 		except Exception as e:
 			e.add_note(f"{self.category} Thread {threadN}")
 			LOGGER.exception(e)

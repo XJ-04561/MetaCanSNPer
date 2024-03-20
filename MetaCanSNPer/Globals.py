@@ -24,7 +24,7 @@ from PseudoPathy.PathShortHands import *
 import PseudoPathy.Globals as PPGlobals
 import VariantCallFixer.Globals as VCFGlobals
 from PseudoPathy.Library import CommonGroups
-import random, logging
+import random, logging, re
 random.seed()
 
 ## LogKeeper Globals
@@ -98,6 +98,7 @@ class MissingDependancy(Exception): pass
 class Aligner: pass
 class Mapper: pass
 class SNPCaller: pass
+
 
 ## Default .toml
 
