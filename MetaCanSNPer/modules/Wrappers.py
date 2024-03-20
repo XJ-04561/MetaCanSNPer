@@ -154,7 +154,7 @@ class ProcessWrapper:
 			LOGGER.debug(f"{self.category} Thread {threadN} - Running command: {command}")
 			self.hooks.trigger(f"{self.category}Progress", {"progress" : 0.0, "threadN" : threadN})
 
-			p : CompletedProcess = run(command.split() if type(command) is str else command, *args, **kwargs)
+			p : CompletedProcess = run(command.split() if type(command) is str else command, *args, stdout=PIPE, stderr=PIPE, **kwargs)
 			LOGGER.debug(f"{self.category} Thread {threadN} - Returned with exitcode: {p.returncode}")
 
 			self.hooks.trigger(f"{self.category}Progress", {"progress" : 1.0, "threadN" : threadN})
@@ -169,7 +169,12 @@ class ProcessWrapper:
 					LOGGER.error(f"{self.softwareName} Thread {threadN} - Child process encountered an issue, logging output to: {log}")
 
 				with open(log, "w") as logFile:
+					logFile.write("[STDOUT]")
 					logFile.write(p.stdout.decode("utf-8"))
+
+					logFile.write("[STDERR]")
+					logFile.write(p.stderr.decode("utf-8"))
+					
 					logFile.write("\n")
 
 			LOGGER.debug(f"{self.category} Thread {threadN} - Finished!")
@@ -193,7 +198,7 @@ class ProcessWrapper:
 				names.append(i)
 				self.outputs[i] = outputs[i-1]
 		
-		self.threadGroup = ThreadGroup(self.run, args=zipped, kwargs=[{"stdout":PIPE, "stderr":PIPE}]*len(commands), names=names, daemons=True)
+		self.threadGroup = ThreadGroup(self.run, args=zipped, names=names, daemons=True)
 
 		self.threadGroup.start()
 
