@@ -4,6 +4,7 @@ import logging, sys, argparse, traceback
 from threading import Thread
 from time import sleep
 from typing import Callable
+import re
 
 ## import MetaCanSNPer specific modules
 from MetaCanSNPer.Globals import *
@@ -202,21 +203,16 @@ def main():
 			pass
 		LOGGER.exception(e)
 		print(f"{SOFTWARE_NAME} ended before completing query. Exception that caused it:", file=sys.stderr)
-		print("", file=sys.stderr)
+		print("", file=sys.stderr, file=sys.stderr)
 		if args.debug:
 			raise e
 		else:
-			string : list = traceback.format_exc().split("\n")
-			output = []
-			for i in range(len(string[1:])):
-				row : str = string[i+1]
-				if row.strip("\r")[:1] in [" ", "\t"]:
-					continue
-				else:
-					for j in range(i, len(string[1:])):
-						output.append(string[j+1])
-					break
-			print("\n".join(output), file=sys.stderr)
+			m = re.match("^[a-zA-Z0-9]\w*?[:].*", traceback.format_exc(), flags=re.MULTILINE+re.DOTALL)
+			if m is None:
+				print(traceback.format_exc(), file=sys.stderr)
+			else:
+				print(m.group(), file=sys.stderr)
+		exit(1)
 
 
 if oname=="__main__":

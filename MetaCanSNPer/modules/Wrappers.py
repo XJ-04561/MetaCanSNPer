@@ -295,12 +295,12 @@ class ProcessWrapper:
 			for i in sorted(self.history.keys()):
 				e = self.history[i][-1] if self.history[i] != [] else ""
 				key, _ = self.outputs[i]
-				msg.append(f"{self.Lib.queryName:<30}|{key:<58} = {e:^8}")
+				msg.append(f"{self.Lib.queryName:<30}|{key:<28} = {e:^8}")
 		else:
 			for i in sorted(self.threadGroup.returncodes.keys()):
 				e = self.threadGroup.returncodes.get(i, "")
 				key, _ = self.outputs[i]
-				msg.append(f"{self.Lib.queryName:<30}|{key:<58} = {e:^8}")
+				msg.append(f"{self.Lib.queryName:<30}|{key:<28} = {e:^8}")
 		
 		out("\n".join(msg))
 
@@ -357,7 +357,7 @@ class IndexingWrapper(ProcessWrapper):
 			self.formatDict["targetSNPs"] = self.Lib.targetSNPs[refName]
 			
 			output = outDir > self.outputTemplate.format(**self.formatDict)
-			logfile = output+".log"
+			logfile = self.Lib.resultDir > f"{self.softwareName}_{refName}.log"
 
 			self.formatDict["output"] = output
 			self.formatDict["logFile"] = logfile
