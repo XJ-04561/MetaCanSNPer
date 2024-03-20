@@ -34,7 +34,7 @@ def loadFlattenedTOML(filename):
 	return settings
 
 class MetaCanSNPer:
-	outputTemplate = "{0[refName]}_{0[queryName]}.{0[outFormat]}"
+	outputTemplate = "{refName}_{queryName}.{outFormat}"
 	databasePath : Path
 	databaseName : str
 	database : DatabaseReader

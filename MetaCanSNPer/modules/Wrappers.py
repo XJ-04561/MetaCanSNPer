@@ -354,7 +354,7 @@ class IndexingWrapper(ProcessWrapper):
 			self.formatDict["alignmentPath"] = self.Lib.alignments[refName]
 			self.formatDict["targetSNPs"] = self.Lib.targetSNPs[refName]
 			
-			output = outDir > self.outputTemplate.format(self.formatDict)
+			output = outDir > self.outputTemplate.format(**self.formatDict)
 			logfile = output+".log"
 
 			self.formatDict["output"] = output
@@ -362,7 +362,7 @@ class IndexingWrapper(ProcessWrapper):
 
 			LOGGER.info(f"Created command (if --dry-run has been specified, this will not be the true command ran):\n{self.commandTemplate.format(**self.formatDict)}")
 			if not Globals.DRY_RUN:
-				command = self.commandTemplate.format(self.formatDict)
+				command = self.commandTemplate.format(**self.formatDict)
 			else:
 				if shutil.which("sleep") is not None:
 					command = "sleep {}".format(random.randint(1, 5))
