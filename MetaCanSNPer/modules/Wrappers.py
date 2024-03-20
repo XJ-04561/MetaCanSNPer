@@ -292,12 +292,14 @@ class ProcessWrapper:
 			f"{'QUERY':<30}|{'REFERENCE':<58} = {'EXITCODE':<8}"
 		]
 		if self.threadGroup is None:
-			for (key, path), i in zip(self.outputs, sorted(self.history.keys())):
-				e = self.history[i][-1]
+			for i in sorted(self.history.keys()):
+				e = self.history[i][-1] if self.history[i] != [] else ""
+				key, _ = self.outputs[i]
 				msg.append(f"{self.Lib.queryName:<30}|{key:<58} = {e:^8}")
 		else:
-			for (key, path), i in zip(self.outputs, sorted(self.threadGroup.returncodes.keys())):
-				e = self.threadGroup.returncodes[i]
+			for i in sorted(self.threadGroup.returncodes.keys()):
+				e = self.threadGroup.returncodes.get(i, "")
+				key, _ = self.outputs[i]
 				msg.append(f"{self.Lib.queryName:<30}|{key:<58} = {e:^8}")
 		
 		out("\n".join(msg))
