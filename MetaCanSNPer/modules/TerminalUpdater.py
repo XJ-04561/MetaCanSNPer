@@ -115,7 +115,7 @@ class TerminalUpdater:
 
 	"""Print Functions"""
 
-	def showLoadingSymbol(self, symbols : list[str]=["|", "/", "-", "\\"], sep=" ", borders=("[", "]")):
+	def showLoadingSymbol(self, symbols : list[str]=("|", "/", "-", "\\"), sep=" ", borders=("[", "]")):
 		
 		keys = sorted(self.threads.keys())
 		sepLength = len(sep)
@@ -123,13 +123,13 @@ class TerminalUpdater:
 		borderLength = len(borders[0]) + len(borders[1])
 		backspaces = "\b" * ((len(symbols[0])+borderLength)*N + sepLength*max(0, N-1))
 		m = len(symbols)
-		n = [0 for _ in range(len(self.threads))]
+		n = [0 for _ in range(N)]
 
 		if self.supportsColor:
 			borders = ("\u001b[37;40m"+borders[0], "\u001b[37;40m"+borders[1]+"\u001b[0m")
 			symbols = list(map(lambda x : "\u001b[36;40m"+x, symbols))
 
-		print(f"{self.message} ... ", end="", flush=True, file=self.out)
+		print(f"{self.message} ... ", end=backspaces.replace("\b", " "), flush=True, file=self.out)
 		while self.running:
 			msg = ""
 			for i in range(N):
@@ -156,7 +156,7 @@ class TerminalUpdater:
 			borders = ("\u001b[37;40m"+borders[0], "\u001b[37;40m"+borders[1]+"\u001b[0m")
 			symbols = list(map(lambda x : "\u001b[36;40m"+x, symbols))
 
-		print(f"{self.message} ... ", end="", flush=True, file=self.out)
+		print(f"{self.message} ... ", end=backspaces.replace("\b", " "), flush=True, file=self.out)
 		while self.running:
 			msg = ""
 			for i, key in enumerate(keys):
@@ -183,7 +183,7 @@ class TerminalUpdater:
 			borders = ("\u001b[37;40m"+borders[0]+"\u001b[32;40m", "\u001b[37;40m"+borders[1]+"\u001b[0m")
 			partition = "\u001b[31;40m"
 
-		print(f"{self.message} ... ", end="", flush=True, file=self.out)
+		print(f"{self.message} ... ", end=backspaces.replace("\b", " "), flush=True, file=self.out)
 		while self.running:
 			msg = ""
 			for i, key in enumerate(keys):
