@@ -62,11 +62,11 @@ class ThreadGroup:
 		if n is not None:
 			self.args = [args or []] * n
 			self.kwargs = [kwargs or {}] * n
-		elif kwargs is None:
+		elif kwargs is None and args is not None:
 			self.n = len(args)
 			self.args = args
 			self.kwargs = [{}]*self.n
-		elif len(args) == len(kwargs):
+		elif args is not None and len(args) == len(kwargs):
 			self.n = len(args)
 			self.args = args
 			self.kwargs = kwargs
@@ -173,10 +173,10 @@ class ProcessWrapper:
 					LOGGER.error(f"{self.softwareName} Thread {threadN} - Child process encountered an issue, logging output to: {log}")
 
 				with open(log, "w") as logFile:
-					logFile.write("[STDOUT]")
+					logFile.write("[STDOUT]\n")
 					logFile.write(p.stdout.decode("utf-8"))
 
-					logFile.write("[STDERR]")
+					logFile.write("[STDERR]\n")
 					logFile.write(p.stderr.decode("utf-8"))
 					
 					logFile.write("\n")
