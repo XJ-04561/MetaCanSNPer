@@ -117,10 +117,6 @@ class TerminalUpdater:
 
 	def showLoadingSymbol(self, symbols : list[str]=["|", "/", "-", "\\"], sep=" ", borders=("[", "]")):
 		
-		if self.supportsColor:
-			borders = ("\u001b[37;40m"+borders[0], "\u001b[37;40m"+borders[1]+"\u001b[0m")
-			symbols = list(map(lambda x : "\u001b[36;40m"+x, symbols))
-
 		keys = sorted(self.threads.keys())
 		sepLength = len(sep)
 		N = len(keys)
@@ -128,8 +124,12 @@ class TerminalUpdater:
 		backspaces = "\b" * ((len(symbols[0])+borderLength)*N + sepLength*max(0, N-1))
 		m = len(symbols)
 		n = [0 for _ in range(len(self.threads))]
+
+		if self.supportsColor:
+			borders = ("\u001b[37;40m"+borders[0], "\u001b[37;40m"+borders[1]+"\u001b[0m")
+			symbols = list(map(lambda x : "\u001b[36;40m"+x, symbols))
+
 		print(f"{self.message} ... ", end="", flush=True, file=self.out)
-		
 		while self.running:
 			msg = ""
 			for i in range(N):
@@ -146,15 +146,16 @@ class TerminalUpdater:
 
 	def showLoadingMiniBars(self, symbols : list[str]= [".", "_", "\u2584", "#", "\u2588"], sep=" ", borders=("[", "]")):
 
-		if self.supportsColor:
-			borders = ("\u001b[37;40m"+borders[0], "\u001b[37;40m"+borders[1]+"\u001b[0m")
-			symbols = list(map(lambda x : "\u001b[36;40m"+x, symbols))
-
 		keys = sorted(self.threads.keys())
 		sepLength = len(sep)
 		N = len(keys)
 		borderLength = len(borders[0]) + len(borders[1])
 		backspaces = "\b" * ((len(symbols[0])+borderLength)*N + sepLength*max(0, len(self.threads)-1))
+		
+		if self.supportsColor:
+			borders = ("\u001b[37;40m"+borders[0], "\u001b[37;40m"+borders[1]+"\u001b[0m")
+			symbols = list(map(lambda x : "\u001b[36;40m"+x, symbols))
+
 		print(f"{self.message} ... ", end="", flush=True, file=self.out)
 		while self.running:
 			msg = ""
@@ -172,15 +173,16 @@ class TerminalUpdater:
 
 	def showLoadingBar(self, length=10, borders=("[", "]"), fill="\u2588", halfFill="\u258C", background=" ", sep=" ", partition=""):
 
-		innerLength = length - len(borders[0]) - len(borders[1])
-		if self.supportsColor:
-			borders = ("\u001b[37;40m"+borders[0]+"\u001b[32;40m", "\u001b[37;40m"+borders[1]+"\u001b[0m")
-			partition = "\u001b[31;40m"
-		length = innerLength + len(borders[0]) + len(partition) + len(borders[1])
+		innerLength = length - len(borders[0]) - len(borders[1]) - len(partition)
 		keys = sorted(self.threads.keys())
 		sepLength = len(sep)
 		N = len(keys)
 		backspaces = "\b" * (length * N + sepLength * max(0, N - 1) + len(partition)*N)
+		
+		if self.supportsColor:
+			borders = ("\u001b[37;40m"+borders[0]+"\u001b[32;40m", "\u001b[37;40m"+borders[1]+"\u001b[0m")
+			partition = "\u001b[31;40m"
+
 		print(f"{self.message} ... ", end="", flush=True, file=self.out)
 		while self.running:
 			msg = ""
