@@ -3,7 +3,7 @@
 
 
 import re
-from subprocess import Popen, PIPE, STD_INPUT_HANDLE, CompletedProcess
+from subprocess import Popen, PIPE, CompletedProcess
 from typing import TextIO
 
 from MetaCanSNPer.modules.LogKeeper import createLogger
@@ -155,7 +155,7 @@ class DumpCommands(Commands):
 			LOGGER.exception(ValueError(f"Output dumped more or less than once using '>' in one command. Command: {'>'.join(map(''.join, _list))}"))
 			raise ValueError(f"Output dumped more or less than once using '>' in one command. Command: {'>'.join(map(''.join, self._list))}")
 		
-	def run(self, stdin=STD_INPUT_HANDLE, stdout=PIPE, stderr=PIPE, **kwargs) -> Popen:
+	def run(self, stdin=None, stdout=PIPE, stderr=PIPE, **kwargs) -> Popen:
 		p : Popen = Popen(self.command, stdin=stdin, stdout=self.outFile or stdout, stderr=stderr, **kwargs)
 		p.start()
 		return p
