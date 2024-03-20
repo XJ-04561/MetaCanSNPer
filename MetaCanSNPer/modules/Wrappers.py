@@ -62,6 +62,10 @@ class ThreadGroup:
 		if n is not None:
 			self.args = [args or []] * n
 			self.kwargs = [kwargs or {}] * n
+		elif kwargs is None:
+			self.n = len(args)
+			self.args = args
+			self.kwargs = [{}]*self.n
 		elif len(args) == len(kwargs):
 			self.n = len(args)
 			self.args = args
