@@ -12,7 +12,7 @@ from MetaCanSNPer.modules.Wrappers import Mapper
 
 class Minimap2(Mapper):
 	softwareName = "minimap2"
-	commandTemplate = "minimap2 -a {options} -R '@RG\tID:{queryName}\tSM:{queryName}' --sam-hit-only '{refPath}' {query} | samtools sort -T '{tmpDir}' -o {output} && samtools index {output} samtools"
+	commandTemplate = "minimap2 -a {options} -R '@RG\\tID:{queryName}\\tSM:{queryName}' --sam-hit-only {refPath!r} {query} | samtools sort -T {tmpDir!r} -o {output!r} && samtools index {output!r} samtools"
 	outFormat = "bam"
 
 	boolFlags = [
