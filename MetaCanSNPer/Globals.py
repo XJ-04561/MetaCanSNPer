@@ -29,7 +29,7 @@ random.seed()
 
 ## LogKeeper Globals
 
-LOGGER_FILEHANDLER = logging.FileHandler(CommonGroups().locals.create(f"{SOFTWARE_NAME}-Results") > "MetaCanSNPer.log")
+LOGGER_FILEHANDLER = logging.FileHandler(CommonGroups().locals.create(f"{SOFTWARE_NAME}-Results", purpose="rw") > "MetaCanSNPer.log")
 LOGGER_FILEHANDLER.setFormatter(logging.Formatter("[%(name)s] %(asctime)s - %(levelname)s: %(message)s"))
 
 PPGlobals.LOGGER.addHandler(LOGGER_FILEHANDLER)

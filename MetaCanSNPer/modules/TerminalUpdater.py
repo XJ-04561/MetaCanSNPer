@@ -4,6 +4,7 @@ from threading import Thread
 from time import sleep
 from sys import stdout
 from typing import TextIO
+from functools import cached_property
 
 class TerminalUpdater:
 	
@@ -52,63 +53,137 @@ class TerminalUpdater:
 		if self.finishedThreads.issuperset(self.threads):
 			self.running *= False
 
+	# Taken from django @ https://github.com/django/django/blob/main/django/core/management/color.py
+	@cached_property
+	def supportsColor(self):
+		"""
+		From django @ https://github.com/django/django/blob/main/django/core/management/color.py
+		Return True if the running system's terminal supports color,
+		and False otherwise.
+		"""
+		import sys, os
+		try:
+			import colorama # type: ignore
+
+			# Avoid initializing colorama in non-Windows platforms.
+			colorama.just_fix_windows_console()
+		except (
+			AttributeError,  # colorama <= 0.4.6.
+			ImportError,  # colorama is not installed.
+			# If just_fix_windows_console() accesses sys.stdout with
+			# WSGIRestrictedStdout.
+			OSError,
+		):
+			HAS_COLORAMA = False
+		else:
+			HAS_COLORAMA = True
+
+		def vt_codes_enabled_in_windows_registry():
+			"""
+			Check the Windows Registry to see if VT code handling has been enabled
+			by default, see https://superuser.com/a/1300251/447564.
+			"""
+			try:
+				# winreg is only available on Windows.
+				import winreg
+			except ImportError:
+				return False
+			else:
+				try:
+					reg_key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Console")
+					reg_key_value, _ = winreg.QueryValueEx(reg_key, "VirtualTerminalLevel")
+				except FileNotFoundError:
+					return False
+				else:
+					return reg_key_value == 1
+
+		# isatty is not always implemented, #6223.
+		is_a_tty = hasattr(sys.stdout, "isatty") and sys.stdout.isatty()
+
+		return is_a_tty and (
+			sys.platform != "win32"
+			or (HAS_COLORAMA and getattr(colorama, "fixed_windows_console", False))
+			or "ANSICON" in os.environ
+			or
+			# Windows Terminal supports VT codes.
+			"WT_SESSION" in os.environ
+			or
+			# Microsoft Visual Studio Code's built-in terminal supports colors.
+			os.environ.get("TERM_PROGRAM") == "vscode"
+			or vt_codes_enabled_in_windows_registry()
+		)
+
 	"""Print Functions"""
 
 	def showLoadingSymbol(self, symbols : list[str]=["|", "/", "-", "\\"], sep=" ", borders=("[", "]")):
+		
+		if self.supportsColor:
+			borders = ("\u001b[37;40m"+borders[0], "\u001b[37;40m"+borders[1]+"\u001b[0m")
+			symbols = list(map(lambda x : "\u001b[36;40m"+x, symbols))
 
 		keys = sorted(self.threads.keys())
 		sepLength = len(sep)
-		N = len(self.threads)
+		N = len(keys)
 		borderLength = len(borders[0]) + len(borders[1])
-		backspaces = "\b" * ((1+borderLength)*N + sepLength*max(0, N-1))
+		backspaces = "\b" * ((len(symbols[0])+borderLength)*N + sepLength*max(0, N-1))
 		m = len(symbols)
 		n = [0 for _ in range(len(self.threads))]
 		print(f"{self.message} ... ", end="", flush=True, file=self.out)
+		
 		while self.running:
-			for i, key in enumerate(keys):
-				prog = self.threads[key]
+			msg = ""
+			for i in range(N):
 				if self.running:
-					print(f"{borders[0]}{symbols[n[i]]}{borders[1]}", end="" if key == keys[-1] else sep, flush=True, file=self.out)
+					msg += f"{borders[0]}{symbols[n[i]]}{borders[1]}{sep if i < N-1 else ''}"
 					n[i]=(n[i]+1)%m
 				else:
-					backspaces = "\b" * ((1+borderLength+sepLength)*i)
-					print(backspaces+backspaces.replace("\b", " ")+backspaces, end="", flush=True, file=self.out)
+					print(backspaces+backspaces.replace("\b", " "), end=backspaces, flush=True, file=self.out)
 					return print("Done!", flush=True, file=self.out)
+			print(backspaces, end=msg, flush=True, file=self.out)
 			sleep(0.2)
-			print(backspaces, end="", flush=True, file=self.out)
-		print(backspaces.replace("\b", " ")+backspaces, end="", flush=True, file=self.out)
+		print(backspaces+backspaces.replace("\b", " "), end=backspaces, flush=True, file=self.out)
 		print("Done!" if self.finishedThreads.issuperset(self.threads) else "Failed!", flush=True, file=self.out)
 
-	def showLoadingMiniBars(self, symbols : list[str]= [".", "_", "\u2584", "", "\u2588"], sep=" ", borders=("[", "]")):
+	def showLoadingMiniBars(self, symbols : list[str]= [".", "_", "\u2584", "#", "\u2588"], sep=" ", borders=("[", "]")):
+
+		if self.supportsColor:
+			borders = ("\u001b[37;40m"+borders[0], "\u001b[37;40m"+borders[1]+"\u001b[0m")
+			symbols = list(map(lambda x : "\u001b[36;40m"+x, symbols))
 
 		keys = sorted(self.threads.keys())
 		sepLength = len(sep)
-		N = len(self.threads)
+		N = len(keys)
 		borderLength = len(borders[0]) + len(borders[1])
-		backspaces = "\b" * ((1+borderLength)*N + sepLength*max(0, len(self.threads)-1))
+		backspaces = "\b" * ((len(symbols[0])+borderLength)*N + sepLength*max(0, len(self.threads)-1))
 		print(f"{self.message} ... ", end="", flush=True, file=self.out)
 		while self.running:
+			msg = ""
 			for i, key in enumerate(keys):
 				prog = self.threads[key]
 				if self.running:
-					print(f"{borders[0]}{symbols[int(N*prog)]}{borders[1]}", end="" if key == keys[-1] else sep, flush=True, file=self.out)
+					msg += f"{borders[0]}{symbols[int(N*prog)]}{borders[1]}{sep if i < N-1 else ''}"
 				else:
-					backspaces = "\b" * ((1+borderLength+sepLength)*i)
-					print(backspaces+backspaces.replace("\b", " ")+backspaces, end="", flush=True, file=self.out)
+					print(backspaces+backspaces.replace("\b", " "), end=backspaces, flush=True, file=self.out)
 					return print("Done!", flush=True, file=self.out)
+			print(backspaces, end=msg, flush=True, file=self.out)
 			sleep(0.5)
-			print(backspaces, end="", flush=True, file=self.out)
-		print(backspaces.replace("\b", " ")+backspaces, end="", flush=True, file=self.out)
+		print(backspaces+backspaces.replace("\b", " "), end=backspaces, flush=True, file=self.out)
 		print("Done!" if self.finishedThreads.issuperset(self.threads) else "Failed!", flush=True, file=self.out)
 
-	def showLoadingBar(self, length=10, borders=("[", "]"), fill="\u2588", halfFill="\u258C", background=" ", sep=" "):
+	def showLoadingBar(self, length=10, borders=("[", "]"), fill="\u2588", halfFill="\u258C", background=" ", sep=" ", partition=""):
 
-		keys = sorted(self.threads.keys())
 		innerLength = length - len(borders[0]) - len(borders[1])
+		if self.supportsColor:
+			borders = ("\u001b[37;40m"+borders[0]+"\u001b[32;40m", "\u001b[37;40m"+borders[1]+"\u001b[0m")
+			partition = "\u001b[31;40m"
+		length = innerLength + len(borders[0]) + len(partition) + len(borders[1])
+		keys = sorted(self.threads.keys())
 		sepLength = len(sep)
-		backspaces = "\b" * (length * len(self.threads) + sepLength * max(0, len(self.threads) - 1))
+		N = len(keys)
+		backspaces = "\b" * (length * N + sepLength * max(0, N - 1) + len(partition)*N)
 		print(f"{self.message} ... ", end="", flush=True, file=self.out)
 		while self.running:
+			msg = ""
 			for i, key in enumerate(keys):
 				prog = self.threads[key]
 				if self.running:
@@ -116,12 +191,11 @@ class TerminalUpdater:
 					fillLength, halfBlock = fillLength//2, fillLength%2
 					emptyLength = innerLength - fillLength - halfBlock
 					
-					print(f"{borders[0]}{fill*fillLength}{halfFill*halfBlock}{background*emptyLength}{borders[1]}", end="" if key == keys[-1] else sep, flush=True, file=self.out)
+					msg += f"{borders[0]}{fill*fillLength}{partition}{halfFill*halfBlock}{background*emptyLength}{borders[1]}{sep if i < N-1 else ''}"
 				else:
-					backspaces = "\b" * (length+sepLength) * i
-					print(backspaces+backspaces.replace("\b", " ")+backspaces, end="", flush=True, file=self.out)
+					print(backspaces+backspaces.replace("\b", " "), end=backspaces, flush=True, file=self.out)
 					return print("Done!", flush=True, file=self.out)
+			print(backspaces, end=msg, flush=True, file=self.out)
 			sleep(0.6)
-			print(backspaces, end="", flush=True, file=self.out)
-		print(backspaces.replace("\b", " ")+backspaces, end="", flush=True, file=self.out)
+		print(backspaces+backspaces.replace("\b", " "), end=backspaces, flush=True, file=self.out)
 		print("Done!" if self.finishedThreads.issuperset(self.threads) else "Failed!", flush=True, file=self.out)
