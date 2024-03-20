@@ -203,7 +203,7 @@ def main():
 			pass
 		LOGGER.exception(e)
 		print(f"{SOFTWARE_NAME} ended before completing query. Exception that caused it:", file=sys.stderr)
-		print("", file=sys.stderr, file=sys.stderr)
+		print("", file=sys.stderr)
 		if args.debug:
 			raise e
 		else:
