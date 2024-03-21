@@ -149,8 +149,8 @@ class PipeCommands(Commands):
 	_list : list[DumpCommands]
 
 	def run(self, **kwargs) -> CompletedProcess:
-		first = object()
-		first.__setattr__("stdout", None)
+		first = lambda : None
+		first.stdout = None
 		processes : list[Popen] = [first]
 		for i, dc in enumerate(self._list[:-1]):
 			p : Popen = dc.run(stdin=processes[i].stdout, stdout=PIPE, stderr=PIPE, **kwargs)
