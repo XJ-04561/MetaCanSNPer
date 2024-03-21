@@ -5,6 +5,9 @@ from time import sleep
 from sys import stdout
 from typing import TextIO
 from functools import cached_property
+from MetaCanSNPer.modules.LogKeeper import createLogger
+
+LOGGER = createLogger(__name__)
 
 class TerminalUpdater:
 	
@@ -117,87 +120,99 @@ class TerminalUpdater:
 
 	def showLoadingSymbol(self, symbols : list[str]=("|", "/", "-", "\\"), sep=" ", borders=("[", "]")):
 		
-		keys = sorted(self.threads.keys())
-		sepLength = len(sep)
-		N = len(keys)
-		borderLength = len(borders[0]) + len(borders[1])
-		backspaces = "\b" * ((len(symbols[0])+borderLength)*N + sepLength*max(0, N-1))
-		m = len(symbols)
-		n = [0 for _ in range(N)]
+		try:
+			keys = sorted(self.threads.keys())
+			sepLength = len(sep)
+			N = len(keys)
+			borderLength = len(borders[0]) + len(borders[1])
+			backspaces = "\b" * ((len(symbols[0])+borderLength)*N + sepLength*max(0, N-1))
+			m = len(symbols)
+			n = [0 for _ in range(N)]
 
-		if self.supportsColor:
-			borders = ("\u001b[37;40m"+borders[0], "\u001b[37;40m"+borders[1]+"\u001b[0m")
-			symbols = list(map(lambda x : "\u001b[36;40m"+x, symbols))
+			if self.supportsColor:
+				borders = ("\u001b[37;40m"+borders[0], "\u001b[37;40m"+borders[1]+"\u001b[0m")
+				symbols = list(map(lambda x : "\u001b[36;40m"+x, symbols))
 
-		print(f"{self.message} ... ", end=backspaces.replace("\b", " "), flush=True, file=self.out)
-		while self.running:
-			msg = ""
-			for i in range(N):
-				if self.running:
-					msg += f"{borders[0]}{symbols[n[i]]}{borders[1]}{sep if i < N-1 else ''}"
-					n[i]=(n[i]+1)%m
-				else:
-					print(backspaces+backspaces.replace("\b", " "), end=backspaces, flush=True, file=self.out)
-					return print("Done!", flush=True, file=self.out)
-			print(backspaces, end=msg, flush=True, file=self.out)
-			sleep(0.2)
-		print(backspaces+backspaces.replace("\b", " "), end=backspaces, flush=True, file=self.out)
-		print("Done!" if self.finishedThreads.issuperset(self.threads) else "Failed!", flush=True, file=self.out)
+			print(f"{self.message} ... ", end=backspaces.replace("\b", " "), flush=True, file=self.out)
+			while self.running:
+				msg = ""
+				for i in range(N):
+					if self.running:
+						msg += f"{borders[0]}{symbols[n[i]]}{borders[1]}{sep if i < N-1 else ''}"
+						n[i]=(n[i]+1)%m
+					else:
+						print(backspaces+backspaces.replace("\b", " "), end=backspaces, flush=True, file=self.out)
+						return print("Done!", flush=True, file=self.out)
+				print(backspaces, end=msg, flush=True, file=self.out)
+				sleep(0.2)
+			print(backspaces+backspaces.replace("\b", " "), end=backspaces, flush=True, file=self.out)
+			print("Done!" if self.finishedThreads.issuperset(self.threads) else "Failed!", flush=True, file=self.out)
+		except Exception as e:
+			LOGGER.exception(e)
+			print("", flush=True, file=self.out)
 
 	def showLoadingMiniBars(self, symbols : list[str]= [".", "_", "\u2584", "#", "\u2588"], sep=" ", borders=("[", "]")):
 
-		keys = sorted(self.threads.keys())
-		sepLength = len(sep)
-		N = len(keys)
-		borderLength = len(borders[0]) + len(borders[1])
-		backspaces = "\b" * ((len(symbols[0])+borderLength)*N + sepLength*max(0, len(self.threads)-1))
-		
-		if self.supportsColor:
-			borders = ("\u001b[37;40m"+borders[0], "\u001b[37;40m"+borders[1]+"\u001b[0m")
-			symbols = list(map(lambda x : "\u001b[36;40m"+x, symbols))
+		try:
+			keys = sorted(self.threads.keys())
+			sepLength = len(sep)
+			N = len(keys)
+			borderLength = len(borders[0]) + len(borders[1])
+			backspaces = "\b" * ((len(symbols[0])+borderLength)*N + sepLength*max(0, len(self.threads)-1))
+			
+			if self.supportsColor:
+				borders = ("\u001b[37;40m"+borders[0], "\u001b[37;40m"+borders[1]+"\u001b[0m")
+				symbols = list(map(lambda x : "\u001b[36;40m"+x, symbols))
 
-		print(f"{self.message} ... ", end=backspaces.replace("\b", " "), flush=True, file=self.out)
-		while self.running:
-			msg = ""
-			for i, key in enumerate(keys):
-				prog = self.threads[key]
-				if self.running:
-					msg += f"{borders[0]}{symbols[int(N*prog)]}{borders[1]}{sep if i < N-1 else ''}"
-				else:
-					print(backspaces+backspaces.replace("\b", " "), end=backspaces, flush=True, file=self.out)
-					return print("Done!", flush=True, file=self.out)
-			print(backspaces, end=msg, flush=True, file=self.out)
-			sleep(0.5)
-		print(backspaces+backspaces.replace("\b", " "), end=backspaces, flush=True, file=self.out)
-		print("Done!" if self.finishedThreads.issuperset(self.threads) else "Failed!", flush=True, file=self.out)
+			print(f"{self.message} ... ", end=backspaces.replace("\b", " "), flush=True, file=self.out)
+			while self.running:
+				msg = ""
+				for i, key in enumerate(keys):
+					prog = self.threads[key]
+					if self.running:
+						msg += f"{borders[0]}{symbols[int(N*prog)]}{borders[1]}{sep if i < N-1 else ''}"
+					else:
+						print(backspaces+backspaces.replace("\b", " "), end=backspaces, flush=True, file=self.out)
+						return print("Done!", flush=True, file=self.out)
+				print(backspaces, end=msg, flush=True, file=self.out)
+				sleep(0.5)
+			print(backspaces+backspaces.replace("\b", " "), end=backspaces, flush=True, file=self.out)
+			print("Done!" if self.finishedThreads.issuperset(self.threads) else "Failed!", flush=True, file=self.out)
+		except Exception as e:
+			LOGGER.exception(e)
+			print("", flush=True, file=self.out)
 
 	def showLoadingBar(self, length=10, borders=("[", "]"), fill="\u2588", halfFill="\u258C", background=" ", sep=" ", partition=""):
 
-		innerLength = length - len(borders[0]) - len(borders[1]) - len(partition)
-		keys = sorted(self.threads.keys())
-		sepLength = len(sep)
-		N = len(keys)
-		backspaces = "\b" * (length * N + sepLength * max(0, N - 1) + len(partition)*N)
-		
-		if self.supportsColor:
-			borders = ("\u001b[37;40m"+borders[0]+"\u001b[32;40m", "\u001b[37;40m"+borders[1]+"\u001b[0m")
-			partition = "\u001b[31;40m"
+		try:
+			innerLength = length - len(borders[0]) - len(borders[1]) - len(partition)
+			keys = sorted(self.threads.keys())
+			sepLength = len(sep)
+			N = len(keys)
+			backspaces = "\b" * (length * N + sepLength * max(0, N - 1) + len(partition)*N)
+			
+			if self.supportsColor:
+				borders = ("\u001b[37;40m"+borders[0]+"\u001b[32;40m", "\u001b[37;40m"+borders[1]+"\u001b[0m")
+				partition = "\u001b[31;40m"
 
-		print(f"{self.message} ... ", end=backspaces.replace("\b", " "), flush=True, file=self.out)
-		while self.running:
-			msg = ""
-			for i, key in enumerate(keys):
-				prog = self.threads[key]
-				if self.running:
-					fillLength = int(innerLength*2*prog)
-					fillLength, halfBlock = fillLength//2, fillLength%2
-					emptyLength = innerLength - fillLength - halfBlock
-					
-					msg += f"{borders[0]}{fill*fillLength}{partition}{halfFill*halfBlock}{background*emptyLength}{borders[1]}{sep if i < N-1 else ''}"
-				else:
-					print(backspaces+backspaces.replace("\b", " "), end=backspaces, flush=True, file=self.out)
-					return print("Done!", flush=True, file=self.out)
-			print(backspaces, end=msg, flush=True, file=self.out)
-			sleep(0.6)
-		print(backspaces+backspaces.replace("\b", " "), end=backspaces, flush=True, file=self.out)
-		print("Done!" if self.finishedThreads.issuperset(self.threads) else "Failed!", flush=True, file=self.out)
+			print(f"{self.message} ... ", end=backspaces.replace("\b", " "), flush=True, file=self.out)
+			while self.running:
+				msg = ""
+				for i, key in enumerate(keys):
+					prog = self.threads[key]
+					if self.running:
+						fillLength = int(innerLength*2*prog)
+						fillLength, halfBlock = fillLength//2, fillLength%2
+						emptyLength = innerLength - fillLength - halfBlock
+						
+						msg += f"{borders[0]}{fill*fillLength}{partition}{halfFill*halfBlock}{background*emptyLength}{borders[1]}{sep if i < N-1 else ''}"
+					else:
+						print(backspaces+backspaces.replace("\b", " "), end=backspaces, flush=True, file=self.out)
+						return print("Done!", flush=True, file=self.out)
+				print(backspaces, end=msg, flush=True, file=self.out)
+				sleep(0.6)
+			print(backspaces+backspaces.replace("\b", " "), end=backspaces, flush=True, file=self.out)
+			print("Done!" if self.finishedThreads.issuperset(self.threads) else "Failed!", flush=True, file=self.out)
+		except Exception as e:
+			LOGGER.exception(e)
+			print("", flush=True, file=self.out)
