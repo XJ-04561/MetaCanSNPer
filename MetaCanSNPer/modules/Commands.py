@@ -4,7 +4,7 @@
 
 import re, shutil
 from subprocess import Popen, PIPE, CompletedProcess
-from typing import TextIO
+from typing import TextIO, BinaryIO
 from threading import Thread
 
 from MetaCanSNPer.modules.LogKeeper import createLogger
@@ -12,6 +12,9 @@ from MetaCanSNPer.modules.LogKeeper import createLogger
 LOGGER = createLogger(__name__)
 
 from MetaCanSNPer.modules.Hooks import Hooks
+
+def bPrint(*strings, sep=b" ", end=b"\n", file : BinaryIO=None, encoding : str="utf-8"):
+	file.write(sep.join(map(lambda s : s.encode("utf-8"), strings)) + end)
 
 parallelPattern = re.compile("\s*[&]\s*")
 sequentialPattern = re.compile("\s*[;]\s*")
@@ -25,6 +28,7 @@ class SequentialCommands: pass
 class PipeCommands: pass
 class DumpCommands: pass
 class Commands: pass
+
 
 class Command:
 	"""Triggers the event `f"{self.category}ProcessFinished"` on each finished parallel command"""
@@ -164,11 +168,13 @@ class PipeCommands(Commands):
 		processes[-1].wait()
 		processes.pop(0) # Remove dummy object
 		for i, p in enumerate(processes):
-			print(f"{p.args!r}\n{p.args!r}[STDERR]\n{p.stderr}".encode("utf-8"), end=b"\n", file=self.logFile)
+			bPrint(f"{p.args!r}\n{p.args!r}[STDERR]", file=self.logFile)
+			self.logFile.write(p.stderr.read()) if p.stderr.readable() else bPrint("", file=self.logFile)
 			if p == processes[-1] and self._list[i].outFile is None:
-				print(f"{p.args!r}[STDOUT]\n{p.stdout}".encode("utf-8"), end=b"\n", file=self.logFile)
+				bPrint(f"{p.args!r}[STDOUT]", file=self.logFile)
+				self.logFile.write(p.stdout.read()) if p.stdout.readable() else bPrint("", file=self.logFile)
 			elif p == processes[-1]:
-				print(f"{p.args!r}[STDOUT]\n# Output dumped to: {self._list[i].outFile}".encode("utf-8"), end=b"\n", file=self.logFile)
+				bPrint(f"{p.args!r}[STDOUT]\n# Output dumped to: {self._list[i].outFile}", file=self.logFile)
 			if p.returncode != 0:
 				return processes[:i+1]
 		return processes
