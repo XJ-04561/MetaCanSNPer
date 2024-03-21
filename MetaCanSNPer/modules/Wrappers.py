@@ -200,7 +200,7 @@ class ProcessWrapper:
 						break
 				self.outputs[self.database.references[i][1]] = outputs[j]
 				self.hooks.trigger(f"{self.category}Finished", {"threadN" : j})
-			elif e not in self.solutions:
+			elif eventInfo["Command"].returncodes not in self.solutions:
 				self.hooks.trigger(f"{self.category}Finished", {"threadN" : j})
 		except (AssertionError) as e:
 			e.add_note(f'<{self.command[i]!r} is {eventInfo["object"]!r} = {self.command[i] is eventInfo["object"]}>')
