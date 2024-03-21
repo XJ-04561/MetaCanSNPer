@@ -177,7 +177,7 @@ def main():
 
 			mObj.createMap(softwareName=flags["mapper"], flags=argsDict.get("--mapperOptions", {}))
 
-			TU.wait()
+			TU.deadmans()
 
 		if flags.get("aligner") is not None:
 			TU = TerminalUpdater("Creating Alignments", "Aligners", mObj.hooks, len(mObj.database.references), out=open(os.devnull, "w") if args.silent else sys.stdout)
@@ -185,14 +185,14 @@ def main():
 
 			mObj.createAlignment(softwareName=flags["aligner"], flags=argsDict.get("--alignerOptions", {}))
 			
-			TU.wait()
+			TU.deadmans()
 		
 		TU = TerminalUpdater("Calling SNPs", "SNPCallers", mObj.hooks, len(mObj.database.references), out=open(os.devnull, "w") if args.silent else sys.stdout)
 		TU.start()
 
 		mObj.callSNPs(softwareName=flags["snpCaller"], flags=argsDict.get("--snpCallerOptions", {}))
 		
-		TU.wait()
+		TU.deadmans()
 
 		if not args.silent:
 			print(f"{SOFTWARE_NAME} finished! Results exported to: {mObj.Lib.resultDir}")
@@ -205,7 +205,13 @@ def main():
 		print(f"{SOFTWARE_NAME} ended before completing query. Exception that caused it:", file=sys.stderr)
 		print("", file=sys.stderr)
 		if args.debug:
-			raise e
+			for err in re.finditer("(\[\w+\] \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3} - ERROR: .*?)\n\[\w+\] \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3} - \w+?:", open(LOGGER_FILEHANDLER.baseFilename, "r").read(), flags=re.MULTILINE+re.DOTALL):
+				print(f"ERROR: {err.group(1)}\n")
+			m = re.match("^[a-zA-Z0-9]\w*?[:].*", traceback.format_exc(), flags=re.MULTILINE+re.DOTALL)
+			if m is None:
+				print(traceback.format_exc(), file=sys.stderr)
+			else:
+				print(m.group(), file=sys.stderr)
 		else:
 			m = re.match("^[a-zA-Z0-9]\w*?[:].*", traceback.format_exc(), flags=re.MULTILINE+re.DOTALL)
 			if m is None:
