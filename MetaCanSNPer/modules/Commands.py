@@ -62,6 +62,12 @@ class Command:
 	def __len__(self):
 		return len(self.commands._list)
 	
+	def __getitem__(self, key):
+		return iter(self.commands)
+	
+	def __getitem__(self, key):
+		return self.commands[key]
+	
 	def __del__(self):
 		self.hooks.removeHook(f"SequentialCommands{self.category}Finished", self._hook)
 	
@@ -82,20 +88,20 @@ class Commands:
 	logFile : TextIO
 	raw : str
 
-	def __init__(self, string, category : str, hooks : Hooks, logFile : TextIO=None):
-		self.raw = string
+	def __init__(self, args, category : str, hooks : Hooks, logFile : TextIO=None):
+		self.raw = "".join(args).strip()
 		self.logFile = logFile
 		self.category = category
 		self.hooks = hooks
 		_list = [[]]
 		
-		for c in argsPattern.split(string.strip()):
+		for c in args:
 			if self.pattern.fullmatch(c):
 				_list.append([])
 			else:
 				_list[-1].append(c)
 		
-		self._list = [self.nextType("".join(l), category, hooks, logFile=self.logFile) for l in _list]
+		self._list = [self.nextType(l, category, hooks, logFile=self.logFile) for l in _list]
 	
 	def __iter__(self):
 		return iter(self._list)
@@ -119,11 +125,11 @@ class DumpCommands(Commands):
 	_list : list[str]
 
 	@staticmethod
-	def nextType(string, *args, **kwargs) -> list[str]:
-		return list(filter(lambda s : whitePattern.fullmatch(s) is None, argsPattern.split(string)))
+	def nextType(args, *overFlowArgs, **kwargs) -> list[str]:
+		return args
 
-	def __init__(self, string, category : str, hooks : Hooks, logFile : TextIO=None):
-		super().__init__(string, category, hooks, logFile)
+	def __init__(self, args, category : str, hooks : Hooks, logFile : TextIO=None):
+		super().__init__(args, category, hooks, logFile)
 		
 		command = self._list[0]
 		self.command = list(filter(lambda s : whitePattern.fullmatch(s) is None, command))
@@ -252,7 +258,7 @@ class ParallelCommands(Commands):
 		else:
 			self.logFiles = [open(l, "ab") for l in logFiles]
 		
-		self._list = [self.nextType("".join(l), category, hooks, logFile=logFile) for l, logFile in zip(_list, self.logFiles)]
+		self._list = [self.nextType(l, category, hooks, logFile=logFile) for l, logFile in zip(_list, self.logFiles)]
 
 	def __del__(self):
 		for l in self.logFiles:
