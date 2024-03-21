@@ -42,6 +42,11 @@ class TerminalUpdater:
 	
 	def wait(self, timeout=3):
 		self.thread.join(timeout=timeout)
+
+	def deadmans(self, timeout=3):
+		self.thread.join(timeout=timeout)
+		self.running *= False
+		self.thread.join()
 	
 	def stop(self):
 		self.running *= False

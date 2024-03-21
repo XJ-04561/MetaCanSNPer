@@ -200,6 +200,9 @@ class ProcessWrapper:
 						break
 				self.outputs[self.database.references[i][1]] = outputs[j]
 				self.hooks.trigger(f"{self.category}Finished", {"threadN" : j})
+		except (AssertionError) as e:
+			e.add_note(f'<{commands[i]} == {eventInfo["string"]} = {commands[i] == eventInfo["string"]}>')
+			LOGGER.exception(e, stacklevel=logging.DEBUG)
 		except Exception as e:
 			LOGGER.exception(e, stacklevel=logging.DEBUG)
 
