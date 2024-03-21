@@ -205,9 +205,10 @@ def main():
 		print(f"{SOFTWARE_NAME} ended before completing query. Exception that caused it:", file=sys.stderr)
 		print("", file=sys.stderr)
 		if args.debug:
-			for err in re.finditer("(\[\w+\] \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3} - ERROR: .*?)\n\[\w+\] \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3} - \w+?:", open(LOGGER_FILEHANDLER.baseFilename, "r").read(), flags=re.MULTILINE+re.DOTALL):
-				print(f"ERROR: {err.group(1)}\n")
-			m = re.match("^[a-zA-Z0-9]\w*?[:].*", traceback.format_exc(), flags=re.MULTILINE+re.DOTALL)
+			for err in re.finditer(r"(\[\w+\] \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3} - ERROR: .*?)\n\[\w+\] \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3} - \w+?:", open(LOGGER_FILEHANDLER.baseFilename, "r").read(), flags=re.MULTILINE+re.DOTALL):
+				print(err.group(1))
+				print()
+			m = re.search(r"^[a-zA-Z0-9]\w*?[:].*", traceback.format_exc(), flags=re.MULTILINE+re.DOTALL)
 			if m is None:
 				print(traceback.format_exc(), file=sys.stderr)
 			else:
