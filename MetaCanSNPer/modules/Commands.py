@@ -91,7 +91,7 @@ class Commands:
 			else:
 				_list[-1].append(c)
 		
-		self._list = [self.nextType("".join(l), category, hooks, logFile=self.logFile) for l in _list]
+		self._list = [self.nextType("".join(l), category, hooks, logFiles=self.logFile) for l in _list]
 	
 	def __iter__(self):
 		return iter(self._list)
