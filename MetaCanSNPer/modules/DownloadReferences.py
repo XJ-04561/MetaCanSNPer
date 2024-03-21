@@ -189,12 +189,12 @@ class DownloadQueue(WorkerQueue):
 			# link = f"ftp://ftp.ncbi.nlm.nih.gov/genomes/all/GC{SOURCED[source]}/{n1}/{n2}/{n3}/{genbank_id}_{assembly_name}/{genbank_id}_{assembly_name}_genomic.fna.gz"
 
 			LOGGER.debug(f"Downloading: {link} <-> {filename}")
-			print(f"Downloading Assembly {assembly_name} ... ", end="", file=stdout)
+			print(f"Downloading Assembly {assembly_name} ... ", end="", flush=True, file=stdout)
 			urlretrieve(link, f"{filename}.gz")
 
 			LOGGER.debug("Unzipping Reference file: '{f}'".format(f=os.path.basename(filename).strip("_genomic.fna.gz")))
 			DownloadQueue.gunzip(f"{filename}.gz")
-		print("Done!", file=stdout)
+		print("Done!", flush=True, file=stdout)
 
 	@staticmethod
 	def gunzip(filename : str, dst : str=None, wait=True):
