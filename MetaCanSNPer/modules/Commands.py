@@ -110,9 +110,13 @@ class DumpCommands(Commands):
 	If no ">" is used, then whatever `stdout=` is provided to the `.run()`-method
 	is where the process stdout will be sent."""
 	pattern = dumpPattern
-	nextType = lambda string : list(filter(lambda s : whitePattern.fullmatch(s) is None, argsPattern.split(string)))
 	command : list[str]
 	outFile : TextIO
+	_list : list[str]
+
+	@staticmethod
+	def nextType(string, *args, **kwargs) -> list[str]:
+		return list(filter(lambda s : whitePattern.fullmatch(s) is None, argsPattern.split(string)))
 
 	def __init__(self, string, category : str, hooks : Hooks, logFile : TextIO=None):
 		super().__init__(string, category, hooks, logFile)
