@@ -186,21 +186,20 @@ class ProcessWrapper:
 	# 		e.add_note(f"{self.category} Thread {threadN}")
 	# 		LOGGER.exception(e)
 
-	def updateOutput(self, eventInfo, commands : list[str], outputs : dict[str,str]):
+	def updateOutput(self, eventInfo, outputs : dict[str,str]):
 		try:
 			i = eventInfo["threadN"]
 			assert self.command[i] is eventInfo["object"]
 			self.semaphore.release()
-			if eventInfo["Command"].returncodes == 0:
+			if eventInfo["Command"].returncodes == 0 or eventInfo["Command"].returncodes not in self.solutions:
 				j = i
 				for s in sorted(self.skip): # Adjust thread index for all the skipped commands.
 					if j >= s:
 						j += 1
 					else:
 						break
-				self.outputs[self.database.references[i][1]] = outputs[j]
-				self.hooks.trigger(f"{self.category}Finished", {"threadN" : j})
-			elif eventInfo["Command"].returncodes not in self.solutions:
+				if eventInfo["Command"].returncodes == 0:
+					self.outputs[self.database.references[j][1]] = outputs[i]
 				self.hooks.trigger(f"{self.category}Finished", {"threadN" : j})
 		except (AssertionError) as e:
 			e.add_note(f'<{self.command[i]!r} is {eventInfo["object"]!r} = {self.command[i] is eventInfo["object"]}>')
@@ -213,7 +212,7 @@ class ProcessWrapper:
 		commands, logs, outputs = self.formatCommands()
 		
 		self.hooks.removeHook(f"{self.category}ProcessFinished", self._hooksList.get("processFinished"))
-		self._hooksList["processFinished"] = self.hooks.addHook(f"{self.category}ProcessFinished", target=self.updateOutput, args=[commands, outputs])
+		self._hooksList["processFinished"] = self.hooks.addHook(f"{self.category}ProcessFinished", target=self.updateOutput, args=[outputs])
 
 		self.command = Command(" & ".join(commands), self.category, self.hooks, logFiles=logs)
 
