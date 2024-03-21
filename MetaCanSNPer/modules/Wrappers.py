@@ -188,8 +188,8 @@ class ProcessWrapper:
 
 	def updateOutput(self, eventInfo, commands : list[str], outputs : dict[str,str]):
 		try:
-			assert commands[i] == eventInfo["string"]
 			i = eventInfo["threadN"]
+			assert commands[i] == eventInfo["string"]
 			self.semaphore.release()
 			if eventInfo["Command"].returncodes == 0:
 				j = i
