@@ -52,12 +52,15 @@ class Hooks:
         """Removes all occurances of the hook in the list of hooks associated with the eventType"""
         # Essentially a while True: but limited to at least iterations as long as the hooks list.
         ret = False
+        if eventType not in self._hooks:
+            return ret
         for _ in range(len(self._hooks[eventType])):
             try:
                 self._hooks[eventType].remove(hook)
                 ret = True
             except ValueError:
                 return ret
+        return ret
 
     def trigger(self, eventType : str, eventInfo : dict):
         LOGGER.debug(f"Event triggered: {eventType=}, {eventInfo=}")
