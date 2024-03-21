@@ -172,7 +172,7 @@ def main():
 		if flags["sessionName"] is not None: mObj.setSessionName(flags["sessionName"])
 		
 		if flags.get("mapper") is not None:
-			TU = TerminalUpdater("Creating maps", "Mappers", mObj.hooks, len(mObj.database.references), out=open(os.devnull, "w") if args.silent else sys.stdout)
+			TU = TerminalUpdater("Creating Maps", "Mappers", mObj.hooks, len(mObj.database.references), out=open(os.devnull, "w") if args.silent else sys.stdout)
 			TU.start()
 
 			mObj.createMap(softwareName=flags["mapper"], flags=argsDict.get("--mapperOptions", {}))
