@@ -53,7 +53,7 @@ class Command:
 
 		self._hook = self.hooks.addHook(f"SequentialCommands{self.category}Finished", target=parallelFinished, args=[self])
 
-		self.commands = ParallelCommands(string, category, hooks, logFile=self.logFiles)
+		self.commands = ParallelCommands(string, category, hooks, logFiles=self.logFiles)
 	
 	def __len__(self):
 		return len(self.commands._list)
@@ -91,7 +91,7 @@ class Commands:
 			else:
 				_list[-1].append(c)
 		
-		self._list = [self.nextType("".join(l), category, hooks, logFiles=self.logFile) for l in _list]
+		self._list = [self.nextType("".join(l), category, hooks, logFile=self.logFile) for l in _list]
 	
 	def __iter__(self):
 		return iter(self._list)
