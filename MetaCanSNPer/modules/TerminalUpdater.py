@@ -141,12 +141,10 @@ class TerminalUpdater:
 						msg += f"{borders[0]}{symbols[n[i]]}{borders[1]}{sep if i < N-1 else ''}"
 						n[i]=(n[i]+1)%m
 					else:
-						LOGGER.error("Stopped mid for-loop")
 						print(backspaces+backspaces.replace("\b", " "), end=backspaces, flush=True, file=self.out)
 						return print("Done!" if self.finishedThreads.issuperset(self.threads) else "Failed!", flush=True, file=self.out)
 				print(backspaces, end=msg, flush=True, file=self.out)
 				sleep(0.2)
-			LOGGER.error("Stopped the while-loop")
 			print(backspaces+backspaces.replace("\b", " "), end=backspaces, flush=True, file=self.out)
 			print("Done!" if self.finishedThreads.issuperset(self.threads) else "Failed!", flush=True, file=self.out)
 		except Exception as e:

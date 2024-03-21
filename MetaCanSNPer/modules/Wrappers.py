@@ -200,8 +200,8 @@ class ProcessWrapper:
 						break
 				self.outputs[self.database.references[i][1]] = outputs[j]
 				self.hooks.trigger(f"{self.category}Finished", {"threadN" : j})
-		except:
-			return
+		except Exception as e:
+			LOGGER.exception(e, stacklevel=logging.DEBUG)
 
 	def createCommand(self):
 		""""""
