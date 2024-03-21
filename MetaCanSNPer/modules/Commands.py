@@ -68,6 +68,9 @@ class Command:
 	def __getitem__(self, key):
 		return self.commands[key]
 	
+	def __repr__(self):
+		return f"<{type(self).__name__} {hex(id(self))} raw={self.raw!r}>"
+	
 	def __del__(self):
 		self.hooks.removeHook(f"SequentialCommands{self.category}Finished", self._hook)
 	
