@@ -46,7 +46,7 @@ class Command:
 				self.returncodes[i] = None if len(eventInfo["object"].processes) == 0 else eventInfo["object"].processes[-1].returncode
 				self.hooks.trigger(f"{self.category}ProcessFinished", {"threadN" : i, "Command" : self, "string" : eventInfo["object"].raw})
 			except AssertionError:
-				LOGGER.error(f"`assert id(eventInfo[\"object\"]) == id(self.commands._list[i])` did not pass.\n\t{eventInfo["object"]=}\n\t{self.commands._list[i]=}")
+				LOGGER.error(f"`assert id(eventInfo[\"object\"]) == id(self.commands._list[i])` did not pass.\n\t{eventInfo['object']=}\n\t{self.commands._list[i]=}")
 				return
 			except:
 				return
