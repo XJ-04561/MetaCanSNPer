@@ -5,10 +5,13 @@
 import re
 from subprocess import Popen, PIPE, CompletedProcess
 from typing import TextIO
+from threading import Thread
 
 from MetaCanSNPer.modules.LogKeeper import createLogger
 
 LOGGER = createLogger(__name__)
+
+from MetaCanSNPer.modules.Hooks import Hooks
 
 parallelPattern = re.compile("\s*[&]\s*")
 sequentialPattern = re.compile("\s*[;]\s*")
@@ -24,15 +27,35 @@ class Commands: pass
 
 class Command:
 
-	_commands : SequentialCommands
+	commands : Commands
 	logFile : TextIO
 	raw : str
+	category : str
+	hooks : Hooks
 
-	def __init__(self, string, logFile : TextIO=None):
-		self.raw = string
+	def __init__(self, string : str=None, commands : list[str]=None, category=None, hooks : Hooks=None, logFile : TextIO=None):
+		if commands is not None:
+			self.raw = " & ".join(commands)
+		else:
+			self.raw = string
 		self.logFile = logFile
-		self._commands = SequentialCommands(string, logFile=logFile)
+		self.category = category
+		self.hooks = hooks
+
+		def parallelFinished(eventInfo, self : Command):
+			try:
+				i = self.commands._list.index(eventInfo["object"])
+			except:
+				return
+			self.hooks.trigger(f"{self.category}ProcessFinished", {"threadN" : i, "Command" : self})
+
+		self._hook = self.hooks.addHook(f"SequentialCommands{self.category}Finished", target=parallelFinished, args=[self])
+
+		self.commands = Commands(self.raw, category, hooks, logFile=logFile)
 	
+	def __del__(self):
+		self.hooks.removeHook(f"SequentialCommands{self.category}Finished", self._hook)
+
 	def __iter__(self):
 		return iter(self._list)
 	
@@ -45,18 +68,26 @@ class Command:
 	def __getitem__(self, key):
 		return self._list[key]
 	
+	def start(self):
+		self.commands.start()
+
 	def run(self):
-		self._commands.run()
+		self.commands.run()
 
 class Commands(Command):
 	pattern : re.Pattern = parallelPattern
 	nextType = SequentialCommands
+	hooks : Hooks
+	category : str
 	_list : list[SequentialCommands]
 
-	def __init__(self, string, logFile : TextIO=None):
+	def __init__(self, string, category : str, hooks : Hooks, logFile : TextIO=None):
 		self.raw = string
 		self.logFile = logFile
+		self.category = category
+		self.hooks = hooks
 		_list = [[]]
+		
 		for c in argsPattern.split(string.strip()):
 			if self.pattern.fullmatch(c):
 				_list.append([])
@@ -65,14 +96,26 @@ class Commands(Command):
 		
 		self._list = [self.nextType("".join(l), logFile=self.logFile) for l in _list]
 	
+	def start(self) -> list[CompletedProcess]:
+		processes = []
+		
+		for sc in self._list: # TODO Not actually parallel YET
+			sc.start()
+			processes.extend(p)
+			if processes[-1].returncode != 0:
+				return processes
+		return processes
+	
 	def run(self) -> list[CompletedProcess]:
 		processes = []
+		
 		for sc in self._list: # TODO Not actually parallel YET
 			p = sc.run()
 			processes.extend(p)
 			if processes[-1].returncode != 0:
 				return processes
 		return processes
+	
 
 class DumpCommands(Commands):
 	pattern = dumpPattern
@@ -138,16 +181,29 @@ class SequentialCommands(Commands):
 	pattern = sequentialPattern
 	nextType = PipeCommands
 	_list : list[PipeCommands]
+	processes : list[Popen]
+	thread : Thread
+
+	def start(self : SequentialCommands) -> list[CompletedProcess]:
+		self.processes = []
+		def runInSequence(self : SequentialCommands):
+			for pc in self._list:
+				p = pc.run()
+				self.processes.extend(p)
+				if self.processes[-1].returncode != 0:
+					break
+			self.hooks.trigger(f"SequentialCommands{self.category}Finished", {"object" : self})
+		self.thread = Thread(target=runInSequence, args=[self], daemon=True)
+		self.thread.start()
 
 	def run(self) -> list[CompletedProcess]:
-		processes = []
+		self.processes = []
 		for pc in self._list:
 			p = pc.run()
-			processes.extend(p)
-			if processes[-1].returncode != 0:
-				return processes
-		return processes
-
-
+			self.processes.extend(p)
+			if self.processes[-1].returncode != 0:
+				return self.processes
+		return self.processes
+		
 class Commands(Command):
 	nextType = SequentialCommands
