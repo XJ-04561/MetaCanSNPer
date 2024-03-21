@@ -29,6 +29,14 @@ class DirectoryLibrary(PathLibrary):
 	resultDir : DirectoryPath
 	logDir : DirectoryPath
 
+	@property
+	def resultDir(self) -> DirectoryPath:
+		return self.outDir.create(self.sessionName)
+	
+	@property
+	def logDir(self) -> DirectoryPath:
+		return self.outDir.create(self.sessionName)
+
 	maps : MinimalPathLibrary
 	alignments : MinimalPathLibrary
 	targetSNPs : MinimalPathLibrary
@@ -74,7 +82,6 @@ class DirectoryLibrary(PathLibrary):
 		
 		object.__setattr__(self, "query", PathList())
 		object.__setattr__(self, "queryName", "")
-		object.__setattr__(self, "sessionName", "")
 		object.__setattr__(self, "chromosomes", [])
 		
 		self.maps = MinimalPathLibrary()
@@ -154,11 +161,9 @@ class DirectoryLibrary(PathLibrary):
 			self.outDir = (self.commonGroups.locals > outDir)
 		self.outDir.defaultPurpose = "rwx"
 		LOGGER.debug(f"Set outDir to:\n{self.outDir}")
-
-		self.resultDir = self.logDir = self.outDir.create(self.sessionName)
-		LOGGER.debug(f"Set resultDir and logDir to:\n{self.resultDir}")
-		if self.resultDir is None:
-			raise PermissionError(f"No directory with writing permissions found! Looked through: {self.outDir}")
+		
+		if not any(pBackAccess(p, "w") for p in self.outDir):
+			raise PermissionError(f"No output directory with writing permissions found! Looked through: {self.outDir}")
 
 	'''Set-Values'''
 	

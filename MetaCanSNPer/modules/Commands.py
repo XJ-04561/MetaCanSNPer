@@ -164,15 +164,11 @@ class PipeCommands(Commands):
 		processes[-1].wait()
 		processes.pop(0) # Remove dummy object
 		for i, p in enumerate(processes):
-			print(f"{p.args!r}", file=self.logFile)
-			print(f"{p.args!r}[STDERR]", file=self.logFile)
-			print(p.stderr, file=self.logFile)
+			print(f"{p.args!r}\n{p.args!r}[STDERR]\n{p.stderr}".encode("utf-8"), file=self.logFile)
 			if p == processes[-1] and self._list[i].outFile is None:
-				print(f"{p.args!r}[STDOUT]", file=self.logFile)
-				print(p.stdout, file=self.logFile)
+				print(f"{p.args!r}[STDOUT]\n{p.stdout}".encode("utf-8"), file=self.logFile)
 			elif p == processes[-1]:
-				print(f"{p.args!r}[STDOUT]", file=self.logFile)
-				print(f"# Output dumped to: {self._list[i].outFile}", file=self.logFile)
+				print(f"{p.args!r}[STDOUT]\n# Output dumped to: {self._list[i].outFile}".encode("utf-8"), file=self.logFile)
 			if p.returncode != 0:
 				return processes[:i+1]
 		return processes
