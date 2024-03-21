@@ -20,7 +20,7 @@ class TerminalUpdater:
 		self.message = message
 		self.category = category
 		self.hooks = hooks
-		self.threads = {key+1:0.0 for key in range(nThreads)}
+		self.threads = {key:0.0 for key in range(nThreads)}
 		self.out = out
 		self.finishedThreads = set()
 		
