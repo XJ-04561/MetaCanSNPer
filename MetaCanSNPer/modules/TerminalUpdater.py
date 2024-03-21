@@ -126,7 +126,7 @@ class TerminalUpdater:
 
 	"""Print Functions"""
 
-	def showLoadingSymbol(self, symbols : list[str]=("|", "/", "-", "\\"), sep=" ", borders=("[", "]"), crashSymbol="X"):
+	def showLoadingSymbol(self, symbols : list[str]=("|", "/", "-", "\\"), sep=" ", borders=("[", "]"), crashSymbol="X", finishSymbol="\u2588"):
 
 		try:
 			keys = sorted(self.threads.keys())
@@ -141,6 +141,7 @@ class TerminalUpdater:
 				borders = ("\u001b[37;40m"+borders[0], "\u001b[37;40m"+borders[1]+"\u001b[0m")
 				symbols = list(map(lambda x : "\u001b[36;40m"+x, symbols))
 				crashSymbol = f"\u001b[31;40m{crashSymbol}"
+				finishSymbol = f"\u001b[32;40m{finishSymbol}"
 
 			print(f"{self.message} ... ", end=backspaces.replace("\b", " "), flush=True, file=self.out)
 			while self.running:
@@ -148,7 +149,12 @@ class TerminalUpdater:
 				for i, key in enumerate(self.threads):
 					prog = self.threads[key]
 					if self.running:
-						msg += f"{borders[0]}{symbols[n[i]] if prog is not None else crashSymbol}{borders[1]}{sep if i < N-1 else ''}"
+						if prog == 1.0:
+							msg += f"{borders[0]}{finishSymbol}{borders[1]}{sep if i < N-1 else ''}"
+						elif prog is not None:
+							msg += f"{borders[0]}{symbols[n[i]]}{borders[1]}{sep if i < N-1 else ''}"
+						else:
+							msg += f"{borders[0]}{crashSymbol}{borders[1]}{sep if i < N-1 else ''}"
 						n[i]=(n[i]+1)%m
 					else:
 						print(backspaces+backspaces.replace("\b", " "), end=backspaces, flush=True, file=self.out)
@@ -173,6 +179,7 @@ class TerminalUpdater:
 			if self.supportsColor:
 				borders = ("\u001b[37;40m"+borders[0], "\u001b[37;40m"+borders[1]+"\u001b[0m")
 				symbols = list(map(lambda x : "\u001b[36;40m"+x, symbols))
+				symbols[-1] = f"\u001b[32;40m{symbols[-1]}"
 				crashSymbol = f"\u001b[31;40m{crashSymbol}"
 
 			print(f"{self.message} ... ", end=backspaces.replace("\b", " "), flush=True, file=self.out)
@@ -205,11 +212,12 @@ class TerminalUpdater:
 			N = len(keys)
 			backspaces = "\b" * (length * N + sepLength * max(0, N - 1) + len(partition)*N)
 			
-			crashColor = ""
+			crashColor, finishColor = "", ""
 			if self.supportsColor:
 				borders = ("\u001b[37;40m"+borders[0]+"\u001b[32;40m", "\u001b[37;40m"+borders[1]+"\u001b[0m")
 				partition = "\u001b[31;40m"
 				crashColor = "\u001b[31;40m"
+				finishColor = "\u001b[32;40m"
 
 			print(f"{self.message} ... ", end=backspaces.replace("\b", " "), flush=True, file=self.out)
 			while self.running:
@@ -217,7 +225,9 @@ class TerminalUpdater:
 				for i, key in enumerate(keys):
 					prog = self.threads[key]
 					if self.running:
-						if prog is not None:
+						if prog == 1.0:
+							msg += f"{borders[0]}{finishColor}{innerLength*fill}{borders[1]}{sep if i < N-1 else ''}"
+						elif prog is not None:
 							fillLength = int(innerLength*2*prog)
 							fillLength, halfBlock = fillLength//2, fillLength%2
 							emptyLength = innerLength - fillLength - halfBlock
