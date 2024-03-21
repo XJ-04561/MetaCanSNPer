@@ -2,7 +2,7 @@
 
 
 
-import re
+import re, shutil
 from subprocess import Popen, PIPE, CompletedProcess
 from typing import TextIO
 from threading import Thread
@@ -136,8 +136,12 @@ class DumpCommands(Commands):
 			raise ValueError(f"Output dumped more or less than once using '>' in one command. Command: {'>'.join(map(''.join, self._list))}")
 		
 	def run(self, stdin=None, stdout=PIPE, stderr=PIPE, **kwargs) -> Popen:
+		ex = shutil.which(self.command[0])
+		if ex is None:
+			raise FileNotFoundError(f"Could not find an executable for command {self.command[0]!r} on PATH using `shutil.which({self.command[0]!r})`.")
+		else:
+			self.command[0] = ex
 		p : Popen = Popen(self.command, stdin=stdin, stdout=self.outFile or stdout, stderr=stderr, **kwargs)
-		p.start()
 		return p
 
 class PipeCommands(Commands):
