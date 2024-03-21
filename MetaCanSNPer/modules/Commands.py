@@ -110,7 +110,7 @@ class Commands:
 		return self.raw
 	
 	def __repr__(self):
-		f"<{type(self).split('.')[-1].split(' ')[0].strip('<')} {hex(id(self))} raw={self.raw!r}>"
+		f"<{type(self).__name__} {hex(id(self))} raw={self.raw!r}>"
 
 	def __getitem__(self, key):
 		return self._list[key]
