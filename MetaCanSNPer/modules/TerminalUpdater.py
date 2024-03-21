@@ -48,6 +48,9 @@ class TerminalUpdater:
 		self.running *= False
 		self.thread.join()
 	
+	def kill(self):
+		self.running *= False
+
 	def stop(self):
 		self.running *= False
 		self.thread.join()
@@ -123,7 +126,7 @@ class TerminalUpdater:
 
 	"""Print Functions"""
 
-	def showLoadingSymbol(self, symbols : list[str]=("|", "/", "-", "\\"), sep=" ", borders=("[", "]")):
+	def showLoadingSymbol(self, symbols : list[str]=("|", "/", "-", "\\"), sep=" ", borders=("[", "]"), crashSymbol="X"):
 
 		try:
 			keys = sorted(self.threads.keys())
@@ -137,13 +140,15 @@ class TerminalUpdater:
 			if self.supportsColor:
 				borders = ("\u001b[37;40m"+borders[0], "\u001b[37;40m"+borders[1]+"\u001b[0m")
 				symbols = list(map(lambda x : "\u001b[36;40m"+x, symbols))
+				crashSymbol = f"\u001b[31;40m{crashSymbol}"
 
 			print(f"{self.message} ... ", end=backspaces.replace("\b", " "), flush=True, file=self.out)
 			while self.running:
 				msg = ""
-				for i in range(N):
+				for i, key in enumerate(self.threads):
+					prog = self.threads[key]
 					if self.running:
-						msg += f"{borders[0]}{symbols[n[i]]}{borders[1]}{sep if i < N-1 else ''}"
+						msg += f"{borders[0]}{symbols[n[i]] if prog is not None else crashSymbol}{borders[1]}{sep if i < N-1 else ''}"
 						n[i]=(n[i]+1)%m
 					else:
 						print(backspaces+backspaces.replace("\b", " "), end=backspaces, flush=True, file=self.out)
@@ -156,7 +161,7 @@ class TerminalUpdater:
 			LOGGER.exception(e)
 			print("", flush=True, file=self.out)
 
-	def showLoadingMiniBars(self, symbols : list[str]= [".", "_", "\u2584", "#", "\u2588"], sep=" ", borders=("[", "]")):
+	def showLoadingMiniBars(self, symbols : list[str]= [".", "_", "\u2584", "#", "\u2588"], sep=" ", borders=("[", "]"), crashSymbol : str="/"):
 
 		try:
 			keys = sorted(self.threads.keys())
@@ -168,6 +173,7 @@ class TerminalUpdater:
 			if self.supportsColor:
 				borders = ("\u001b[37;40m"+borders[0], "\u001b[37;40m"+borders[1]+"\u001b[0m")
 				symbols = list(map(lambda x : "\u001b[36;40m"+x, symbols))
+				crashSymbol = f"\u001b[31;40m{crashSymbol}"
 
 			print(f"{self.message} ... ", end=backspaces.replace("\b", " "), flush=True, file=self.out)
 			while self.running:
@@ -175,7 +181,10 @@ class TerminalUpdater:
 				for i, key in enumerate(keys):
 					prog = self.threads[key]
 					if self.running:
-						msg += f"{borders[0]}{symbols[int(N*prog)]}{borders[1]}{sep if i < N-1 else ''}"
+						if prog is not None:
+							msg += f"{borders[0]}{symbols[int(N*prog)]}{borders[1]}{sep if i < N-1 else ''}"
+						else:
+							msg += f"{borders[0]}{crashSymbol}{borders[1]}{sep if i < N-1 else ''}"
 					else:
 						print(backspaces+backspaces.replace("\b", " "), end=backspaces, flush=True, file=self.out)
 						return print("Done!", flush=True, file=self.out)
@@ -187,7 +196,7 @@ class TerminalUpdater:
 			LOGGER.exception(e)
 			print("", flush=True, file=self.out)
 
-	def showLoadingBar(self, length=10, borders=("[", "]"), fill="\u2588", halfFill="\u258C", background=" ", sep=" ", partition=""):
+	def showLoadingBar(self, length=10, borders=("[", "]"), fill="\u2588", halfFill="\u258C", background=" ", sep=" ", partition="", crashSymbol : str="/"):
 
 		try:
 			innerLength = length - len(borders[0]) - len(borders[1]) - len(partition)
@@ -196,9 +205,11 @@ class TerminalUpdater:
 			N = len(keys)
 			backspaces = "\b" * (length * N + sepLength * max(0, N - 1) + len(partition)*N)
 			
+			crashColor = ""
 			if self.supportsColor:
 				borders = ("\u001b[37;40m"+borders[0]+"\u001b[32;40m", "\u001b[37;40m"+borders[1]+"\u001b[0m")
 				partition = "\u001b[31;40m"
+				crashColor = "\u001b[31;40m"
 
 			print(f"{self.message} ... ", end=backspaces.replace("\b", " "), flush=True, file=self.out)
 			while self.running:
@@ -206,11 +217,14 @@ class TerminalUpdater:
 				for i, key in enumerate(keys):
 					prog = self.threads[key]
 					if self.running:
-						fillLength = int(innerLength*2*prog)
-						fillLength, halfBlock = fillLength//2, fillLength%2
-						emptyLength = innerLength - fillLength - halfBlock
-						
-						msg += f"{borders[0]}{fill*fillLength}{partition}{halfFill*halfBlock}{background*emptyLength}{borders[1]}{sep if i < N-1 else ''}"
+						if prog is not None:
+							fillLength = int(innerLength*2*prog)
+							fillLength, halfBlock = fillLength//2, fillLength%2
+							emptyLength = innerLength - fillLength - halfBlock
+							
+							msg += f"{borders[0]}{fill*fillLength}{partition}{halfFill*halfBlock}{background*emptyLength}{borders[1]}{sep if i < N-1 else ''}"
+						else:
+							msg += f"{borders[0]}{crashColor}{innerLength*crashSymbol}{borders[1]}{sep if i < N-1 else ''}"
 					else:
 						print(backspaces+backspaces.replace("\b", " "), end=backspaces, flush=True, file=self.out)
 						return print("Done!", flush=True, file=self.out)

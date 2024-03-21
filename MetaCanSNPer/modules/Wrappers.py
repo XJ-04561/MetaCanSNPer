@@ -17,108 +17,6 @@ import MetaCanSNPer.Globals as Globals
 
 LOGGER = LogKeeper.createLogger(__name__)
 
-# class command: pass
-
-# class Thread(_Thread):
-
-# 	group : command
-# 	exception : Exception
-
-# 	# def __new__(cls, group : command=None, **kwargs):
-# 	# 	obj = super().__new__(cls)
-# 	# 	obj.group = group
-# 	# 	obj.exception = None
-# 	# 	return obj
-	
-# 	def __init__(self, group : command=None, **kwargs):
-# 		if "daemon" not in kwargs:
-# 			kwargs["daemon"] = True
-		
-# 		super().__init__(**kwargs)
-# 		self.group = group
-# 		self.exception = None
-	
-# 	def run(self, *args, **kwargs):
-# 		try:
-# 			super().run(*args, **kwargs)
-# 		except Exception as e:
-# 			self.exception = e
-
-# """OOP handling of multiple processes"""
-# class command:
-# 	threads : list[Thread]
-# 	commands : list[str]
-# 	args : list[list] | list
-# 	kwargs : list[dict] | dict
-# 	threadKwargs : dict
-# 	returncodes : dict[int]
-
-# 	def __init__(self, target : Callable, args : list[list] | list=None, kwargs : list[dict] | dict=None, n : int=None, names : list=None, daemons : list[bool]|bool=True):
-# 		"""
-# 		"""
-# 		self.target = target
-# 		self.returncodes = {}
-		
-# 		# Error management for developers
-# 		if n is not None:
-# 			self.args = [args or []] * n
-# 			self.kwargs = [kwargs or {}] * n
-# 		elif kwargs is None and args is not None:
-# 			self.n = len(args)
-# 			self.args = args
-# 			self.kwargs = [{}]*self.n
-# 		elif args is not None and len(args) == len(kwargs):
-# 			self.n = len(args)
-# 			self.args = args
-# 			self.kwargs = kwargs
-# 		else:
-# 			raise TypeError("command created without specifying number of threads to be created.\nThe number is hinted from the length of args or kwargs. or specified with n.")
-
-# 		try:
-# 			assert type(names) not in [str, bytes, type(None)]
-# 			assert len(names) == self.n
-# 			self.names = names
-# 		except:
-# 			self.names = list(range(1, self.n+1))
-
-# 		try:	len(daemons);	self.daemons = daemons
-# 		except:	self.daemons = [daemons] * len(self.args)
-		
-# 		if any(self.n != x for x in map(len, [self.kwargs, self.names, self.daemons])):
-# 			raise ValueError("command entries for all kwargs except target must be contiguous, scalar, or None. The exception is for `args` and `kwargs` if `n` is given.")
-
-# 		# def targetWrapper(target, *args, **kwargs):
-# 		# 	try:
-# 		# 		target(*args, **kwargs)
-# 		# 	except Exception as e:
-# 		# 		object.__setattr__(current_thread(), "exception", e)
-
-# 		self.threads = []
-# 		for args, kwargs, name, daemon in zip(self.args, self.kwargs, self.names, self.daemons):
-# 			self.threads.append(Thread(group=self, target=target, args=args, kwargs=kwargs, name=name, daemon=daemon))
-
-
-# 	def __iter__(self):
-# 		return iter(self.threads)
-	
-# 	def __getitem__(self, key):
-# 		return self.threads[key]
-
-# 	# def newFinished(self) -> bool:
-# 	# 	"""Returns True if any thread in self.threads is dead. Also returns True if all threads """
-# 	# 	return any(not t.is_alive() for t in self.threads if t is not None) or all(t is None for t in self.threads)
-
-# 	def start(self):
-# 		for t in self.threads:
-# 			t.start()
-
-# 	def results(self) -> list[int]:
-# 		return [t.name for t in self.threads if not t.is_alive() and t.exception is None]
-
-# 	def finished(self) -> bool:
-# 		return not any(t.is_alive() for t in self.threads)
-	
-
 # Aligner and Mapper classes to inherit from
 class ProcessWrapper:
 	Lib : DirectoryLibrary
@@ -153,53 +51,23 @@ class ProcessWrapper:
 		specific software you are intending to use."""
 		raise NotImplementedError(f"Called `.formatCommands` on a object of a class which has not implemented it. Object class is `{type(self)}`")
 
-	# def run(self, command : str, log : str, *args, **kwargs) -> None:
-	# 	""""""
-		
-	# 	try:
-	# 		this : Thread = current_thread()
-	# 		threadN, TG = int(this.name), this.group
-	# 		LOGGER.debug(f"{self.category} Thread {threadN} - Running command: {command}")
-
-	# 		logFile = open(log or os.devnull, "wb")
-	# 		LOGGER.debug(f"{self.softwareName} Thread {threadN} - Logging output to: {log or os.devnull}")
-
-	# 		self.hooks.trigger(f"{self.category}Progress", {"progress" : 0.0, "threadN" : threadN})
-	# 		C = Command(command, self.category, self.hooks, logFile=logFile)
-	# 		processes = C.run()
-	# 		self.hooks.trigger(f"{self.category}Progress", {"progress" : 1.0, "threadN" : threadN})
-			
-	# 		logFile.close()
-	# 		returncode = processes[-1].returncode if len(processes) > 0 else None
-	# 		LOGGER.debug(f"{self.category} Thread {threadN} - Returned with exitcode: {returncode}")
-	# 		TG.returncodes[threadN] = returncode
-	# 		self.handleRetCode(returncode, prefix=f"Thread {threadN} - ")
-
-	# 		if returncode != 0:
-	# 			LOGGER.error(f"{self.softwareName} Thread {threadN} - Child process encountered an issue, logging output to: {log or os.devnull}")
-
-			
-	# 		self.hooks.trigger(f"{self.category}Finished", {"threadN":threadN, "thread":this})
-	# 		self.semaphore.release()
-	# 		LOGGER.debug(f"{self.category} Thread {threadN} - Finished!")
-	# 	except Exception as e:
-	# 		e.add_note(f"{self.category} Thread {threadN}")
-	# 		LOGGER.exception(e)
-
 	def updateOutput(self, eventInfo, outputs : dict[str,str]):
 		try:
 			i = eventInfo["threadN"]
 			assert self.command[i] is eventInfo["object"]
 			self.semaphore.release()
-			if eventInfo["Command"].returncodes == 0 or eventInfo["Command"].returncodes not in self.solutions:
+			if eventInfo["Command"].returncodes[i] == 0:
 				j = i
 				for s in sorted(self.skip): # Adjust thread index for all the skipped commands.
 					if j >= s:
 						j += 1
 					else:
 						break
-				if eventInfo["Command"].returncodes == 0:
-					self.outputs[self.database.references[j][1]] = outputs[i]
+				self.outputs[self.database.references[j][1]] = outputs[i]
+				self.hooks.trigger(f"{self.category}Progress", {"threadN" : j, "progress" : 1.0})
+				self.hooks.trigger(f"{self.category}Finished", {"threadN" : j})
+			elif eventInfo["Command"].returncodes[i] not in self.solutions:
+				self.hooks.trigger(f"{self.category}Progress", {"threadN" : j, "progress" : None})
 				self.hooks.trigger(f"{self.category}Finished", {"threadN" : j})
 		except (AssertionError) as e:
 			e.add_note(f'<{self.command[i]!r} is {eventInfo["object"]!r} = {self.command[i] is eventInfo["object"]}>')

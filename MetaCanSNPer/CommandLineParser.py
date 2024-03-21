@@ -205,7 +205,8 @@ def main():
 		print(f"{SOFTWARE_NAME} ended before completing query. Exception that caused it:", file=sys.stderr)
 		print("", file=sys.stderr)
 		if args.debug:
-			for err in re.finditer(r"(\[\w+\] \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3} - ERROR: .*?)\n\[\w+\] \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3} - \w+?:", open(LOGGER_FILEHANDLER.baseFilename, "r").read(), flags=re.MULTILINE+re.DOTALL):
+			pattern = re.compile(r"(\[[\w.]+\] \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3} - ERROR: .*?)(?:\[[\w.]+\] \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3} - \w+?:|\$)", flags=re.DOTALL+re.MULTILINE)
+			for err in pattern.finditer(open(LOGGER_FILEHANDLER.baseFilename, "r").read()):
 				print(err.group(1))
 				print()
 			m = re.search(r"^[a-zA-Z0-9]\w*?[:].*", traceback.format_exc(), flags=re.MULTILINE+re.DOTALL)
