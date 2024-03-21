@@ -224,12 +224,13 @@ class ProcessWrapper:
 	
 	def waitNext(self, timeout=None):
 		self.semaphore.acquire(timeout=timeout)
-		return map(int, self.command.results())
 
 	def wait(self, timeout=5):
+		finished = 0
 		while not self.finished():
-			if len(self.waitNext(timeout=timeout)) > 0:
-				LOGGER.info(f"Finished running {self.softwareName} {len(self.command.returncodes)}/{len(self.command)}.")
+			self.waitNext(timeout=timeout)
+			if finished < (finished := len(self.command.returncodes)):
+				LOGGER.info(f"Finished running {self.softwareName} {finished}/{len(self.command)}.")
 		if any(r is None for r in self.command.returncodes.values()):
 			raise ThreadError(f"{self.softwareName!r} crashed/failed to start. Check logs for more details.")
 
