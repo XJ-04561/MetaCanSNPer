@@ -189,7 +189,7 @@ class ProcessWrapper:
 	def updateOutput(self, eventInfo, commands : list[str], outputs : dict[str,str]):
 		try:
 			i = eventInfo["threadN"]
-			assert commands[i] == eventInfo["string"]
+			assert self.command[i] is eventInfo["object"]
 			self.semaphore.release()
 			if eventInfo["Command"].returncodes == 0:
 				j = i
@@ -200,8 +200,10 @@ class ProcessWrapper:
 						break
 				self.outputs[self.database.references[i][1]] = outputs[j]
 				self.hooks.trigger(f"{self.category}Finished", {"threadN" : j})
+			elif e not in self.solutions:
+				self.hooks.trigger(f"{self.category}Finished", {"threadN" : j})
 		except (AssertionError) as e:
-			e.add_note(f'<{commands[i]} == {eventInfo["string"]} = {commands[i] == eventInfo["string"]}>')
+			e.add_note(f'<{self.command[i]!r} is {eventInfo["object"]!r} = {self.command[i] is eventInfo["object"]}>')
 			LOGGER.exception(e, stacklevel=logging.DEBUG)
 		except Exception as e:
 			LOGGER.exception(e, stacklevel=logging.DEBUG)
@@ -250,7 +252,7 @@ class ProcessWrapper:
 	def hickups(self):
 		'''Checks whether any process finished with a non-zero exitcode at the latest run. Returns True if process has not ran yet.'''
 		# Expects that None!=0 is evaluated as True
-		return any(e!=0 for e in self.command.returncodes.values())
+		return self.command.returncodes == {} or any(e!=0 for e in self.command.returncodes.values())
 
 	def fixable(self):
 		'''Checks whether there is a known or suspected solution available for any errors that occured. If tried once,

@@ -48,7 +48,7 @@ class Command:
 				i = self.commands._list.index(eventInfo["object"])
 				assert id(eventInfo["object"]) == id(self.commands._list[i]) # Unsure if needed, but ensures they are the same exact object.
 				self.returncodes[i] = None if len(eventInfo["object"].processes) == 0 else eventInfo["object"].processes[-1].returncode
-				self.hooks.trigger(f"{self.category}ProcessFinished", {"threadN" : i, "Command" : self, "string" : eventInfo["object"].raw})
+				self.hooks.trigger(f"{self.category}ProcessFinished", {"threadN" : i, "Command" : self} | eventInfo)
 			except AssertionError:
 				LOGGER.error(f"`assert id(eventInfo[\"object\"]) == id(self.commands._list[i])` did not pass.\n\t{eventInfo['object']=}\n\t{self.commands._list[i]=}")
 				return
@@ -109,8 +109,8 @@ class Commands:
 	def __str__(self):
 		return self.raw
 	
-	def __format__(self, format_spec):
-		return self.raw.__format__(format_spec)
+	def __repr__(self):
+		f"<{type(self).split('.')[-1].split(' ')[0].strip("<")} {hex(id(self))} raw={self.raw!r}>"
 
 	def __getitem__(self, key):
 		return self._list[key]
