@@ -2,7 +2,7 @@
 
 
 
-import re, shutil
+import re, shutil, sys
 from subprocess import Popen, PIPE, CompletedProcess
 from typing import TextIO, BinaryIO
 from threading import Thread
@@ -170,18 +170,16 @@ class PipeCommands(Commands):
 	_list : list[DumpCommands]
 
 	def run(self, **kwargs) -> CompletedProcess:
-		first = lambda : None
-		first.stdout = None
-		processes : list[Popen] = [first]
-		for i, dc in enumerate(self._list[:-1]):
-			p : Popen = dc.run(stdin=processes[i].stdout, stdout=PIPE, stderr=PIPE, **kwargs)
-			processes.append(p)
-		processes.append( self._list[-1].run(stdin=processes[-1].stdout, stdout=PIPE, stderr=PIPE, **kwargs))
+		if len(self._list) == 0: return []
+
+		processes : list[Popen] = [self._list[0].run(stdout=PIPE, stderr=PIPE, **kwargs)]
+		for i, dc in enumerate(self._list[1:]):
+			processes.append( dc.run(stdin=processes[i].stdout, stdout=PIPE, stderr=PIPE, **kwargs))
 
 		processes[-1].wait()
-		processes.pop(0) # Remove dummy object
+		
 		for i, p in enumerate(processes):
-			bPrint(f"{p.args!r}\n{p.args!r}[STDERR]", file=self.logFile)
+			bPrint(f"{p.args!r}\n{p.args!r}[EXITCODE]\n{p.returncode}\n{p.args!r}[STDERR]", file=self.logFile)
 			self.logFile.write(p.stderr.read()) if p.stderr.readable() else bPrint("", file=self.logFile)
 			if p == processes[-1] and self._list[i].outFile is None:
 				bPrint(f"{p.args!r}[STDOUT]", file=self.logFile)

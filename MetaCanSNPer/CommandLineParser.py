@@ -209,11 +209,10 @@ def main():
 				print(f"{type(exc).__name__}: "+str(exc), file=sys.stderr)
 		except:
 			pass
-		
-		print(f"\n{SOFTWARE_NAME} ended abruptly.\n")
 
-		print(f"{SOFTWARE_NAME} ended before completing query. Exception that caused it:", file=sys.stderr)
-		print("", file=sys.stderr)
+		print(f"{SOFTWARE_NAME} ended before completing query. ", end="\n")
+		print("\bException that caused it:\n", file=sys.stderr)
+		
 		if args.debug:
 			pattern = re.compile(r"(\[[\w.]+\] \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3} - ERROR: .*?)(?:\[[\w.]+\] \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3} - \w+?:|\$)", flags=re.DOTALL+re.MULTILINE)
 			for err in pattern.finditer(open(LOGGER_FILEHANDLER.baseFilename, "r").read()):
