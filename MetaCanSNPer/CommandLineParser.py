@@ -217,11 +217,7 @@ def main():
 			else:
 				print(m.group(), file=sys.stderr)
 		else:
-			m = re.match("^[a-zA-Z0-9]\w*?[:].*", traceback.format_exc(), flags=re.MULTILINE+re.DOTALL)
-			if m is None:
-				print(traceback.format_exc(), file=sys.stderr)
-			else:
-				print(m.group(), file=sys.stderr)
+			print(f"{e.__name__}: "+str(e), file=sys.stderr)
 		exit(1)
 
 
