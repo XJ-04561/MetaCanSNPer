@@ -56,8 +56,7 @@ class TerminalUpdater:
 		self.thread.join()
 	
 	def updateProgress(self, eventInfo : dict):
-		self.threads[eventInfo["threadN"]] *= 0.0
-		self.threads[eventInfo["threadN"]] += eventInfo["progress"]
+		self.threads[eventInfo["threadN"]] = eventInfo["progress"]
 		
 	def stopLoadingbar(self, eventInfo : dict):
 		self.finishedThreads.add(eventInfo["threadN"])
