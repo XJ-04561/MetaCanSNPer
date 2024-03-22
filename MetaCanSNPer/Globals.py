@@ -24,12 +24,14 @@ from PseudoPathy.PathShortHands import *
 import PseudoPathy.Globals as PPGlobals
 import VariantCallFixer.Globals as VCFGlobals
 from PseudoPathy.Library import CommonGroups
-import random, logging, re
+import random, logging, re, time
 random.seed()
+from tempfile import NamedTemporaryFile
 
 ## LogKeeper Globals
-
-LOGGER_FILEHANDLER = logging.FileHandler(CommonGroups().locals.create(f"{SOFTWARE_NAME}-Results", purpose="rw") > "MetaCanSNPer.log")
+with NamedTemporaryFile(prefix=time.strftime("MetaCanSNPer-(%Y-%m-%d)-(%H-%M-%S)-", time.localtime()), suffix=".log", dir=(CommonGroups().locals > f"{SOFTWARE_NAME}-Results").create("Logs", purpose="rw")) as f:
+    LOGGING_FILEPATH = f.name
+LOGGER_FILEHANDLER = logging.FileHandler(LOGGING_FILEPATH)
 LOGGER_FILEHANDLER.setFormatter(logging.Formatter("[%(name)s] %(asctime)s - %(levelname)s: %(message)s"))
 
 PPGlobals.LOGGER.addHandler(LOGGER_FILEHANDLER)
