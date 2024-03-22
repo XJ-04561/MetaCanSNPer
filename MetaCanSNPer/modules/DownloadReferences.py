@@ -212,7 +212,7 @@ class DownloadQueue(WorkerQueue):
 
 			LOGGER.debug("Unzipping Reference file: '{f}'".format(f=os.path.basename(filename).strip("_genomic.fna.gz")))
 			DownloadQueue.gunzip(f"{filename}.gz")
-			print(f"{'\b'*len('. Unpacking...')} & Unpacked!", flush=True, file=stdout)
+			print("\b"*len(". Unpacking...")+f" & Unpacked!", flush=True, file=stdout)
 
 	@staticmethod
 	def gunzip(filename : str, dst : str=None, wait=True):
