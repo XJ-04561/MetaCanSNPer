@@ -52,7 +52,7 @@ class MetaCanSNPer:
 		self.sessionName = sessionName
 		self.exceptions = []
 		self.hooks = Hooks()
-		self.hooks.addHook("ReportError", target=lambda eventInfo : self.exceptions.append(eventInfo["exception"])))
+		self.hooks.addHook("ReportError", target=lambda eventInfo : self.exceptions.append(eventInfo["exception"]))
 		
 		if lib is None:
 			self.Lib = DirectoryLibrary(settings={k:(v if type(v) is not list else tuple(v)) for k,v in settings.items()})
