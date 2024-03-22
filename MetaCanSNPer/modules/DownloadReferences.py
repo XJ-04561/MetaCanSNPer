@@ -121,9 +121,9 @@ class WorkerQueue:
 				else:
 					if not self.worker.is_alive():
 						self.created = self.created[i:]
-						raise False
+						return False
 		self.created = []
-		raise True
+		return True
 	
 	def __iter__(self, timeout=None):
 
