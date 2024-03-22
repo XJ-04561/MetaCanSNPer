@@ -103,7 +103,8 @@ MetaCanSNPer --query SEQUENCE_ASSEMBLY.fna --database DATABASE_FILE.db \\
 		debugOptions.add_argument("--verbose",	action="store_true",	help="Verbose output")
 		debugOptions.add_argument("--debug",	action="store_true",	help="Debug output")
 		debugOptions.add_argument("--suppress",	action="store_true",	help="Suppress warnings")
-		debugOptions.add_argument("--silent",	action="store_true",	help="Don't output progress to terminal")
+		debugOptions.add_argument("--mute",		action="store_true",	help="Disables printing progress to terminal. But will print errors to stderr")
+		debugOptions.add_argument("--silent",	action="store_true",	help="Disables printing to terminal completely.")
 		debugOptions.add_argument("--dry-run",	action="store_true",	help="Don't run the processes of the mapper/aligner/snpCaller, just run a randomised (1 - 5 sec) `sleep` call.")
 	
 
@@ -120,6 +121,9 @@ def main():
 		parser.exit()
 
 	args : argparse.Namespace = parser.parse_args(argsDict["args"])
+
+	if args.silent: sys.stderr = open(os.devnull, "w")
+	if args.silent or args.mute: sys.stdout = open(os.devnull, "w")
 
 	if args.version:
 		print(f"MetaCanSNPer - version {__version__}")
@@ -159,20 +163,19 @@ def main():
 	try:
 		mObj = MetaCanSNPer(settings=flags, settingsFile=args.settingsFile)
 		
-		if not args.silent:
-			print(f"Checking query {args.query}")
+		print(f"Checking query {args.query}")
 		mObj.setQuery(flags["query"])
-		if not args.silent:
-			print(f"Checking database {args.database}")
-		mObj.setDatabase(flags["database"], silent=args.silent)
-		if not args.silent:
-			print(f"Checking references specified in database at {mObj.database.filename}")
-		mObj.setReferenceFiles(silent=args.silent)
+
+		print(f"Checking database {args.database}")
+		mObj.setDatabase(flags["database"])
+
+		print(f"Checking references specified in database at {mObj.database.filename}")
+		mObj.setReferenceFiles()
 		
 		if flags["sessionName"] is not None: mObj.setSessionName(flags["sessionName"])
 		
 		if flags.get("mapper") is not None:
-			TU = TerminalUpdater("Creating Maps", "Mappers", mObj.hooks, len(mObj.database.references), out=open(os.devnull, "w") if args.silent else sys.stdout)
+			TU = TerminalUpdater("Creating Maps", "Mappers", mObj.hooks, len(mObj.database.references))
 			TU.start()
 
 			mObj.createMap(softwareName=flags["mapper"], flags=argsDict.get("--mapperOptions", {}))
@@ -180,22 +183,21 @@ def main():
 			TU.deadmans()
 
 		if flags.get("aligner") is not None:
-			TU = TerminalUpdater("Creating Alignments", "Aligners", mObj.hooks, len(mObj.database.references), out=open(os.devnull, "w") if args.silent else sys.stdout)
+			TU = TerminalUpdater("Creating Alignments", "Aligners", mObj.hooks, len(mObj.database.references))
 			TU.start()
 
 			mObj.createAlignment(softwareName=flags["aligner"], flags=argsDict.get("--alignerOptions", {}))
 			
 			TU.deadmans()
 		
-		TU = TerminalUpdater("Calling SNPs", "SNPCallers", mObj.hooks, len(mObj.database.references), out=open(os.devnull, "w") if args.silent else sys.stdout)
+		TU = TerminalUpdater("Calling SNPs", "SNPCallers", mObj.hooks, len(mObj.database.references))
 		TU.start()
 
 		mObj.callSNPs(softwareName=flags["snpCaller"], flags=argsDict.get("--snpCallerOptions", {}))
 		
 		TU.deadmans()
 
-		if not args.silent:
-			print(f"{SOFTWARE_NAME} finished! Results exported to: {mObj.Lib.resultDir}")
+		print(f"{SOFTWARE_NAME} finished! Results exported to: {mObj.Lib.resultDir}")
 	except Exception as e:
 		try:
 			TU.stop()
