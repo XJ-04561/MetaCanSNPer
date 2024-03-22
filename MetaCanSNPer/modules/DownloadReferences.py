@@ -1,6 +1,6 @@
 
 import os, textwrap, gzip, sys
-from threading import Thread, Lock, ThreadError
+from threading import Thread, Lock, ThreadError, Semaphore
 from urllib.request import urlretrieve
 from typing import Callable, Any
 from subprocess import Popen
@@ -9,6 +9,7 @@ import random
 from PseudoPathy import DirectoryPath
 
 import MetaCanSNPer.modules.LogKeeper as LogKeeper
+from MetaCanSNPer.modules.Hooks import Hooks
 from MetaCanSNPer.Globals import *
 import MetaCanSNPer.Globals as Globals
 
@@ -45,23 +46,34 @@ class WorkerQueue:
 	worker : Thread
 	lock : Lock
 	RUNNING : bool
+	created : list[int]
 
-	def __init__(self):
+	def __init__(self, hooks : Hooks=Hooks()):
 		
+		self.hooks = hooks
+		self.semaphore = Semaphore()
+		self.created = []
 		self.queue = []
 		self.jobs = {}
-		self.finished = {}
+		self.finished = set()
 		self.RUNNING = True
 		self.lock = Lock()
 		self.worker = Thread(target=self.mainLoop, daemon=True)
 		self.worker.start()
+
+		self.hooks.trigger("downloadFinished", target=self.releaseLock)
+		self.hooks.trigger("downloadCrashed", target=lambda eventInfo : self.start())
 
 	def __hash__(self):
 		return self.id
 
 	def __del__(self):
 		self.RUNNING = False
-	
+
+	def releaseLock(self, eventInfo):
+		if eventInfo["job"].id in self.created:
+			self.semaphore.release()
+
 	def start(self):
 		self.worker = Thread(target=self.mainLoop, daemon=True)
 		self.worker.start()
@@ -75,12 +87,10 @@ class WorkerQueue:
 					self.active = self.queue.pop(0)
 					job = self.jobs[self.active]
 					job.target(*job.args, **job.kwargs)
-
-					self.lock.release()
-					self.lock.acquire(False)
+					self.hooks.trigger("downloadFinished", {"job" : job})
 		except Exception as e:
-			self.worker.__setattr__("exception", e)
-			self.lock.release()
+			LOGGER.exception(e)
+			self.hooks.trigger("downloaderCrashed", {"object" : self})
 
 	def push(self, job : Job, id : int=None) -> int:
 		if job.id is not None:
@@ -95,39 +105,26 @@ class WorkerQueue:
 			job.id = id
 		
 		self.jobs[job.id] = job
+		self.created.append(job.id)
+		self.semaphore.acquire(False)
 		self.queue.append(job.id)
 
 		return job.id
 
 
-	def waitFor(self, *args, timeout=300):
-		querySet = set(args)
-		N = len(querySet)
+	def wait(self, timeout=None):
 		
-		for i in range(N):
-			startOfJob = time()
-			if i >= len(querySet):
-				continue # Prevents more than one job being finished in one release-cycle and then waiting forever/timeout.
-
-			LOGGER.debug(f"Waiting for download {1+N-len(querySet)}/{N}")
-			finished = set()
-			while len(finished) == 0 and (time() - startOfJob < timeout or timeout == -1) and self.worker.is_alive():
-				self.lock.acquire(timeout=5)
-				finished = querySet.intersection(self.finished)
-			querySet.difference_update(finished)
-
-			if len(finished) == 0:
-				if time() - startOfJob >= timeout:
-					yield -2
-					raise StopAsyncIteration(f"WorkerQueue.__iter__: Timeout(={timeout}) was reached.")
-				elif hasattr(self.worker, "exception"):
-					yield -1
-					raise StopAsyncIteration(f"Download failed due to exception - {type(self.worker.exception)}: {self.worker.exception}")
-				else:
-					yield -3
-					raise StopAsyncIteration("Download failed for an unknown reason.")
-			for f in list(finished):
-				yield f
+		
+		for i, jobID in enumerate(self.created):
+			last = self.active
+			if self.semaphore.acquire(timeout=timeout):
+				pass
+			else:
+				if not self.worker.is_alive():
+					self.created = self.created[i:]
+					return False
+		self.created = []
+		return True
 	
 	def __iter__(self, timeout=300):
 		return self.waitFor(*self.queue, timeout=timeout)
@@ -140,21 +137,31 @@ class DownloadQueue(WorkerQueue):
 	jobs : dict[int,Job] = {}
 	finished : set[int] = set()
 	worker : Thread = None
-	lock : Lock = Lock()
+	lock : Lock
 	RUNNING : bool = Globals.RUNNING
 
 	created : list
 
-	def __init__(self) -> None:
+	def __init__(self, hooks : Hooks=Hooks()):
+		
+		self.hooks = hooks
+		self.semaphore = Semaphore()
 		self.created = []
 		try:
 			self.worker.start()
 		except RuntimeError:
 			pass # Already running
+
+		self.hooks.trigger("downloadFinished", target=self.releaseLock)
+		self.hooks.trigger("downloadCrashed", target=lambda eventInfo : self.restart())
 	
 	def __del__(self):
 		for id in self.created:
 			del self.jobs[id]
+
+	def releaseLock(self, eventInfo):
+		if eventInfo["job"].id in self.created:
+			self.semaphore.release()
 
 	def download(self, genbank_id : str, refseq_id : str, assembly_name : str, dst : DirectoryPath, filename : str=None, source : str="genbank", force=False, stdout=sys.stdout):
 		"""Returns ID of job. Returns -1 if the file to be downloaded already exists and force==False."""
