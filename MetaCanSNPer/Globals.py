@@ -28,8 +28,22 @@ import random, logging, re, time
 random.seed()
 from tempfile import NamedTemporaryFile
 
+LOG_DIR = None
+for root in CommonGroups().locals:
+    path = os.path.join(root, f"{SOFTWARE_NAME}-Results", "Logs")
+    if pAccess(path, "rw"):
+        LOG_DIR = path
+        break
+if LOG_DIR is None:
+    for root in CommonGroups().locals:
+        path = os.path.join(root, f"{SOFTWARE_NAME}-Results", "Logs")
+        if pBackAccess(path, "w"):
+            if pMakeDirs(path, mode=os.W_OK+os.R_OK):
+                LOG_DIR = path
+                break
+del root, path
 ## LogKeeper Globals
-with NamedTemporaryFile(prefix=time.strftime("MetaCanSNPer-(%Y-%m-%d)-(%H-%M-%S)-", time.localtime()), suffix=".log", dir=(CommonGroups().locals > f"{SOFTWARE_NAME}-Results").create("Logs", purpose="rw")) as f:
+with NamedTemporaryFile(prefix=time.strftime("MetaCanSNPer-(%Y-%m-%d)-(%H-%M-%S)-", time.localtime()), suffix=".log", dir=LOG_DIR) as f:
     LOGGING_FILEPATH = f.name
 LOGGER_FILEHANDLER = logging.FileHandler(LOGGING_FILEPATH)
 LOGGER_FILEHANDLER.setFormatter(logging.Formatter("[%(name)s] %(asctime)s - %(levelname)s: %(message)s"))

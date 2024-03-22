@@ -45,20 +45,18 @@ class WorkerQueue:
 	finished : set[int]
 	worker : Thread
 	hooks : Hooks
-	lock : Lock
 	RUNNING : bool
 	created : list[int]
 
 	def __init__(self, hooks : Hooks=Hooks()):
 		
 		self.hooks = hooks
-		self.semaphore = Semaphore()
+		self.semaphore = Semaphore(0)
 		self.created = []
 		self.queue = []
 		self.jobs = {}
 		self.finished = set()
 		self.RUNNING = True
-		self.lock = Lock()
 		self.worker = Thread(target=self.mainLoop, daemon=True)
 		self.worker.start()
 
@@ -107,7 +105,6 @@ class WorkerQueue:
 		
 		self.jobs[job.id] = job
 		self.created.append(job.id)
-		self.semaphore.acquire(False)
 		self.queue.append(job.id)
 
 		return job.id
@@ -165,7 +162,7 @@ class DownloadQueue(WorkerQueue):
 			pass # Already running
 
 		self.hooks.addHook("downloadFinished", target=self.releaseLock)
-		self.hooks.addHook("downloadCrashed", target=lambda eventInfo : self.restart())
+		self.hooks.addHook("downloadCrashed", target=lambda eventInfo : (self.semaphore.release(), sleep(1), self.restart()))
 	
 	def __del__(self):
 		for id in self.created:
@@ -216,7 +213,7 @@ class DownloadQueue(WorkerQueue):
 
 			LOGGER.debug("Unzipping Reference file: '{f}'".format(f=os.path.basename(filename).strip("_genomic.fna.gz")))
 			DownloadQueue.gunzip(f"{filename}.gz")
-			print("\b"*len(". Unpacking...")+f" & Unpacked!", flush=True, file=stdout)
+			print("\b"*len(". Unpacking...")+f" & Unpacked!  ", flush=True, file=stdout)
 
 	@staticmethod
 	def gunzip(filename : str, dst : str=None, wait=True):
