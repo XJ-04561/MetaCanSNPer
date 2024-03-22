@@ -61,8 +61,8 @@ class WorkerQueue:
 		self.worker = Thread(target=self.mainLoop, daemon=True)
 		self.worker.start()
 
-		self.hooks.trigger("downloadFinished", target=self.releaseLock)
-		self.hooks.trigger("downloadCrashed", target=lambda eventInfo : self.start())
+		self.hooks.addHook("downloadFinished", target=self.releaseLock)
+		self.hooks.addHook("downloadCrashed", target=lambda eventInfo : self.start())
 
 	def __hash__(self):
 		return self.id
@@ -161,8 +161,8 @@ class DownloadQueue(WorkerQueue):
 		except RuntimeError:
 			pass # Already running
 
-		self.hooks.trigger("downloadFinished", target=self.releaseLock)
-		self.hooks.trigger("downloadCrashed", target=lambda eventInfo : self.restart())
+		self.hooks.addHook("downloadFinished", target=self.releaseLock)
+		self.hooks.addHook("downloadCrashed", target=lambda eventInfo : self.restart())
 	
 	def __del__(self):
 		for id in self.created:
