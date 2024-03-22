@@ -203,13 +203,15 @@ def main():
 			TU.stop()
 		except:
 			pass
-		print(f"{SOFTWARE_NAME} ended abruptly.")
 		LOGGER.exception(e)
 		try:
 			for exc in mObj.exceptions:
 				print(f"{type(exc).__name__}: "+str(exc), file=sys.stderr)
 		except:
 			pass
+		
+		print(f"\n{SOFTWARE_NAME} ended abruptly.\n")
+
 		print(f"{SOFTWARE_NAME} ended before completing query. Exception that caused it:", file=sys.stderr)
 		print("", file=sys.stderr)
 		if args.debug:
