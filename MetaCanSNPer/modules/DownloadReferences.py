@@ -86,6 +86,7 @@ class WorkerQueue:
 					self.active = self.queue.pop(0)
 					job = self.jobs[self.active]
 					job.target(*job.args, **job.kwargs)
+					self.finished.add(job.id)
 					self.hooks.trigger("downloadFinished", {"job" : job})
 		except Exception as e:
 			LOGGER.exception(e)
