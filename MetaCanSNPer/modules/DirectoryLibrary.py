@@ -220,21 +220,19 @@ class DirectoryLibrary(PathLibrary):
 			else:
 				LOGGER.debug(f"self.references[{genome!r}] = {self.refDir.writable!r} > {filename!r}")
 				self.references[genome] = self.refDir.writable > filename
-		for jobID in DQ.waitFor(*jobs, timeout=Globals.DOWNLOAD_TIMEOUT):
-			if jobID == -2:
-				raise DownloadFailed(f"Timeout was exceeded while downloading reference genome {jobs[DQ.active]!r}. If you are expecting long downloads, then increase the DOWNLOAD_TIMEOUT value by using the flag --downloadTimeout DOWNLOAD_TIMEOUT")
-			if jobID == -1:
-				typeOfError = str(type(DQ.worker.exception)).strip('<class \'').rsplit('.', 1)[-1][:-2]
-				raise DownloadFailed(f"Download failed due to exception - {typeOfError}: {DQ.worker.exception}")
-			if jobID == -3:
-				raise DownloadFailed("Download failed without raising exceptions.")
-			
-			genome, filename = jobs[jobID]
-			if not pExists(jobs[jobID][1]):
-				raise DownloadFailed(f"Could not download genome {genome!r} to path: {filename!r}")
-			
-			LOGGER.debug(f"self.references[{genome!r}] = {filename!r}")
-			self.references[genome] = filename
+				
+		DQ.wait(timeout=3)
+
+		if len(DQ.created) > 0: # Did not download all.
+			genome, filename = jobs[DQ.created[0]]
+			raise DownloadFailed(f"Download failed before {genome!r} could be downloaded to path: {filename!r}.\nThe download that crashed the DownloadQueue was {DQ.jobs[DQ.active].kwargs}")
+		else: # Downloaded all.
+			for genome, filename, in jobs.values():
+				if pExists(filename):
+					self.references[genome] = filename
+				else:
+					raise DownloadFailed(f"Could not download genome {genome!r} to path: {filename!r}")
+
 		LOGGER.info(f"Finished downloading {len(references)} reference genomes!")
 
 	def setMaps(self, maps : dict[str,str]):

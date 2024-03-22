@@ -114,20 +114,29 @@ class WorkerQueue:
 
 	def wait(self, timeout=None):
 		
-		
 		for i, jobID in enumerate(self.created):
-			last = self.active
-			if self.semaphore.acquire(timeout=timeout):
-				pass
-			else:
-				if not self.worker.is_alive():
-					self.created = self.created[i:]
-					return False
+			while jobID not in self.finished:
+				if self.semaphore.acquire(timeout=timeout):
+					pass
+				else:
+					if not self.worker.is_alive():
+						self.created = self.created[i:]
+						raise False
 		self.created = []
-		return True
+		raise True
 	
-	def __iter__(self, timeout=300):
-		return self.waitFor(*self.queue, timeout=timeout)
+	def __iter__(self, timeout=None):
+
+		for i, jobID in enumerate(self.created):
+			while jobID not in self.finished:
+				if self.semaphore.acquire(timeout=timeout):
+					yield jobID
+				else:
+					if not self.worker.is_alive():
+						self.created = self.created[i:]
+						raise StopIteration
+		self.created = []
+		raise StopIteration
 		
 
 class DownloadQueue(WorkerQueue):
@@ -169,15 +178,24 @@ class DownloadQueue(WorkerQueue):
 		if pExists(filename) and not force:
 			LOGGER.debug(f"File: {filename!r} already exists, not queueing for download.")
 			return -1
-		job = Job(target=DownloadQueue._download, args=[genbank_id, refseq_id, assembly_name], kwargs={"filename":filename, "source":source, "force":force, "stdout":stdout})
+		try:
+			n1,n2,n3 = textwrap.wrap(genbank_id.split("_")[-1].split(".")[0],3)  ## Get the three number parts
+		except ValueError:
+			LOGGER.warning(f"Could not download {genbank_id}")
+			return
+		
+		link = NCBI_FTP_LINK.format(source=SOURCED[source], n1=n1, n2=n2, n3=n3, genome_id=genbank_id, assembly=assembly_name)
+		job = Job(target=DownloadQueue._download, kwargs={"filename":filename, "link":link, "force":force, "stdout":stdout})
 		id = self.push(job)
 		return id
 
 	@staticmethod
-	def _download(genbank_id : str, refseq_id : str, assembly_name : str, filename : DirectoryPath, source : str="genbank", force=False, stdout=sys.stdout) -> str | None:
+	def _download(link : str=None, filename : DirectoryPath=None, force=False, stdout=sys.stdout) -> str | None:
 		'''Download genomes from refseq or genbank on request. Default kwarg of force=False makes the download not take place if file already exists.
 			ftp://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/00x/xxx/GCF_00000xxxx.x_ASMxxxv1/GCF_00000xxxx.x_ASMxxxv1_genomic.fna.gz
 		'''
+		print(f"Downloading {filename!r} ... ", end="", flush=True, file=stdout)
+
 		if os.path.exists(f"{filename}.gz") and not force:
 			LOGGER.debug("Unzipping Reference file for {f}.".format(f=os.path.basename(filename).strip("_genomic.fna.gz")))
 			DownloadQueue.gunzip(f"{filename}.gz")
@@ -186,21 +204,12 @@ class DownloadQueue(WorkerQueue):
 			LOGGER.debug("Reference file for {f} already exists!".format(f=filename.split("/")[-1].strip("_genomic.fna.gz")))
 
 		elif not os.path.exists(filename) or force:
-			try:
-				n1,n2,n3 = textwrap.wrap(genbank_id.split("_")[-1].split(".")[0],3)  ## Get the three number parts
-			except ValueError:
-				LOGGER.warning(f"Could not download {genbank_id}")
-				return
-			
-			link = NCBI_FTP_LINK.format(source=SOURCED[source], n1=n1, n2=n2, n3=n3, genome_id=genbank_id, assembly=assembly_name)
-			# link = f"ftp://ftp.ncbi.nlm.nih.gov/genomes/all/GC{SOURCED[source]}/{n1}/{n2}/{n3}/{genbank_id}_{assembly_name}/{genbank_id}_{assembly_name}_genomic.fna.gz"
-
 			LOGGER.debug(f"Downloading: {link} <-> {filename}")
-			print(f"Downloading Assembly {assembly_name} ... ", end="", flush=True, file=stdout)
 			urlretrieve(link, f"{filename}.gz")
 
 			LOGGER.debug("Unzipping Reference file: '{f}'".format(f=os.path.basename(filename).strip("_genomic.fna.gz")))
 			DownloadQueue.gunzip(f"{filename}.gz")
+		
 		print("Done!", flush=True, file=stdout)
 
 	@staticmethod
