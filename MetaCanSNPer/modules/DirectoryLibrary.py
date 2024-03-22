@@ -218,7 +218,7 @@ class DirectoryLibrary(PathLibrary):
 				jobs[jobID] = (genome, self.refDir.writable > filename)
 			else:
 				LOGGER.debug(f"self.references[{genome!r}] = {self.refDir.find(filename)=}")
-				print(f"{pName(filename)!r} -- Exists!", flush=True, file=out)
+				print(f"{pName(filename):<20} -- Exists!", flush=True, file=out)
 				self.references[genome] = self.refDir.find(filename)
 				
 		DQ.wait(timeout=3)

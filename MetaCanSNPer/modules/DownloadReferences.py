@@ -194,7 +194,7 @@ class DownloadQueue(WorkerQueue):
 		'''Download genomes from refseq or genbank on request. Default kwarg of force=False makes the download not take place if file already exists.
 			ftp://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/00x/xxx/GCF_00000xxxx.x_ASMxxxv1/GCF_00000xxxx.x_ASMxxxv1_genomic.fna.gz
 		'''
-		print(f"{pName(filename)!r} -- ", end="", flush=True, file=stdout)
+		print(f"{pName(filename):<20} -- ", end="", flush=True, file=stdout)
 
 		if os.path.exists(f"{filename}.gz") and not force:
 			LOGGER.debug("Unzipping Reference file for {f}.".format(f=os.path.basename(filename).strip("_genomic.fna.gz")))
