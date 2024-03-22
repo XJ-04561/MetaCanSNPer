@@ -42,6 +42,7 @@ class Command:
 		self.category = category
 		self.hooks = hooks
 		self.returncodes = {}
+		self.exceptions = {}
 
 		def parallelFinished(eventInfo, self : Command):
 			try:
@@ -152,8 +153,8 @@ class DumpCommands(Commands):
 		LOGGER.debug(f"Starting {self!r}")
 		ex = shutil.which(self.command[0])
 		if ex is None:
-			LOGGER.exception(FileNotFoundError(f"Could not find an executable for command {self.command[0]!r} on PATH using `shutil.which({self.command[0]!r})`."))
-			raise FileNotFoundError(f"Could not find an executable for command {self.command[0]!r} on PATH using `shutil.which({self.command[0]!r})`.")
+			LOGGER.exception(FileNotFoundError(2, "Could not find command/executable", f"{self.command[0]}"))
+			raise FileNotFoundError(2, "Could not find command/executable", f"{self.command[0]}")
 		else:
 			self.command[0] = ex
 		p : Popen = Popen(self.command, stdin=stdin, stdout=self.outFile or stdout, stderr=stderr, **kwargs)
@@ -221,6 +222,8 @@ class SequentialCommands(Commands):
 						break
 				self.hooks.trigger(f"SequentialCommands{self.category}Finished", {"object" : self})
 			except Exception as e:
+				if type(e) is FileNotFoundError:
+					self.hooks.trigger(f"ReportError", {"exception" : e})
 				try:
 					e.add_note(f"<In Thread running: {self.raw!r}>")
 					LOGGER.exception(e)

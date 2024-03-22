@@ -60,8 +60,8 @@ class WorkerQueue:
 		self.worker = Thread(target=self.mainLoop, daemon=True)
 		self.worker.start()
 
-		self.hooks.addHook("downloadFinished", target=self.releaseLock)
-		self.hooks.addHook("downloadCrashed", target=lambda eventInfo : self.start())
+		self.hooks.addHook("DownloadFinished", target=self.releaseLock)
+		self.hooks.addHook("DownloadCrashed", target=lambda eventInfo : self.start())
 
 	def __hash__(self):
 		return self.id
@@ -87,10 +87,10 @@ class WorkerQueue:
 					job = self.jobs[self.active]
 					job.target(*job.args, **job.kwargs)
 					self.finished.add(job.id)
-					self.hooks.trigger("downloadFinished", {"job" : job})
+					self.hooks.trigger("DownloadFinished", {"job" : job})
 		except Exception as e:
 			LOGGER.exception(e)
-			self.hooks.trigger("downloaderCrashed", {"object" : self})
+			self.hooks.trigger("DownloaderCrashed", {"object" : self})
 
 	def push(self, job : Job, id : int=None) -> int:
 		if job.id is not None:
@@ -162,8 +162,8 @@ class DownloadQueue(WorkerQueue):
 		except RuntimeError:
 			pass # Already running
 
-		self.hooks.addHook("downloadFinished", target=self.releaseLock)
-		self.hooks.addHook("downloadCrashed", target=lambda eventInfo : (self.semaphore.release(), sleep(1), self.restart()))
+		self.hooks.addHook("DownloadFinished", target=self.releaseLock)
+		self.hooks.addHook("DownloadCrashed", target=lambda eventInfo : (self.semaphore.release(), sleep(1), self.restart()))
 	
 	def __del__(self):
 		for id in self.created:

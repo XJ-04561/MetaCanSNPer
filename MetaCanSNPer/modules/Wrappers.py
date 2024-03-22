@@ -80,8 +80,8 @@ class ProcessWrapper:
 		""""""
 		commands, logs, outputs = self.formatCommands()
 		
-		self.hooks.removeHook(f"{self.category}ProcessFinished", self._hooksList.get("processFinished"))
-		self._hooksList["processFinished"] = self.hooks.addHook(f"{self.category}ProcessFinished", target=self.updateOutput, args=[outputs])
+		self.hooks.removeHook(f"{self.category}ProcessFinished", self._hooksList.get("ProcessFinished"))
+		self._hooksList["ProcessFinished"] = self.hooks.addHook(f"{self.category}ProcessFinished", target=self.updateOutput, args=[outputs])
 
 		self.command = Command(" & ".join(commands), self.category, self.hooks, logFiles=logs)
 

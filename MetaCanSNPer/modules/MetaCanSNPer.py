@@ -50,6 +50,7 @@ class MetaCanSNPer:
 		self.startTime = time.localtime()
 		self.sessionName = sessionName
 		self.hooks = Hooks()
+		self.hooks.addHook("ReportError", target=lambda eventInfo : print(eventInfo["exception"]))
 		
 		if lib is None:
 			self.Lib = DirectoryLibrary(settings={k:(v if type(v) is not list else tuple(v)) for k,v in settings.items()})
@@ -190,9 +191,6 @@ class MetaCanSNPer:
 					software.planB()
 				else:
 					software.displayOutcomes(out=LOGGER.error)
-					# for i in software.history:
-					# 	(key, path) = software.outputs[i]
-					# 	del outputDict[key]
 					raise ChildProcessError(f"{software.softwareName} returned with a non-zero exitcode for which there is no implemented solution.")
 		
 		return outputDict
