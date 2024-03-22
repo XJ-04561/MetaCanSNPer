@@ -56,19 +56,20 @@ class ProcessWrapper:
 			i = eventInfo["threadN"]
 			assert self.command[i] is eventInfo["object"]
 			self.semaphore.release()
-			if eventInfo["Command"].returncodes[i] == 0:
+			if eventInfo["Command"].returncodes[i] not in self.solutions:
 				j = i
 				for s in sorted(self.skip): # Adjust thread index for all the skipped commands.
 					if j >= s:
 						j += 1
 					else:
 						break
-				self.outputs[self.database.references[j][1]] = outputs[i]
-				self.hooks.trigger(f"{self.category}Progress", {"threadN" : j, "progress" : 1.0})
-				self.hooks.trigger(f"{self.category}Finished", {"threadN" : j})
-			elif eventInfo["Command"].returncodes[i] not in self.solutions:
-				self.hooks.trigger(f"{self.category}Progress", {"threadN" : j, "progress" : None})
-				self.hooks.trigger(f"{self.category}Finished", {"threadN" : j})
+				if eventInfo["Command"].returncodes[i] == 0:
+					self.outputs[self.database.references[j][1]] = outputs[i]
+					self.hooks.trigger(f"{self.category}Progress", {"threadN" : j, "progress" : 1.0})
+					self.hooks.trigger(f"{self.category}Finished", {"threadN" : j})
+				elif eventInfo["Command"].returncodes[i] not in self.solutions:
+					self.hooks.trigger(f"{self.category}Progress", {"threadN" : j, "progress" : None})
+					self.hooks.trigger(f"{self.category}Finished", {"threadN" : j})
 		except (AssertionError) as e:
 			e.add_note(f'<{self.command[i]!r} is {eventInfo["object"]!r} = {self.command[i] is eventInfo["object"]}>')
 			LOGGER.exception(e, stacklevel=logging.DEBUG)
