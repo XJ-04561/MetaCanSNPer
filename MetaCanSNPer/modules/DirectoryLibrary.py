@@ -209,10 +209,10 @@ class DirectoryLibrary(PathLibrary):
 		LOGGER.info(f"Downloading references:{references}")
 		DQ = DownloadQueue()
 		jobs = {}
+		out = open(os.devnull, "w") if silent else sys.stdout
 		for genomeID, genome, genbank_id, refseq_id, assembly_name in references:
 			filename = f"{assembly_name}.fna"
 			if self.refDir.find(filename) is None or force:
-				out = open(os.devnull, "w") if silent else sys.stdout
 				jobID = DQ.download(genbank_id, refseq_id, assembly_name, dst=self.refDir.writable, filename=filename, force=force, stdout=out)
 				assert jobID != -1
 				jobs[jobID] = (genome, self.refDir.writable > filename)
