@@ -217,7 +217,7 @@ def main():
 			else:
 				print(m.group(), file=sys.stderr)
 		else:
-			print(f"{e.__name__}: "+str(e), file=sys.stderr)
+			print(f"{type(e).__name__}: "+str(e), file=sys.stderr)
 		exit(1)
 
 
