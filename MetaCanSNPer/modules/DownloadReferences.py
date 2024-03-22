@@ -44,6 +44,7 @@ class WorkerQueue:
 	jobs : dict[int,Job]
 	finished : set[int]
 	worker : Thread
+	hooks : Hooks
 	lock : Lock
 	RUNNING : bool
 	created : list[int]
@@ -148,12 +149,14 @@ class DownloadQueue(WorkerQueue):
 	worker : Thread = None
 	lock : Lock
 	RUNNING : bool = Globals.RUNNING
+	hooks = Hooks()
 
 	created : list
 
-	def __init__(self, hooks : Hooks=Hooks()):
+	def __init__(self, hooks : Hooks=None):
 		
-		self.hooks = hooks
+		if hooks is not None:
+			self.hooks = hooks
 		self.semaphore = Semaphore()
 		self.created = []
 		try:
