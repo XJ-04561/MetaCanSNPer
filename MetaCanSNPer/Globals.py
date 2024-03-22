@@ -43,7 +43,7 @@ if LOG_DIR is None:
                 break
 del root, path
 ## LogKeeper Globals
-with NamedTemporaryFile(prefix=time.strftime("MetaCanSNPer-(%Y-%m-%d)-(%H-%M-%S)-", time.localtime()), suffix=".log", dir=LOG_DIR) as f:
+with NamedTemporaryFile(prefix=time.strftime("MetaCanSNPer-(%Y-%m-%d)-(%H-%M-%S)-", time.localtime()), suffix=".log", dir=LOG_DIR, delete=False) as f:
     LOGGING_FILEPATH = f.name
 LOGGER_FILEHANDLER = logging.FileHandler(LOGGING_FILEPATH)
 LOGGER_FILEHANDLER.setFormatter(logging.Formatter("[%(name)s] %(asctime)s - %(levelname)s: %(message)s"))
