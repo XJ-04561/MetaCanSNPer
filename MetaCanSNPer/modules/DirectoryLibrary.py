@@ -204,22 +204,22 @@ class DirectoryLibrary(PathLibrary):
 		self.queryName = fileNameAlign(*[pName(q) for q in self.query])
 		LOGGER.debug(f"Setting queryName to: {self.queryName!r}")
 	
-	def setReferences(self, references : list[str,str,str,str,str], silent : bool=False):
+	def setReferences(self, references : list[str,str,str,str,str], force : bool=False, silent : bool=False):
 		self.references = MinimalPathLibrary()
 		LOGGER.info(f"Downloading references:{references}")
 		DQ = DownloadQueue()
 		jobs = {}
 		for genomeID, genome, genbank_id, refseq_id, assembly_name in references:
 			filename = f"{assembly_name}.fna"
-			if silent:
-				jobID = DQ.download(genbank_id, refseq_id, assembly_name, dst=self.refDir.writable, filename=filename, stdout=open(os.devnull, "w"))
-			else:
-				jobID = DQ.download(genbank_id, refseq_id, assembly_name, dst=self.refDir.writable, filename=filename)
-			if jobID != -1:
+			if self.refDir.find(filename) is None or force:
+				out = open(os.devnull, "w") if silent else sys.stdout
+				jobID = DQ.download(genbank_id, refseq_id, assembly_name, dst=self.refDir.writable, filename=filename, force=force, stdout=out)
+				assert jobID != -1
 				jobs[jobID] = (genome, self.refDir.writable > filename)
 			else:
-				LOGGER.debug(f"self.references[{genome!r}] = {self.refDir.writable!r} > {filename!r}")
-				self.references[genome] = self.refDir.writable > filename
+				LOGGER.debug(f"self.references[{genome!r}] = {self.refDir.find(filename)=}")
+				print(f"{pName(filename)!r} -- Exists!", flush=True, file=out)
+				self.references[genome] = self.refDir.find(filename)
 				
 		DQ.wait(timeout=3)
 

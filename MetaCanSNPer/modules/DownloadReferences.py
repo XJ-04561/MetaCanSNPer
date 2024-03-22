@@ -194,23 +194,25 @@ class DownloadQueue(WorkerQueue):
 		'''Download genomes from refseq or genbank on request. Default kwarg of force=False makes the download not take place if file already exists.
 			ftp://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/00x/xxx/GCF_00000xxxx.x_ASMxxxv1/GCF_00000xxxx.x_ASMxxxv1_genomic.fna.gz
 		'''
-		print(f"Downloading {filename!r} ... ", end="", flush=True, file=stdout)
+		print(f"{pName(filename)!r} -- ", end="", flush=True, file=stdout)
 
 		if os.path.exists(f"{filename}.gz") and not force:
 			LOGGER.debug("Unzipping Reference file for {f}.".format(f=os.path.basename(filename).strip("_genomic.fna.gz")))
 			DownloadQueue.gunzip(f"{filename}.gz")
+			print(f"Unpacked!", flush=True, file=stdout)
 
 		elif os.path.exists(filename) and not force:
 			LOGGER.debug("Reference file for {f} already exists!".format(f=filename.split("/")[-1].strip("_genomic.fna.gz")))
+			print(f"Exists!", flush=True, file=stdout)
 
 		elif not os.path.exists(filename) or force:
 			LOGGER.debug(f"Downloading: {link} <-> {filename}")
 			urlretrieve(link, f"{filename}.gz")
+			print(f"Downloaded. Unpacking...", end="", flush=True, file=stdout)
 
 			LOGGER.debug("Unzipping Reference file: '{f}'".format(f=os.path.basename(filename).strip("_genomic.fna.gz")))
 			DownloadQueue.gunzip(f"{filename}.gz")
-		
-		print("Done!", flush=True, file=stdout)
+			print(f"{'\b'*len('. Unpacking...')} & Unpacked!", flush=True, file=stdout)
 
 	@staticmethod
 	def gunzip(filename : str, dst : str=None, wait=True):
