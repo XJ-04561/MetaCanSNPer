@@ -206,7 +206,7 @@ def main():
 		print(f"{SOFTWARE_NAME} ended abruptly.")
 		LOGGER.exception(e)
 		try:
-			for exc in mObj:
+			for exc in mObj.exceptions:
 				print(f"{type(exc).__name__}: "+str(exc), file=sys.stderr)
 		except:
 			pass
