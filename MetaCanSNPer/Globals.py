@@ -31,14 +31,14 @@ from tempfile import NamedTemporaryFile
 LOG_DIR = None
 for root in CommonGroups().locals:
     path = os.path.join(root, f"{SOFTWARE_NAME}-Results", "Logs")
-    if pAccess(path, "rw"):
+    if pAccess(path, "rwx"):
         LOG_DIR = path
         break
 if LOG_DIR is None:
     for root in CommonGroups().locals:
         path = os.path.join(root, f"{SOFTWARE_NAME}-Results", "Logs")
         if pBackAccess(path, "w"):
-            if pMakeDirs(path, mode=os.W_OK+os.R_OK):
+            if pMakeDirs(path):
                 LOG_DIR = path
                 break
 del root, path
