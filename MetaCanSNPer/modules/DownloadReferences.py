@@ -157,7 +157,7 @@ class DownloadQueue(WorkerQueue):
 		
 		if hooks is not None:
 			self.hooks = hooks
-		self.semaphore = Semaphore()
+		self.semaphore = Semaphore(0)
 		self.created = []
 		try:
 			self.worker.start()
@@ -210,8 +210,9 @@ class DownloadQueue(WorkerQueue):
 
 		elif not os.path.exists(filename) or force:
 			LOGGER.debug(f"Downloading: {link} <-> {filename}")
+			print("Downloading...", end="", flush=True, file=stdout)
 			urlretrieve(link, f"{filename}.gz")
-			print(f"Downloaded. Unpacking...", end="", flush=True, file=stdout)
+			print("\b"*len("Downloading...")+f"Downloaded. Unpacking...", end="", flush=True, file=stdout)
 
 			LOGGER.debug("Unzipping Reference file: '{f}'".format(f=os.path.basename(filename).strip("_genomic.fna.gz")))
 			DownloadQueue.gunzip(f"{filename}.gz")
