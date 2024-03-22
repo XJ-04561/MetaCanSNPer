@@ -149,12 +149,15 @@ class DumpCommands(Commands):
 			raise ValueError(f"Output dumped more or less than once using '>' in one command. Command: {'>'.join(map(''.join, self._list))}")
 		
 	def run(self, stdin=None, stdout=PIPE, stderr=PIPE, **kwargs) -> Popen:
+		LOGGER.debug(f"Starting {self!r}")
 		ex = shutil.which(self.command[0])
 		if ex is None:
+			LOGGER.exception(FileNotFoundError(f"Could not find an executable for command {self.command[0]!r} on PATH using `shutil.which({self.command[0]!r})`."))
 			raise FileNotFoundError(f"Could not find an executable for command {self.command[0]!r} on PATH using `shutil.which({self.command[0]!r})`.")
 		else:
 			self.command[0] = ex
 		p : Popen = Popen(self.command, stdin=stdin, stdout=self.outFile or stdout, stderr=stderr, **kwargs)
+		LOGGER.debug(f"Started {self!r}")
 		return p
 
 class PipeCommands(Commands):

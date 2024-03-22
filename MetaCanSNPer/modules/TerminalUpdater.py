@@ -161,7 +161,10 @@ class TerminalUpdater:
 				print(backspaces, end=msg, flush=True, file=self.out)
 				sleep(0.2)
 			print(backspaces+backspaces.replace("\b", " "), end=backspaces, flush=True, file=self.out)
-			print("Done!" if self.finishedThreads.issuperset(self.threads) else "Failed!", flush=True, file=self.out)
+			if self.finishedThreads.issuperset(self.threads) and all(prog is not None for prog in self.threads.values()):
+				print("Done!", flush=True, file=self.out)
+			else:
+				print("Failed!", flush=True, file=self.out)
 		except Exception as e:
 			LOGGER.exception(e)
 			print("", flush=True, file=self.out)
