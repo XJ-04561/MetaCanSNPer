@@ -203,14 +203,20 @@ def main():
 			TU.stop()
 		except:
 			pass
+		print(f"{SOFTWARE_NAME} ended abruptly.")
 		LOGGER.exception(e)
+		try:
+			for exc in mObj:
+				print(f"{type(exc).__name__}: "+str(exc), file=sys.stderr)
+		except:
+			pass
 		print(f"{SOFTWARE_NAME} ended before completing query. Exception that caused it:", file=sys.stderr)
 		print("", file=sys.stderr)
 		if args.debug:
 			pattern = re.compile(r"(\[[\w.]+\] \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3} - ERROR: .*?)(?:\[[\w.]+\] \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3} - \w+?:|\$)", flags=re.DOTALL+re.MULTILINE)
 			for err in pattern.finditer(open(LOGGER_FILEHANDLER.baseFilename, "r").read()):
-				print(err.group(1))
-				print()
+				print(err.group(1), file=sys.stderr)
+				print(file=sys.stderr)
 			m = re.search(r"^[a-zA-Z0-9]\w*?[:].*", traceback.format_exc(), flags=re.MULTILINE+re.DOTALL)
 			if m is None:
 				print(traceback.format_exc(), file=sys.stderr)

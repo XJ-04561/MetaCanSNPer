@@ -42,6 +42,7 @@ class MetaCanSNPer:
 	settings : dict
 	sessionName : str
 	SNPresults : dict
+	exceptions : list[Exception]
 
 	"""docstring for MetaCanSNPer"""
 	def __init__(self, lib : DirectoryLibrary=None, database=None, settings : dict={}, settingsFile : str=None, sessionName : str=None):
@@ -49,8 +50,9 @@ class MetaCanSNPer:
 		LOGGER.info("Initializing MetaCanSNPer object.")
 		self.startTime = time.localtime()
 		self.sessionName = sessionName
+		self.exceptions = []
 		self.hooks = Hooks()
-		self.hooks.addHook("ReportError", target=lambda eventInfo : print(eventInfo["exception"]))
+		self.hooks.addHook("ReportError", target=lambda eventInfo : self.exceptions.append(eventInfo["exception"])))
 		
 		if lib is None:
 			self.Lib = DirectoryLibrary(settings={k:(v if type(v) is not list else tuple(v)) for k,v in settings.items()})
