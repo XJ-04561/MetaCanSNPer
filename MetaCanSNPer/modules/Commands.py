@@ -55,7 +55,7 @@ class Command:
 					LOGGER.error(f"`assert id(eventInfo[\"object\"]) == id(self.commands._list[i])` did not pass.\n\t{eventInfo['object']=}\n\t{self.commands._list[i]=}")
 					return
 				except Exception as e:
-					e.add_note(f"'parallelFinished' event exception.")
+					e.add_note("'parallelFinished' event exception.")
 					LOGGER.exception(e)
 					return
 
@@ -108,6 +108,7 @@ class Commands:
 			_list = [[]]
 			
 			for c in args:
+				LOGGER.debug(f"{self.pattern}.fullmatch({c}) -> {self.pattern.fullmatch(c)}")
 				if self.pattern.fullmatch(c):
 					_list.append([])
 				else:
@@ -150,6 +151,7 @@ class DumpCommands(Commands):
 		
 			command = self._list[0]
 			self.command = list(filter(lambda s : whitePattern.fullmatch(s) is None, command))
+			LOGGER.debug(f"{command=}, {self.command=}")
 
 			if len(self._list) == 1:
 				self.outFile = None
@@ -161,6 +163,7 @@ class DumpCommands(Commands):
 			else:
 				LOGGER.exception(ValueError(f"Output dumped more or less than once using '>' in one command. Command: {'>'.join(map(''.join, self._list))}"))
 				raise ValueError(f"Output dumped more or less than once using '>' in one command. Command: {'>'.join(map(''.join, self._list))}")
+			LOGGER.debug(f"{command=}, {self.command=}, {self.outFile=}")
 		except Exception as e:
 			e.add_note(f"{type(self).__name__} failed to initialize.")
 			LOGGER.exception(e)
