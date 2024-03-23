@@ -3,6 +3,7 @@
 import logging, sys, argparse, traceback
 from threading import Thread
 from time import sleep
+from timeit import default_timer as timer
 from typing import Callable
 import re
 
@@ -197,7 +198,7 @@ def main():
 		
 		TU.deadmans()
 
-		print(f"{SOFTWARE_NAME} finished! Results exported to: {mObj.Lib.resultDir}")
+		print(f"{SOFTWARE_NAME} finished in {timer() - mObj.startTime:.3f} seconds! Results exported to: {mObj.Lib.resultDir}")
 	except Exception as e:
 		try:
 			TU.stop()

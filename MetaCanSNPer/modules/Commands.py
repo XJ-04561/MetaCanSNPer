@@ -198,9 +198,9 @@ class PipeCommands(Commands):
 			processes.append( dc.run(stdin=processes[i].stdout, stdout=PIPE, stderr=PIPE, **kwargs))
 
 		processes[-1].wait()
-		
+
 		for i, p in enumerate(processes):
-			if p.returncode is None:
+			if p.wait(0.5) is None: # .wait returns the returncode. Wait a few millisec so that prior processes don't close pipe before they terminate.
 				LOGGER.error(f"Section of pipe closed. Returncodes of commands in pipe: {[p.returncode for p in processes]}\nPipeCommands in question: {self}")
 				break
 
