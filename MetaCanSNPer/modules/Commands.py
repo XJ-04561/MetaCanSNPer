@@ -293,7 +293,12 @@ class ParallelCommands(Commands):
 				elif self.pattern.fullmatch(c):
 					_list.append([])
 				else:
-					_list[-1].append(c.strip().strip("'").strip("\""))
+					if c.startswith("'"):
+						_list[-1].append(c.strip("'"))
+					elif c.startswith("\""):
+						_list[-1].append(c.strip("\""))
+					else:
+						_list[-1].append(c)
 			
 			if logFiles is None:
 				self.logFiles = [None]*len(_list)
