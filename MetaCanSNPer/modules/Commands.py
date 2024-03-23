@@ -61,7 +61,8 @@ class Command:
 
 			self.commands = ParallelCommands(string, category, hooks, logFiles=self.logFiles)
 		except Exception as e:
-			LOGGER.exception(f"{type(self).__name__} failed to initialize.", e)
+			e.add_note(f"{type(self).__name__} failed to initialize.")
+			LOGGER.exception(e)
 			raise e
 	
 	def __len__(self):
@@ -112,7 +113,8 @@ class Commands:
 			
 			self._list = [self.nextType(l, category, hooks, logFile=self.logFile) for l in _list]
 		except Exception as e:
-			LOGGER.exception(f"{type(self).__name__} failed to initialize.", e)
+			e.add_note(f"{type(self).__name__} failed to initialize.")
+			LOGGER.exception(e)
 			raise e
 	
 	def __iter__(self):
@@ -158,7 +160,8 @@ class DumpCommands(Commands):
 				LOGGER.exception(ValueError(f"Output dumped more or less than once using '>' in one command. Command: {'>'.join(map(''.join, self._list))}"))
 				raise ValueError(f"Output dumped more or less than once using '>' in one command. Command: {'>'.join(map(''.join, self._list))}")
 		except Exception as e:
-			LOGGER.exception(f"{type(self).__name__} failed to initialize.", e)
+			e.add_note(f"{type(self).__name__} failed to initialize.")
+			LOGGER.exception(e)
 			raise e
 		
 	def run(self, stdin=None, stdout=PIPE, stderr=PIPE, **kwargs) -> Popen:
@@ -280,7 +283,8 @@ class ParallelCommands(Commands):
 			
 			self._list = [self.nextType(l, category, hooks, logFile=logFile) for l, logFile in zip(_list, self.logFiles)]
 		except Exception as e:
-			LOGGER.exception(f"{type(self).__name__} failed to initialize.", e)
+			e.add_note(f"{type(self).__name__} failed to initialize.")
+			LOGGER.exception(e)
 			raise e
 
 	def __del__(self):

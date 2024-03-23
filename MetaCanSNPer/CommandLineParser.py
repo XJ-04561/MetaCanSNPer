@@ -210,9 +210,10 @@ def main():
 		except:
 			pass
 
-		print(f"{SOFTWARE_NAME} ended before completing query. ", end="\n")
-		print("\bException that caused it:\n", file=sys.stderr)
-		
+		print(f"{SOFTWARE_NAME} ended before completing query. ", end="")
+		print("Exception that caused it: ", file=sys.stderr)
+		print("")
+
 		if args.debug:
 			pattern = re.compile(r"(\[[\w.]+\] \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3} - ERROR: .*?)(?:\[[\w.]+\] \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3} - \w+?:|\$)", flags=re.DOTALL+re.MULTILINE)
 			for err in pattern.finditer(open(LOGGER_FILEHANDLER.baseFilename, "r").read()):
