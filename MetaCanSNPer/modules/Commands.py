@@ -37,28 +37,32 @@ class Command:
 	commands : ParallelCommands
 
 	def __init__(self, string : str=None, category=None, hooks : Hooks=None, logFiles : list[str]|str=None):
-		self.raw = string
-		self.logFiles = [logFiles] if type(logFiles) is str else logFiles
-		self.category = category
-		self.hooks = hooks
-		self.returncodes = {}
-		self.exceptions = {}
+		try:
+			self.raw = string
+			self.logFiles = [logFiles] if type(logFiles) is str else logFiles
+			self.category = category
+			self.hooks = hooks
+			self.returncodes = {}
+			self.exceptions = {}
 
-		def parallelFinished(eventInfo, self : Command):
-			try:
-				i = self.commands._list.index(eventInfo["object"])
-				assert id(eventInfo["object"]) == id(self.commands._list[i]) # Unsure if needed, but ensures they are the same exact object.
-				self.returncodes[i] = None if len(eventInfo["object"].processes) == 0 else eventInfo["object"].processes[-1].returncode
-				self.hooks.trigger(f"{self.category}ProcessFinished", {"threadN" : i, "Command" : self} | eventInfo)
-			except AssertionError:
-				LOGGER.error(f"`assert id(eventInfo[\"object\"]) == id(self.commands._list[i])` did not pass.\n\t{eventInfo['object']=}\n\t{self.commands._list[i]=}")
-				return
-			except:
-				return
+			def parallelFinished(eventInfo, self : Command):
+				try:
+					i = self.commands._list.index(eventInfo["object"])
+					assert id(eventInfo["object"]) == id(self.commands._list[i]) # Unsure if needed, but ensures they are the same exact object.
+					self.returncodes[i] = None if len(eventInfo["object"].processes) == 0 else eventInfo["object"].processes[-1].returncode
+					self.hooks.trigger(f"{self.category}ProcessFinished", {"threadN" : i, "Command" : self} | eventInfo)
+				except AssertionError:
+					LOGGER.error(f"`assert id(eventInfo[\"object\"]) == id(self.commands._list[i])` did not pass.\n\t{eventInfo['object']=}\n\t{self.commands._list[i]=}")
+					return
+				except:
+					return
 
-		self._hook = self.hooks.addHook(f"SequentialCommands{self.category}Finished", target=parallelFinished, args=[self])
+			self._hook = self.hooks.addHook(f"SequentialCommands{self.category}Finished", target=parallelFinished, args=[self])
 
-		self.commands = ParallelCommands(string, category, hooks, logFiles=self.logFiles)
+			self.commands = ParallelCommands(string, category, hooks, logFiles=self.logFiles)
+		except Exception as e:
+			LOGGER.exception(f"{type(self).__name__} failed to initialize.", e)
+			raise e
 	
 	def __len__(self):
 		return len(self.commands._list)
@@ -93,19 +97,23 @@ class Commands:
 	raw : str
 
 	def __init__(self, args, category : str, hooks : Hooks, logFile : TextIO=None):
-		self.raw = "".join(args).strip()
-		self.logFile = logFile
-		self.category = category
-		self.hooks = hooks
-		_list = [[]]
-		
-		for c in args:
-			if self.pattern.fullmatch(c):
-				_list.append([])
-			else:
-				_list[-1].append(c)
-		
-		self._list = [self.nextType(l, category, hooks, logFile=self.logFile) for l in _list]
+		try:
+			self.raw = "".join(args).strip()
+			self.logFile = logFile
+			self.category = category
+			self.hooks = hooks
+			_list = [[]]
+			
+			for c in args:
+				if self.pattern.fullmatch(c):
+					_list.append([])
+				else:
+					_list[-1].append(c)
+			
+			self._list = [self.nextType(l, category, hooks, logFile=self.logFile) for l in _list]
+		except Exception as e:
+			LOGGER.exception(f"{type(self).__name__} failed to initialize.", e)
+			raise e
 	
 	def __iter__(self):
 		return iter(self._list)
@@ -133,21 +141,25 @@ class DumpCommands(Commands):
 		return args
 
 	def __init__(self, args, category : str, hooks : Hooks, logFile : TextIO=None):
-		super().__init__(args, category, hooks, logFile)
+		try:
+			super().__init__(args, category, hooks, logFile)
 		
-		command = self._list[0]
-		self.command = list(filter(lambda s : whitePattern.fullmatch(s) is None, command))
+			command = self._list[0]
+			self.command = list(filter(lambda s : whitePattern.fullmatch(s) is None, command))
 
-		if len(self._list) == 1:
-			self.outFile = None
-		elif len(self._list) == 2:
-			if len(self._list[1]) != 1:
-				LOGGER.exception(ValueError(f"Output can not be dumped to multiple filenames. Filenames given: {self._list[1]}"))
-				raise ValueError(f"Output can not be dumped to multiple filenames. Filenames given: {self._list[1]}")
-			self.outFile = open(self._list[1][0], "ab")
-		else:
-			LOGGER.exception(ValueError(f"Output dumped more or less than once using '>' in one command. Command: {'>'.join(map(''.join, self._list))}"))
-			raise ValueError(f"Output dumped more or less than once using '>' in one command. Command: {'>'.join(map(''.join, self._list))}")
+			if len(self._list) == 1:
+				self.outFile = None
+			elif len(self._list) == 2:
+				if len(self._list[1]) != 1:
+					LOGGER.exception(ValueError(f"Output can not be dumped to multiple filenames. Filenames given: {self._list[1]}"))
+					raise ValueError(f"Output can not be dumped to multiple filenames. Filenames given: {self._list[1]}")
+				self.outFile = open(self._list[1][0], "ab")
+			else:
+				LOGGER.exception(ValueError(f"Output dumped more or less than once using '>' in one command. Command: {'>'.join(map(''.join, self._list))}"))
+				raise ValueError(f"Output dumped more or less than once using '>' in one command. Command: {'>'.join(map(''.join, self._list))}")
+		except Exception as e:
+			LOGGER.exception(f"{type(self).__name__} failed to initialize.", e)
+			raise e
 		
 	def run(self, stdin=None, stdout=PIPE, stderr=PIPE, **kwargs) -> Popen:
 		LOGGER.debug(f"Starting {self!r}")
@@ -249,23 +261,27 @@ class ParallelCommands(Commands):
 
 	def __init__(self, string, category : str, hooks : Hooks, logFiles : list[str]=None):
 		
-		self.raw = string
-		self.category = category
-		self.hooks = hooks
-		_list = [[]]
-		
-		for c in argsPattern.split(string.strip()):
-			if self.pattern.fullmatch(c):
-				_list.append([])
+		try:
+			self.raw = string
+			self.category = category
+			self.hooks = hooks
+			_list = [[]]
+			
+			for c in argsPattern.split(string.strip()):
+				if self.pattern.fullmatch(c):
+					_list.append([])
+				else:
+					_list[-1].append(c)
+			
+			if logFiles is None:
+				self.logFiles = [None]*len(_list)
 			else:
-				_list[-1].append(c)
-		
-		if logFiles is None:
-			self.logFiles = [None]*len(_list)
-		else:
-			self.logFiles = [open(l, "ab") for l in logFiles]
-		
-		self._list = [self.nextType(l, category, hooks, logFile=logFile) for l, logFile in zip(_list, self.logFiles)]
+				self.logFiles = [open(l, "ab") for l in logFiles]
+			
+			self._list = [self.nextType(l, category, hooks, logFile=logFile) for l, logFile in zip(_list, self.logFiles)]
+		except Exception as e:
+			LOGGER.exception(f"{type(self).__name__} failed to initialize.", e)
+			raise e
 
 	def __del__(self):
 		for l in self.logFiles:
