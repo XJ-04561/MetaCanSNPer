@@ -206,6 +206,7 @@ class PipeCommands(Commands):
 				self.logFile.write(p.stdout.read()) if p.stdout.readable() else bPrint("", file=self.logFile)
 			elif p == processes[-1]:
 				bPrint(f"{p.args!r}[STDOUT]\n# Output dumped to: {self._list[i].outFile}", file=self.logFile)
+		for i, p in enumerate(processes):
 			if p.returncode != 0:
 				return processes[:i+1]
 		return processes
