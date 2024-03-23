@@ -20,7 +20,7 @@ parallelPattern = re.compile("\s*[&]\s*")
 sequentialPattern = re.compile("\s*[;]\s*")
 pipePattern = re.compile("\s*[|]\s*")
 dumpPattern = re.compile("\s*[>]\s*")
-argsPattern = re.compile("""((?:[']).*?(?:['])|(?:["]).*?(?:["])|\S+)""", flags=re.MULTILINE+re.DOTALL)
+argsPattern = re.compile("""(?:['])(.*?)(?:['])|(?:["])(.*?)(?:["])|(\S+)""", flags=re.MULTILINE+re.DOTALL)
 whitePattern = re.compile("\s*")
 
 class ParallelCommands: pass
