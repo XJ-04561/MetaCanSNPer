@@ -54,7 +54,9 @@ class Command:
 				except AssertionError:
 					LOGGER.error(f"`assert id(eventInfo[\"object\"]) == id(self.commands._list[i])` did not pass.\n\t{eventInfo['object']=}\n\t{self.commands._list[i]=}")
 					return
-				except:
+				except Exception as e:
+					e.add_note(f"'parallelFinished' event exception.")
+					LOGGER.exception(e)
 					return
 
 			self._hook = self.hooks.addHook(f"SequentialCommands{self.category}Finished", target=parallelFinished, args=[self])
