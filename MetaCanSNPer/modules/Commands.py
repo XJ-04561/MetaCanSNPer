@@ -20,7 +20,7 @@ parallelPattern = re.compile("\s*[&]\s*")
 sequentialPattern = re.compile("\s*[;]\s*")
 pipePattern = re.compile("\s*[|]\s*")
 dumpPattern = re.compile("\s*[>]\s*")
-argsPattern = re.compile("""(['].*?[']|["].*?["]|\S+)""", flags=re.MULTILINE)
+argsPattern = re.compile("""((?:[']).*?(?:['])|(?:["]).*?(?:["])|\S+)""", flags=re.MULTILINE+re.DOTALL)
 whitePattern = re.compile("\s*")
 
 class ParallelCommands: pass
@@ -198,6 +198,11 @@ class PipeCommands(Commands):
 
 		processes[-1].wait()
 		
+		for i, p in enumerate(processes):
+			if p.returncode is None:
+				LOGGER.error(f"Section of pipe closed. Returncodes of commands in pipe: {[p.returncode for p in processes]}\nPipeCommands in question: {self}")
+				break
+
 		for i, p in enumerate(processes):
 			bPrint(f"{p.args!r}\n{p.args!r}[EXITCODE]\n{p.returncode}\n{p.args!r}[STDERR]", file=self.logFile)
 			self.logFile.write(p.stderr.read()) if p.stderr.readable() else bPrint("", file=self.logFile)
