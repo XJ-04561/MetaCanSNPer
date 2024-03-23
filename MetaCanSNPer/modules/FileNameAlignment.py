@@ -26,7 +26,7 @@ def checkDiag(table, y, x, value=0):
         x-=1
     return n
 
-def align2(string1, string2, gapOpenCost=2, gapExtensionCost=1, matchReward=3, missMatchCost=2, contigBonus=0.1, gapSymbol="-", missMatchSymbol="#", trim=False, compressed=False):
+def align2(string1, string2, gapOpenCost=2, gapExtensionCost=1, matchReward=3, missMatchCost=2, contigBonus=0.1, gapSymbol="-", missMatchSymbol="X", trim=False, compressed=False):
     size = max(len(string1), len(string2))
     size1, size2 = len(string1), len(string2)
     scores = Table(size1+1, size2+1)
