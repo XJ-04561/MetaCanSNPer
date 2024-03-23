@@ -20,8 +20,9 @@ parallelPattern = re.compile("\s*[&]\s*")
 sequentialPattern = re.compile("\s*[;]\s*")
 pipePattern = re.compile("\s*[|]\s*")
 dumpPattern = re.compile("\s*[>]\s*")
-argsPattern = re.compile("""(?:['])(.*?)(?:['])|(?:["])(.*?)(?:["])|(\S+)""", flags=re.MULTILINE+re.DOTALL)
 whitePattern = re.compile("\s*")
+argsPattern = re.compile(r"(['][^']*?['])|([\"][^\"]*?[\"])|(\S+)", flags=re.MULTILINE+re.DOTALL)
+quotePattern = re.compile(r"['\" ]*")
 
 class ParallelCommands: pass
 class SequentialCommands: pass
@@ -284,13 +285,15 @@ class ParallelCommands(Commands):
 			self.raw = string
 			self.category = category
 			self.hooks = hooks
+			self.logFiles = []
 			_list = [[]]
-			
 			for c in argsPattern.split(string.strip()):
-				if self.pattern.fullmatch(c):
+				if c in ["", None]:
+					continue
+				elif self.pattern.fullmatch(c):
 					_list.append([])
 				else:
-					_list[-1].append(c)
+					_list[-1].append(c.strip().strip("'").strip("\""))
 			
 			if logFiles is None:
 				self.logFiles = [None]*len(_list)
