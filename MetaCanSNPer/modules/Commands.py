@@ -225,26 +225,31 @@ class SequentialCommands(Commands):
 	thread : Thread
 
 	def start(self : SequentialCommands) -> None:
-		self.processes = []
-		def runInSequence(self : SequentialCommands):
-			try:
-				for pc in self._list:
-					p = pc.run()
-					self.processes.extend(p)
-					if self.processes[-1].returncode != 0:
-						break
-				self.hooks.trigger(f"SequentialCommands{self.category}Finished", {"object" : self})
-			except Exception as e:
-				if type(e) is FileNotFoundError:
-					self.hooks.trigger(f"ReportError", {"exception" : e})
+		try:
+			self.processes = []
+			def runInSequence(self : SequentialCommands):
 				try:
-					e.add_note(f"<In Thread running: {self.raw!r}>")
-					LOGGER.exception(e)
-				except:
-					LOGGER.exception(e)
-				self.hooks.trigger(f"SequentialCommands{self.category}Finished", {"object" : self})
-		self.thread = Thread(target=runInSequence, args=[self], daemon=True)
-		self.thread.start()
+					for pc in self._list:
+						p = pc.run()
+						self.processes.extend(p)
+						if self.processes[-1].returncode != 0:
+							break
+					self.hooks.trigger(f"SequentialCommands{self.category}Finished", {"object" : self})
+				except Exception as e:
+					if type(e) is FileNotFoundError:
+						self.hooks.trigger(f"ReportError", {"exception" : e})
+					try:
+						e.add_note(f"<In Thread running: {self.raw!r}>")
+						LOGGER.exception(e)
+					except:
+						LOGGER.exception(e)
+					self.hooks.trigger(f"SequentialCommands{self.category}Finished", {"object" : self})
+			self.thread = Thread(target=runInSequence, args=[self], daemon=True)
+			self.thread.start()
+		except Exception as e:
+			e.add_note(f"{type(self).__name__} failed to `.start()`.")
+			LOGGER.exception(e)
+			raise e
 
 	def run(self) -> list[CompletedProcess]:
 		self.processes = []
