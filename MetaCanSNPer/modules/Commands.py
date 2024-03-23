@@ -110,10 +110,19 @@ class Commands:
 			
 			for c in args:
 				LOGGER.debug(f"{self.pattern}.fullmatch({c}) -> {self.pattern.fullmatch(c)}")
-				if self.pattern.fullmatch(c):
+				if c is None:
+					continue
+				elif c.strip() == "":
+					continue
+				elif self.pattern.fullmatch(c):
 					_list.append([])
 				else:
-					_list[-1].append(c)
+					if c.startswith("'"):
+						_list[-1].append(c.strip("'"))
+					elif c.startswith("\""):
+						_list[-1].append(c.strip("\""))
+					else:
+						_list[-1].append(c)
 			
 			self._list = [self.nextType(l, category, hooks, logFile=self.logFile) for l in _list]
 		except Exception as e:
@@ -288,7 +297,9 @@ class ParallelCommands(Commands):
 			self.logFiles = []
 			_list = [[]]
 			for c in argsPattern.split(string.strip()):
-				if c in ["", None]:
+				if c is None:
+					continue
+				elif c.strip() == "":
 					continue
 				elif self.pattern.fullmatch(c):
 					_list.append([])

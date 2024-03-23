@@ -134,7 +134,7 @@ class TerminalUpdater:
 			sepLength = len(sep)
 			N = len(keys)
 			borderLength = len(borders[0]) + len(borders[1])
-			backspaces = "\b" * ((len(symbols[0])+borderLength)*N + sepLength*max(0, N-1) + len(f"t = {0.0:>15.3f}"))
+			backspaces = "\b" * ((len(symbols[0])+borderLength)*N + sepLength*max(0, N-1) + len(f" t = {0.0:>15.3f}"))
 			m = len(symbols)
 			n = [0 for _ in range(N)]
 
@@ -160,7 +160,7 @@ class TerminalUpdater:
 					else:
 						print(backspaces+backspaces.replace("\b", " "), end=backspaces, flush=True, file=self.out)
 						return print("Done!" if self.finishedThreads.issuperset(self.threads) else "Failed!", flush=True, file=self.out)
-				msg += f"t = {timer() - self.startTime:>15.3f}"
+				msg += f" t = {timer() - self.startTime:>15.3f}"
 				print(backspaces, end=msg, flush=True, file=self.out)
 				sleep(0.2)
 			print(backspaces+backspaces.replace("\b", " "), end=backspaces, flush=True, file=self.out)
@@ -179,7 +179,7 @@ class TerminalUpdater:
 			sepLength = len(sep)
 			N = len(keys)
 			borderLength = len(borders[0]) + len(borders[1])
-			backspaces = "\b" * ((len(symbols[0])+borderLength)*N + sepLength*max(0, len(self.threads)-1) + len(f"t = {0.0:>15.3f}"))
+			backspaces = "\b" * ((len(symbols[0])+borderLength)*N + sepLength*max(0, len(self.threads)-1) + len(f" t = {0.0:>15.3f}"))
 			
 			if self.supportsColor:
 				borders = ("\u001b[37;40m"+borders[0], "\u001b[37;40m"+borders[1]+"\u001b[0m")
@@ -200,7 +200,7 @@ class TerminalUpdater:
 					else:
 						print(backspaces+backspaces.replace("\b", " "), end=backspaces, flush=True, file=self.out)
 						return print("Done!", flush=True, file=self.out)
-				msg += f"t = {timer() - self.startTime:>15.3f}"
+				msg += f" t = {timer() - self.startTime:>15.3f}"
 				print(backspaces, end=msg, flush=True, file=self.out)
 				sleep(0.5)
 			print(backspaces+backspaces.replace("\b", " "), end=backspaces, flush=True, file=self.out)
@@ -216,7 +216,7 @@ class TerminalUpdater:
 			keys = sorted(self.threads.keys())
 			sepLength = len(sep)
 			N = len(keys)
-			backspaces = "\b" * (length * N + sepLength * max(0, N - 1) + len(partition)*N + len(f"t = {0.0:>15.3f}"))
+			backspaces = "\b" * (length * N + sepLength * max(0, N - 1) + len(partition)*N + len(f" t = {0.0:>15.3f}"))
 			
 			crashColor, finishColor = "", ""
 			if self.supportsColor:
@@ -244,7 +244,7 @@ class TerminalUpdater:
 					else:
 						print(backspaces+backspaces.replace("\b", " "), end=backspaces, flush=True, file=self.out)
 						return print("Done!", flush=True, file=self.out)
-				msg += f"t = {timer() - self.startTime:>15.3f}"
+				msg += f" t = {timer() - self.startTime:>15.3f}"
 				print(backspaces, end=msg, flush=True, file=self.out)
 				sleep(0.6)
 			print(backspaces+backspaces.replace("\b", " "), end=backspaces, flush=True, file=self.out)
