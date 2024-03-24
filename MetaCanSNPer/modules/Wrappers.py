@@ -57,7 +57,7 @@ class ProcessWrapper:
 		""""""
 		names, commands, outputs = self.formatCommands()
 		for i in range(len(names))[::-1]:
-			name, outFile = names[i], outputs[i]
+			name, outFile = names[i], outputs[i][1]
 			if name not in self.history:
 				self.history[name] = []
 				self.outputs[name] = None
