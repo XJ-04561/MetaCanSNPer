@@ -25,6 +25,7 @@ class GATK_Mutect2(SNPCaller):
 	def preProcess(self, *args, **kwargs):
 		for genome, refPath in self.Lib.references:
 			assert 0 == os.system(f"samtools faidx {refPath!r}")
+			assert 0 == os.system(f"gatk CreateSequenceDictionary -R {refPath!r}")
 
 
 class GATK_HaplotypeCaller(SNPCaller):
