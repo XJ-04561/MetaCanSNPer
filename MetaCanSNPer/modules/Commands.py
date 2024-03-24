@@ -18,8 +18,8 @@ from MetaCanSNPer.Globals import SOFTWARE_NAME
 def bPrint(*strings, sep=b" ", end=b"\n", file : BinaryIO=None, encoding : str="utf-8"):
 	file.write(sep.join(map(lambda s : s.encode("utf-8"), strings)) + end)
 
-parallelPattern = re.compile("\s*[&]\s*|\s*[&][&]\s*|\s*[|][|]\s*")
-sequentialPattern = re.compile("\s*[;]\s*")
+parallelPattern = re.compile("\s*[&]\s*")
+sequentialPattern = re.compile("\s*[;]\s*|\s*[&][&]\s*|\s*[|][|]\s*")
 pipePattern = re.compile("\s*[|]\s*")
 dumpPattern = re.compile("\s*[>]\s*")
 whitePattern = re.compile("\s*")
