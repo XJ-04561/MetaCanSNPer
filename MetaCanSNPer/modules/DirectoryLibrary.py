@@ -135,19 +135,19 @@ class DirectoryLibrary(PathLibrary):
 		removes child paths once they are trash collected the same way as for absolute paths."""
 		if tmpDir is None:
 			if self.settings.get("saveTemp") == True:
-				self.tmpDir = self.commonGroups.locals > SOFTWARE_NAME > f"tmp-[{SOFTWARE_NAME}]"
+				self.tmpDir = (self.commonGroups.locals > SOFTWARE_NAME) > f"tmp-[{SOFTWARE_NAME}]"
 			else:
 				self.tmpDir = createTemp(prefix=f"tmp-[{SOFTWARE_NAME}]")
 		else:
 			tmpDir = DirectoryPath(tmpDir, purpose="w")
 			if pIsAbs(tmpDir):
 				if self.settings.get("saveTemp") == True:
-					self.tmpDir = tmpDir > SOFTWARE_NAME > f"tmp-[{SOFTWARE_NAME}]"
+					self.tmpDir = (tmpDir > SOFTWARE_NAME) > f"tmp-[{SOFTWARE_NAME}]"
 				else:
 					self.tmpDir = createTemp(dir=tmpDir, prefix=f"tmp-[{SOFTWARE_NAME}]")
 			else:
 				if self.settings.get("saveTemp") == True:
-					self.tmpDir = self.commonGroups.locals > tmpDir > SOFTWARE_NAME > f"tmp-[{SOFTWARE_NAME}]"
+					self.tmpDir = ((self.commonGroups.locals > tmpDir) > SOFTWARE_NAME) > f"tmp-[{SOFTWARE_NAME}]"
 				else:
 					self.tmpDir = createTemp(dir=self.commonGroups.locals > tmpDir, prefix=f"tmp-[{SOFTWARE_NAME}]")
 		self.tmpDir.defaultPurpose = "rw"
