@@ -128,8 +128,6 @@ class Commands:
 				LOGGER.debug(f"{self.pattern}.fullmatch({c}) -> {self.pattern.fullmatch(c)}")
 				if c is None:
 					continue
-				elif c.strip() == "":
-					continue
 				elif self.pattern.fullmatch(c):
 					_list.append([])
 				else:
@@ -253,7 +251,8 @@ class PipeCommands(Commands):
 				pass
 			lastSTDOUT = processes[i].stdout
 		processes.append( self._list[-1].run(stdin=lastSTDOUT, **kwargs))
-
+		lastSTDOUT.close()
+		
 		processes[-1].wait()
 
 		for p in processes[::-1]:
