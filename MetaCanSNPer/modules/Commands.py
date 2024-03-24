@@ -172,7 +172,7 @@ class DumpCommands(Commands):
 
 	def __init__(self, args, category : str, hooks : Hooks, logDir : Path=Path(".")):
 		try:
-			super().__init__(args, category, hooks, logFile)
+			super().__init__(args, category, hooks, logDir=logDir)
 		
 			command = self._list[0]
 			self.command = list(filter(lambda s : whitePattern.fullmatch(s) is None, command))
