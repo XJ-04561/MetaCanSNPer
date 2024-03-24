@@ -58,7 +58,7 @@ class ProcessWrapper:
 		names, commands, outputs = self.formatCommands()
 		for i in range(len(names))[::-1]:
 			name = names[i]
-			genome, outFile = outputs[i][1]
+			genome, outFile = outputs[i]
 			if name not in self.history:
 				self.history[name] = []
 				self.outputs[genome] = None
