@@ -60,17 +60,21 @@ class ProcessWrapper:
 			name, outFile = names[i], outputs[i][1]
 			if name not in self.history:
 				self.history[name] = []
-				self.outputs[name] = None
+				self.outputs[self.database.references[name][1]] = None
 			if self.settings.get("saveTemp") is True and pExists(outFile):
 				self.history[name].append(0)
-				self.outputs[name] = outFile
+				self.outputs[self.database.references[name][1]] = outFile
+				self.skip.add(name)
+
+				self.hooks.trigger(f"{self.category}Progress", {"threadN" : name, "progress" : 1.0})
+				self.hooks.trigger(f"{self.category}Finished", {"threadN" : name})
 
 				names.pop(i), commands.pop(i), outputs.pop(i)
 			
-			self.hooks.removeHook(f"{self.category}ProcessFinished", self._hooksList.get("ProcessFinished"))
-			self._hooksList["ProcessFinished"] = self.hooks.addHook(f"{self.category}ProcessFinished", target=self.updateOutput, args=[dict(zip(names, outputs))])
+		self.hooks.removeHook(f"{self.category}ProcessFinished", self._hooksList.get("ProcessFinished"))
+		self._hooksList["ProcessFinished"] = self.hooks.addHook(f"{self.category}ProcessFinished", target=self.updateOutput, args=[dict(zip(names, outputs))])
 
-			self.command = Command(commands, self.category, self.hooks, logDir=self.Lib.resultDir.create("SoftwareLogs"), names=names)
+		self.command = Command(commands, self.category, self.hooks, logDir=self.Lib.resultDir.create("SoftwareLogs"), names=names)
 
 	def start(self) -> list[tuple[tuple[str,str],str]]:
 		"""Starts processes in new threads. Returns information of the output of the processes, but does not ensure the processes have finished."""
@@ -97,7 +101,7 @@ class ProcessWrapper:
 	def finished(self):
 		if self.command is None:
 			raise ThreadError("{classType}.command is not initialized so it cannot be status checked with {classType}.finished()".format(classType=type(self).__name__))
-		return len(self.command.returncodes) == len(self.command)
+		return len(self.command.returncodes) == len(set(self.history).difference(self.skip))
 	
 	def canRun(self):
 		'''Checks whether any process finished with a non-zero exitcode at the latest run. Returns True if process has not ran yet.'''
@@ -107,7 +111,7 @@ class ProcessWrapper:
 	def hickups(self):
 		'''Checks whether any process finished with a non-zero exitcode at the latest run. Returns True if process has not ran yet.'''
 		# Expects that None!=0 is evaluated as True
-		return self.command.returncodes == {} or any(e!=0 for e in self.command.returncodes.values())
+		return any(e!=0 for e in self.command.returncodes.values())
 
 	def fixable(self):
 		'''Checks whether there is a known or suspected solution available for any errors that occured. If tried once,
@@ -166,12 +170,12 @@ class ProcessWrapper:
 		if self.command is None:
 			for i in sorted(self.history.keys()):
 				e = self.history[i][-1] if self.history[i] != [] else ""
-				key, _ = self.outputs[i] if i in self.outputs else ("", None)
+				key = self.database.references[i][1]
 				msg.append(f"{self.Lib.queryName:<30}|{key:<28} = {e:^8}")
 		else:
 			for i in sorted(self.command.returncodes.keys()):
 				e = self.command.returncodes.get(i, "")
-				key, _ = self.outputs[i] if i in self.outputs else ("", None)
+				key = self.database.references[i][1]
 				msg.append(f"{self.Lib.queryName:<30}|{key:<28} = {e:^8}")
 		
 		out("\n".join(msg))

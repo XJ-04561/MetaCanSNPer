@@ -65,14 +65,7 @@ class Command:
 				
 				self.commands = ParallelCommands(self.raw, category, hooks, logDir=logDir, names=names)
 			else:
-				def parallelFinished(eventInfo, self : Command):
-					for name in self.names:
-						self.returncodes[name] = 0
-						self.hooks.trigger(f"{self.category}ProcessFinished", {"threadN" : name, "Command" : self})
-				
 				self.commands = None
-
-				self._hook = self.hooks.addHook(f"SequentialCommands{self.category}Finished", target=parallelFinished, args=[self])
 			
 		except Exception as e:
 			e.add_note(f"{type(self).__name__} failed to initialize.")
@@ -97,14 +90,10 @@ class Command:
 	def start(self):
 		if self.commands is not None:
 			self.commands.start()
-		else:
-			self.hooks.trigger(f"SequentialCommands{self.category}Finished", {})
 
 	def run(self):
 		if self.commands is not None:
 			self.commands.run()
-		else:
-			self.hooks.trigger(f"SequentialCommands{self.category}Finished", {})
 
 class Commands:
 	"""Only meant to be inherited from"""
