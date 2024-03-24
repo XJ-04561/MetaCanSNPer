@@ -179,7 +179,7 @@ class DumpCommands(Commands):
 			self.command = self._list[0]
 			LOGGER.debug(f"{self.command=}")
 			if len(self.command) > 1 and self.command[1].isalnum():
-				logFile = logDir > f"{self.command[0]}_{self.command[1]}_{SOFTWARE_NAME}.log"
+				logFile = logDir.writable > f"{self.command[0]}_{self.command[1]}_{SOFTWARE_NAME}.log"
 			else:
 				logFile = logDir.writable > f"{self.command[0]}_{SOFTWARE_NAME}.log"
 			
@@ -187,7 +187,6 @@ class DumpCommands(Commands):
 				self.logFile = open(logFile, "wb")
 			except:
 				LOGGER.warning(f"Failed to create {logFile=}")
-				import os
 				self.logFile = open(os.devnull, "wb")
 			
 			self.outFile = None
@@ -218,7 +217,7 @@ class DumpCommands(Commands):
 			raise FileNotFoundError(2, "Could not find command/executable", f"{self.command[0]}")
 		else:
 			self.command[0] = ex
-		p : Popen = Popen(self.command, stdin=stdin, stdout=self.outFile or stdout or self.logFile, stderr=stderr or self.logFile, **kwargs)
+		p : Popen = Popen(self.command, stdin=stdin, stdout=self.outFile or stdout or open(os.devnull, "wb"), stderr=stderr or self.logFile, **kwargs)
 		LOGGER.debug(f"Started {self!r}")
 		return p
 
