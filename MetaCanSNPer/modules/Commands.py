@@ -193,7 +193,6 @@ class DumpCommands(Commands):
 			self.outFileName = None
 
 			if len(self._list) in [1, 2]:
-				self._list[1] = list(filter(lambda s : whitePattern.fullmatch(s) is None, self._list[1]))
 				if len(self._list[1]) != 1:
 					LOGGER.exception(ValueError(f"Output can not be dumped to multiple filenames. Filenames given: {self._list[1]}"))
 					raise ValueError(f"Output can not be dumped to multiple filenames. Filenames given: {self._list[1]}")
