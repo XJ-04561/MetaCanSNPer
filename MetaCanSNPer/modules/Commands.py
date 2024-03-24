@@ -298,7 +298,7 @@ class SequentialCommands(Commands):
 						returncode = pc.run()
 						self.returncodes.append(returncode)
 						if self.separators[i] == ";":
-							break
+							pass
 						elif returncode != 0 and self.separators[i] == "&&":
 							break
 						elif returncode == 0 and self.separators[i] == "||":
