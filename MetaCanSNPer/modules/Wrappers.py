@@ -191,8 +191,8 @@ class IndexingWrapper(ProcessWrapper):
 	solutions : ErrorFixes.SolutionContainer
 
 	
-	def __init__(self, lib : DirectoryLibrary, database : DatabaseReader, outputTemplate : str, out : dict[str,str], hooks : Hooks=Hooks(), flags : list[str]=[]):
-		super().__init__(lib=lib, database=database, outputTemplate=outputTemplate, out=out, hooks=hooks)
+	def __init__(self, lib : DirectoryLibrary, database : DatabaseReader, outputTemplate : str, out : dict[str,str], hooks : Hooks=Hooks(), flags : list[str]=[], settings : dict[str,Any]={}):
+		super().__init__(lib=lib, database=database, outputTemplate=outputTemplate, out=out, hooks=hooks, settings=settings)
 		
 		self.flags = flags
 		self.command = None
