@@ -66,7 +66,6 @@ class ProcessWrapper:
 				self.outputs[name] = outFile
 
 				names.pop(i), commands.pop(i), outputs.pop(i)
-				
 			
 			self.hooks.removeHook(f"{self.category}ProcessFinished", self._hooksList.get("ProcessFinished"))
 			self._hooksList["ProcessFinished"] = self.hooks.addHook(f"{self.category}ProcessFinished", target=self.updateOutput, args=[dict(zip(names, outputs))])

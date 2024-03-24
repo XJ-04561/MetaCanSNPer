@@ -2,7 +2,7 @@
 
 
 
-import re, shutil, sys
+import re, shutil, sys, os
 from subprocess import Popen, PIPE, CompletedProcess
 from typing import TextIO, BinaryIO, Iterable, Any
 from threading import Thread
@@ -52,7 +52,7 @@ class Command:
 					try:
 						for name in self.commands:
 							if eventInfo["object"] is self.commands[name]:
-								self.returncodes[name] = None if len(eventInfo["object"].processes) == 0 else eventInfo["object"].processes[-1].returncode
+								self.returncodes[name] = None if len(eventInfo["object"].returncodes) == 0 else eventInfo["object"].returncodes[-1]
 								self.hooks.trigger(f"{self.category}ProcessFinished", {"threadN" : name, "Command" : self})
 								return
 					except Exception as e:
@@ -164,35 +164,43 @@ class DumpCommands(Commands):
 	pattern = dumpPattern
 	command : list[str]
 	outFile : TextIO
+	outFileName : str
 	_list : list[str]
 
 	@staticmethod
 	def nextType(args, *overFlowArgs, **kwargs) -> list[str]:
-		return args
+		return list(filter(lambda s : whitePattern.fullmatch(s) is None, args))
 
 	def __init__(self, args, category : str, hooks : Hooks, logDir : Path=Path(".")):
 		try:
 			super().__init__(args, category, hooks, logDir=logDir)
 		
 			command = self._list[0]
-			self.command = list(filter(lambda s : whitePattern.fullmatch(s) is None, command))
 			LOGGER.debug(f"{command=}, {self.command=}")
-			logFile = logDir.create(f"{command}_{SOFTWARE_NAME}.log")
+			if len(self.command) > 1 and self.command[1].isalnum():
+				logFile = logDir.create(f"{self.command[0]}_{self.command[1]}_{SOFTWARE_NAME}.log")
+			else:
+				logFile = logDir.create(f"{self.command[0]}_{SOFTWARE_NAME}.log")
+			
 			try:
 				self.logFile = open(logFile, "wb")
 			except:
 				LOGGER.warning(f"Failed to create {logFile=}")
 				import os
 				self.logFile = open(os.devnull, "wb")
+			
+			self.outFile = None
+			self.outFileName = None
 
-			if len(self._list) == 1:
-				self.outFile = None
-			elif len(self._list) == 2:
+			if len(self._list) == 2:
 				self._list[1] = list(filter(lambda s : whitePattern.fullmatch(s) is None, self._list[1]))
 				if len(self._list[1]) != 1:
 					LOGGER.exception(ValueError(f"Output can not be dumped to multiple filenames. Filenames given: {self._list[1]}"))
 					raise ValueError(f"Output can not be dumped to multiple filenames. Filenames given: {self._list[1]}")
-				self.outFile = open(self._list[1][0], "ab")
+				
+				self.outFileName = self._list[1][0]
+				if not os.path.exists(self._list[1][0]):
+					self.outFile = open(self.outFileName+".tmp", "wb")
 			else:
 				LOGGER.exception(ValueError(f"Output dumped more or less than once using '>' in one command. Command: {'>'.join(map(''.join, self._list))}"))
 				raise ValueError(f"Output dumped more or less than once using '>' in one command. Command: {'>'.join(map(''.join, self._list))}")
@@ -215,6 +223,11 @@ class DumpCommands(Commands):
 		return p
 
 	def __del__(self):
+		try:
+			self.outFile.close()
+			os.rename(self.outFile.name, self.outFileName)
+		except:
+			pass
 		self.logFile.close()
 
 class PipeCommands(Commands):
@@ -229,23 +242,31 @@ class PipeCommands(Commands):
 		if len(self._list) == 0: return []
 
 		processes : list[Popen] = []
-		lastSTDOUT = PIPE
+		lastSTDOUT = None
 		for i, dc in enumerate(self._list[:-1]):
 			processes.append( dc.run(stdin=lastSTDOUT, stdout=PIPE, **kwargs))
+			try:
+				lastSTDOUT.close()
+			except:
+				pass
 			lastSTDOUT = processes[i].stdout
 		processes.append( dc.run(stdin=lastSTDOUT, **kwargs))
 
 		processes[-1].wait()
 
-		for i, p in enumerate(processes):
-			if p.wait(0.5) is None: # .wait returns the returncode. Wait a few millisec so that prior processes don't close pipe before they terminate.
+		for p in processes[::-1]:
+			if p.returncode is None:
 				LOGGER.error(f"Section of pipe closed. Returncodes of commands in pipe: {[p.returncode for p in processes]}\nPipeCommands in question: {self}")
-				break
 
 		for i, p in enumerate(processes):
-			if p.returncode != 0:
-				return processes[:i+1]
-		return processes
+			if p.returncode not in [0, None]:
+				return p.returncode
+		try:
+			self[-1].outFile.close()
+			os.rename(self[-1].outFile.name, self[-1].outFileName)
+		except:
+			pass
+		return processes[-1].returncode
 
 class SequentialCommands(Commands):
 	"""Runs commands partitioned by ";" in sequence.
@@ -263,18 +284,18 @@ class SequentialCommands(Commands):
 	pattern = sequentialPattern
 	nextType = PipeCommands
 	_list : list[PipeCommands]
-	processes : list[Popen]
+	returncodes : list[int]
 	thread : Thread
 
 	def start(self : SequentialCommands) -> None:
 		try:
-			self.processes = []
+			self.returncodes = []
 			def runInSequence(self : SequentialCommands):
 				try:
 					for pc in self._list:
-						p = pc.run()
-						self.processes.extend(p)
-						if self.processes[-1].returncode != 0:
+						returncode = pc.run()
+						self.returncodes.append(returncode)
+						if returncode != 0:
 							break
 					self.hooks.trigger(f"SequentialCommands{self.category}Finished", {"object" : self})
 				except Exception as e:
