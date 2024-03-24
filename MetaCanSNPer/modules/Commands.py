@@ -252,7 +252,7 @@ class PipeCommands(Commands):
 			except:
 				pass
 			lastSTDOUT = processes[i].stdout
-		processes.append( dc.run(stdin=lastSTDOUT, **kwargs))
+		processes.append( self._list[-1].run(stdin=lastSTDOUT, **kwargs))
 
 		processes[-1].wait()
 
@@ -362,7 +362,7 @@ class ParallelCommands(Commands):
 					elif c.startswith("\""):
 						_list[name].append(c.strip("\""))
 					else:
-						_list[name].append(c.strip())
+						_list[name].append(c)
 			
 			self._list = {name:self.nextType(command, category, hooks, logDir=logDir > illegalPattern.sub("-", str(name))) for name, command in _list.items()}
 		except Exception as e:

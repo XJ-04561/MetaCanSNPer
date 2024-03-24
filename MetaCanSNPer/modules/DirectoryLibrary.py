@@ -262,7 +262,7 @@ class DirectoryLibrary(PathLibrary):
 			if pExists(refPath):
 				if self.refDir.find(pName(refPath) + ".vcf") is not None or force:
 					accession = open(refPath, "r").readline()[1:].split()[0]
-					filename = f"{self.Lib.refDir.writable > pName(refPath)}.vcf"
+					filename = f"{self.refDir.writable > pName(refPath)}.vcf"
 
 					vcfFile = openVCF(filename, "w", referenceFile=refPath)
 					
