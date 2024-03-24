@@ -73,19 +73,25 @@ class Command:
 			raise e
 	
 	def __len__(self):
-		return len(self.commands._list)
+		return len(self.commands._list) if self.commands is not None else 0
 	
 	def __iter__(self):
-		return iter(self.commands)
+		return iter(self.commands) if self.commands is not None else iter([])
 	
 	def __getitem__(self, key):
-		return self.commands[key]
+		if self.commands is not None:
+			return self.commands[key]
+		else:
+			raise KeyError("Key {key!r} not associated with a command.")
 	
 	def __repr__(self):
 		return f"<{type(self).__name__} {hex(id(self))} raw={self.raw!r}>"
 	
 	def __del__(self):
-		self.hooks.removeHook(f"SequentialCommands{self.category}Finished", self._hook)
+		try:
+			self.hooks.removeHook(f"SequentialCommands{self.category}Finished", self._hook)
+		except:
+			pass
 	
 	def start(self):
 		if self.commands is not None:

@@ -101,7 +101,7 @@ class ProcessWrapper:
 	def finished(self):
 		if self.command is None:
 			raise ThreadError("{classType}.command is not initialized so it cannot be status checked with {classType}.finished()".format(classType=type(self).__name__))
-		return len(self.command.returncodes) == len(set(self.history).difference(self.skip))
+		return len(self.command.returncodes) == len(self.command)
 	
 	def canRun(self):
 		'''Checks whether any process finished with a non-zero exitcode at the latest run. Returns True if process has not ran yet.'''
