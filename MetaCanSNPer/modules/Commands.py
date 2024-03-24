@@ -98,13 +98,13 @@ class Command:
 		if self.commands is not None:
 			self.commands.start()
 		else:
-			self.hooks.trigger(f"SequentialCommands{self.category}Finished")
+			self.hooks.trigger(f"SequentialCommands{self.category}Finished", {})
 
 	def run(self):
 		if self.commands is not None:
 			self.commands.run()
 		else:
-			self.hooks.trigger(f"SequentialCommands{self.category}Finished")
+			self.hooks.trigger(f"SequentialCommands{self.category}Finished", {})
 
 class Commands:
 	"""Only meant to be inherited from"""
@@ -252,7 +252,7 @@ class PipeCommands(Commands):
 			lastSTDOUT = processes[i].stdout
 		processes.append( self._list[-1].run(stdin=lastSTDOUT, **kwargs))
 		lastSTDOUT.close()
-		
+
 		processes[-1].wait()
 
 		for p in processes[::-1]:
