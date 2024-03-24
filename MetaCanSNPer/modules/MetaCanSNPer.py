@@ -252,18 +252,18 @@ class MetaCanSNPer:
 
 		award = (-1, 1)
 
-		path.append([node])
-		while path[-1] != []:
-			for node in path[-1]:
-				path.append([])
+		paths.append([node])
+		while paths[-1] != []:
+			for node in paths[-1]:
+				paths.append([])
 				for child in node.children:
-					if child.nodeID in path[-2]: continue
+					if child.nodeID in paths[-2]: continue
 					childSNPID = self.database.node(child.nodeID)
 					pos, anc, der = self.database.SNPsByID[childSNPID]
 					nodeScores[child.nodeID] = nodeScores[node.nodeID] + award[der == self.SNPresults[pos]]
-					path[-1].append(child)
-				if path[-1] == []:
-					path = path[:-1]
+					paths[-1].append(child)
+				if paths[-1] == []:
+					paths = paths[:-1]
 					LOGGER.info(f"Finished traversed tree.")
 					return max(nodeScores.items(), key=lambda nodeID, score: score)
 
