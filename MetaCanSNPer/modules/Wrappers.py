@@ -58,6 +58,7 @@ class ProcessWrapper:
 		for name in names:
 			if name not in self.history:
 				self.history[name] = []
+				self.outputs[name] = None
 		
 		self.hooks.removeHook(f"{self.category}ProcessFinished", self._hooksList.get("ProcessFinished"))
 		self._hooksList["ProcessFinished"] = self.hooks.addHook(f"{self.category}ProcessFinished", target=self.updateOutput, args=[dict(zip(names, outputs))])
