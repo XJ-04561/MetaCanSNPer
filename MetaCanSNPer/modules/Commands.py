@@ -4,7 +4,7 @@
 
 import re, shutil, sys
 from subprocess import Popen, PIPE, CompletedProcess
-from typing import TextIO, BinaryIO, Iterable
+from typing import TextIO, BinaryIO, Iterable, Any
 from threading import Thread
 
 from MetaCanSNPer.modules.LogKeeper import createLogger
@@ -284,14 +284,13 @@ class SequentialCommands(Commands):
 class ParallelCommands(Commands):
 	pattern : re.Pattern = parallelPattern
 	nextType = SequentialCommands
-	_list : list[SequentialCommands]
+	_list : dict[Any,SequentialCommands]
 
 	def __init__(self, args : str, category : str, hooks : Hooks, logFiles : list[str]=None, names : Iterable=None):
 		
 		try:
 			self.category = category
 			self.hooks = hooks
-			self.logFiles = []
 			if names is None:
 				def _names():
 					n = 0
@@ -312,7 +311,7 @@ class ParallelCommands(Commands):
 			logFile = next(logFiles)
 			name = next(names)
 			_list = {name:[]}
-			self._logFiles = {name:logFile}
+			self.logFiles = {name:logFile}
 			self.raw = args
 			for c in argsPattern.split(self.raw.strip()):
 				if c is None:
@@ -322,7 +321,7 @@ class ParallelCommands(Commands):
 				elif self.pattern.fullmatch(c):
 					name = next(names)
 					_list[name] = []
-					_logFiles[name] = next(logFiles)
+					self.logFiles[name] = next(logFiles)
 				else:
 					if c.startswith("'"):
 						_list[name].append(c.strip("'"))
@@ -331,7 +330,7 @@ class ParallelCommands(Commands):
 					else:
 						_list[name].append(c)
 			
-			self._list = {name:self.nextType(command, category, hooks, logFile=self._logFiles[name]) for name, command in _list.items()}
+			self._list = {name:self.nextType(command, category, hooks, logFile=self.logFiles[name]) for name, command in _list.items()}
 		except Exception as e:
 			e.add_note(f"{type(self).__name__} failed to initialize.")
 			LOGGER.exception(e)
