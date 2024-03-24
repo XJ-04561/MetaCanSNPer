@@ -7,6 +7,7 @@ from MetaCanSNPer.modules.LogKeeper import createLogger
 
 LOGGER = createLogger(__name__)
 
+class Branch: pass
 class Branch:
 
 
@@ -23,7 +24,7 @@ class Branch:
 		self.nodeID = nodeID
 	
 	@property
-	def children(self):
+	def children(self) -> list[Branch]:
 		return [Branch(self._connection, childID) for (childID,) in self._connection.execute(f"SELECT {TREE_COLUMN_CHILD} FROM {TABLE_NAME_TREE} WHERE {TREE_COLUMN_PARENT} = ?", [self.nodeID]).fetchall()]
 
 class DatabaseReader:
@@ -85,7 +86,7 @@ class DatabaseReader:
 	def nodes(self) -> dict[str,list[tuple[str,int,str,str]]]:
 		return dict(self._connection.execute(f"SELECT {NODE_COLUMN_ID}, {NODE_COLUMN_NAME} FROM {TABLE_NAME_NODES}"))
 	
-	def node(self, nodeID):
+	def node(self, nodeID : int) -> str:
 		for (nodeSNPName, ) in self._connection.execute(f"SELECT {NODE_COLUMN_NAME} FROM {TABLE_NAME_NODES} WHERE {NODE_COLUMN_ID} = ?", [nodeID]):
 			return nodeSNPName
 

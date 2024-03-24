@@ -199,6 +199,9 @@ def main():
 		
 		TU.deadmans()
 
+		mObj.saveSNPdata()
+		mObj.saveResults()
+
 		print(f"{SOFTWARE_NAME} finished in {timer() - startTime:.3f} seconds! Results exported to: {mObj.Lib.resultDir}")
 	except Exception as e:
 		try:

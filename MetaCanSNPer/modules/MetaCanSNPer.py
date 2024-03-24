@@ -12,7 +12,7 @@ from PseudoPathy import Path
 from MetaCanSNPer.Globals import *
 import MetaCanSNPer.Globals as Globals
 import MetaCanSNPer.modules.LogKeeper as LogKeeper
-from MetaCanSNPer.modules.Databases import DatabaseReader, downloadDatabase
+from MetaCanSNPer.modules.Databases import DatabaseReader, downloadDatabase, Branch
 from MetaCanSNPer.modules.DirectoryLibrary import DirectoryLibrary
 from MetaCanSNPer.modules.Hooks import Hooks
 from MetaCanSNPer.modules.Wrappers import Aligner, Mapper, SNPCaller, IndexingWrapper
@@ -247,50 +247,47 @@ class MetaCanSNPer:
 		'''Depth-first tree search.'''
 		LOGGER.info(f"Traversing tree to get genotype called.")
 		node = self.database.tree
-		path = []
+		paths : list[list[Branch]] = []
+		nodeScores = {node.nodeID:0}
 
-		while node.nodeID not in path:
-			path.append(node.nodeID)
-			for child in node.children:
-				childSNPID = self.database.node(child.nodeID)
-				pos, anc, der = self.database.SNPsByID[childSNPID]
-				if Globals.DRY_RUN or der == self.SNPresults[pos]:
-					node = child
-					break
-		
-		LOGGER.info(f"Traversed:{path}")
-		return path
+		award = (-1, 1)
+
+		path.append([node])
+		while path[-1] != []:
+			for node in path[-1]:
+				path.append([])
+				for child in node.children:
+					if child.nodeID in path[-2]: continue
+					childSNPID = self.database.node(child.nodeID)
+					pos, anc, der = self.database.SNPsByID[childSNPID]
+					nodeScores[child.nodeID] = nodeScores[node.nodeID] + award[der == self.SNPresults[pos]]
+					path[-1].append(child)
+				if path[-1] == []:
+					path = path[:-1]
+					LOGGER.info(f"Finished traversed tree.")
+					return max(nodeScores.items(), key=lambda nodeID, score: score)
 
 	'''Functions'''
 
 	def saveResults(self, dst : str=None):
-		LOGGER.debug(f"open({dst or self.Lib.resultDir!r} > {self.Lib.queryName!r}+'_path.tsv', 'w')")
-		LOGGER.debug(f"open({dst or self.Lib.resultDir!r} > {self.Lib.queryName!r}+'_final.tsv', 'w')")
-		pathFile = open((dst or self.Lib.resultDir) > self.Lib.queryName+"_path.tsv", "w")
-		finalFile = open((dst or self.Lib.resultDir) > self.Lib.queryName+"_final.tsv", "w")
+		LOGGER.debug(f"open({dst or self.Lib.resultDir.writable!r} > {self.Lib.queryName!r}+'_final.tsv', 'w')")
+		with open((dst or self.Lib.resultDir.writable) > self.Lib.queryName+"_final.tsv", "w") as finalFile:
+			finalNodeID, score = self.traverseTree()
+			
+			finalFile.write(f"{self.database.node(finalNodeID)}\t{score}")
 
-		path = self.traverseTree()
-
-		pathFile.write("\t".join(map(str,path)))
-		finalFile.write(str(path[-1]))
-		
-		pathFile.close()
-		finalFile.close()
-
-
-	def saveSNPdata(self, where : str=None):
+	def saveSNPdata(self, dst : str=None):
 		""""""
-		LOGGER.debug(f"open({where or self.Lib.resultDir!r} > {self.Lib.queryName!r}+'_snps.tsv', 'w')")
-		LOGGER.debug(f"open({where or self.Lib.resultDir!r} > {self.Lib.queryName!r}+'_not_called.tsv', 'w')")
-		LOGGER.debug(f"open({where or self.Lib.resultDir!r} > {self.Lib.queryName!r}+'_no_coverage.tsv', 'w')")
-		LOGGER.debug(f"open({where or self.Lib.resultDir!r} > {self.Lib.queryName!r}+'_unique.tsv', 'w')")
-		called = open((where or self.Lib.resultDir) > self.Lib.queryName+"_snps.tsv", "w")
-		notCalled = open((where or self.Lib.resultDir) > self.Lib.queryName+"_not_called.tsv", "w")
-		noCoverage = open((where or self.Lib.resultDir) > self.Lib.queryName+"_no_coverage.tsv", "w")
-		unique = open((where or self.Lib.resultDir) > self.Lib.queryName+"_unique.tsv", "w")
+		LOGGER.debug(f"open({dst or self.Lib.resultDir.writable!r} > {self.Lib.queryName!r}+'_snps.tsv', 'w')")
+		LOGGER.debug(f"open({dst or self.Lib.resultDir.writable!r} > {self.Lib.queryName!r}+'_not_called.tsv', 'w')")
+		LOGGER.debug(f"open({dst or self.Lib.resultDir.writable!r} > {self.Lib.queryName!r}+'_no_coverage.tsv', 'w')")
+		LOGGER.debug(f"open({dst or self.Lib.resultDir.writable!r} > {self.Lib.queryName!r}+'_unique.tsv', 'w')")
+		called = open((dst or self.Lib.resultDir.writable) > self.Lib.queryName+"_snps.tsv", "w")
+		notCalled = open((dst or self.Lib.resultDir.writable) > self.Lib.queryName+"_not_called.tsv", "w")
+		noCoverage = open((dst or self.Lib.resultDir.writable) > self.Lib.queryName+"_no_coverage.tsv", "w")
+		unique = open((dst or self.Lib.resultDir.writable) > self.Lib.queryName+"_unique.tsv", "w")
 
-		header = "\t".join(["Name","Reference","Pos","Ancestral base","Derived base", "Target base\n"])
-		entryTemplate = "{name}\t{reference}\t{pos}\t{ancestral}\t{derived}\t{target}\n"
+		header = "Name\tReference\tPos\tAncestral base\tDerived base\tTarget base\n"
 
 		called.write(header)
 		notCalled.write(header)
@@ -301,7 +298,7 @@ class MetaCanSNPer:
 			'''Print SNPs to tab separated file'''
 			for snpID, position, ancestral, derived in self.database.SNPsByGenome[genome]:
 				N, *args = self.SNPresults[snpID]
-				entry = "\t".join([snpID, genome, position, ancestral, derived, N]) + "\n"
+				entry = f"{snpID}\t{genome}\t{position}\t{ancestral}\t{derived}\t{N}\n"
 				if derived == N:
 					called.write(entry)
 				elif ancestral == N:
