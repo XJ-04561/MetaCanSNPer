@@ -158,12 +158,12 @@ class ProcessWrapper:
 		if self.command is None:
 			for i in sorted(self.history.keys()):
 				e = self.history[i][-1] if self.history[i] != [] else ""
-				key, _ = self.outputs[i]
+				key, _ = self.outputs[i] if i in self.outputs else ("", None)
 				msg.append(f"{self.Lib.queryName:<30}|{key:<28} = {e:^8}")
 		else:
 			for i in sorted(self.command.returncodes.keys()):
 				e = self.command.returncodes.get(i, "")
-				key, _ = self.outputs[i]
+				key, _ = self.outputs[i] if i in self.outputs else ("", None)
 				msg.append(f"{self.Lib.queryName:<30}|{key:<28} = {e:^8}")
 		
 		out("\n".join(msg))

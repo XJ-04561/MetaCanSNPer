@@ -164,6 +164,7 @@ class DumpCommands(Commands):
 			if len(self._list) == 1:
 				self.outFile = None
 			elif len(self._list) == 2:
+				self._list[1] = list(filter(lambda s : whitePattern.fullmatch(s) is None, self._list[1]))
 				if len(self._list[1]) != 1:
 					LOGGER.exception(ValueError(f"Output can not be dumped to multiple filenames. Filenames given: {self._list[1]}"))
 					raise ValueError(f"Output can not be dumped to multiple filenames. Filenames given: {self._list[1]}")
@@ -316,8 +317,6 @@ class ParallelCommands(Commands):
 			for c in argsPattern.split(self.raw.strip()):
 				if c is None:
 					continue
-				elif c.strip() == "":
-					continue
 				elif self.pattern.fullmatch(c):
 					name = next(names)
 					_list[name] = []
@@ -328,7 +327,7 @@ class ParallelCommands(Commands):
 					elif c.startswith("\""):
 						_list[name].append(c.strip("\""))
 					else:
-						_list[name].append(c)
+						_list[name].append(c.strip())
 			
 			self._list = {name:self.nextType(command, category, hooks, logFile=self.logFiles[name]) for name, command in _list.items()}
 		except Exception as e:
