@@ -192,7 +192,7 @@ class DumpCommands(Commands):
 			self.outFile = None
 			self.outFileName = None
 
-			if len(self._list) in [1, 2]:
+			if len(self._list) == 2:
 				if len(self._list[1]) != 1:
 					LOGGER.exception(ValueError(f"Output can not be dumped to multiple filenames. Filenames given: {self._list[1]}"))
 					raise ValueError(f"Output can not be dumped to multiple filenames. Filenames given: {self._list[1]}")
@@ -200,10 +200,10 @@ class DumpCommands(Commands):
 				self.outFileName = self._list[1][0]
 				if not os.path.exists(self._list[1][0]):
 					self.outFile = open(self.outFileName+".tmp", "wb")
-			else:
+			elif len(self._list) > 2:
 				LOGGER.exception(ValueError(f"Output dumped more or less than once using '>' in one command. Command: {'>'.join(map(''.join, self._list))}"))
 				raise ValueError(f"Output dumped more or less than once using '>' in one command. Command: {'>'.join(map(''.join, self._list))}")
-			LOGGER.debug(f"{command=}, {self.command=}, {self.outFile=}")
+			LOGGER.debug(f"{self.command=}, {self.outFile=}, {self.logFile=}")
 		except Exception as e:
 			e.add_note(f"{type(self).__name__} failed to initialize.")
 			LOGGER.exception(e)
