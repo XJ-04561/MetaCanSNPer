@@ -25,6 +25,7 @@ dumpPattern = re.compile("\s*[>]\s*")
 whitePattern = re.compile("\s*")
 argsPattern = re.compile(r"(['][^']*?['])|([\"][^\"]*?[\"])|(\S+)", flags=re.MULTILINE+re.DOTALL)
 quotePattern = re.compile(r"['\" ]*")
+illegalPattern = re.compile(r"[^\w_ \-\.]")
 
 class ParallelCommands: pass
 class SequentialCommands: pass
@@ -319,9 +320,9 @@ class SequentialCommands(Commands):
 	def run(self) -> list[CompletedProcess]:
 		self.processes = []
 		for pc in self._list:
-			p = pc.run()
-			self.processes.extend(p)
-			if self.processes[-1].returncode != 0:
+			returncode = pc.run()
+			self.processes.append(returncode)
+			if returncode != 0:
 				self.hooks.trigger(f"SequentialCommands{self.category}Finished", {"object" : self})
 				return self.processes
 		self.hooks.trigger(f"SequentialCommands{self.category}Finished", {"object" : self})
@@ -364,7 +365,7 @@ class ParallelCommands(Commands):
 					else:
 						_list[name].append(c.strip())
 			
-			self._list = {name:self.nextType(command, category, hooks, logDir=logDir) for name, command in _list.items()}
+			self._list = {name:self.nextType(command, category, hooks, logDir=logDir > illegalPattern.sub("-", str(name))) for name, command in _list.items()}
 		except Exception as e:
 			e.add_note(f"{type(self).__name__} failed to initialize.")
 			LOGGER.exception(e)
