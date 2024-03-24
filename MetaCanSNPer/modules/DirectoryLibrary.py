@@ -257,7 +257,7 @@ class DirectoryLibrary(PathLibrary):
 	
 	def setTargetSNPs(self, targetSNPs : dict[str,list[tuple[str,int,str,str]]], force : bool=False):
 		self.targetSNPs = MinimalPathLibrary()
-		for genome, SNPEntries, in targetSNPs:
+		for genome, SNPEntries, in targetSNPs.items():
 			refPath = self.references[genome]
 			if pExists(refPath):
 				if self.refDir.find(pName(refPath) + ".vcf") is not None or force:

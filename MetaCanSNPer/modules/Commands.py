@@ -6,12 +6,14 @@ import re, shutil, sys
 from subprocess import Popen, PIPE, CompletedProcess
 from typing import TextIO, BinaryIO, Iterable, Any
 from threading import Thread
+from PseudoPathy import Path
 
 from MetaCanSNPer.modules.LogKeeper import createLogger
 
 LOGGER = createLogger(__name__)
 
 from MetaCanSNPer.modules.Hooks import Hooks
+from MetaCanSNPer.Globals import SOFTWARE_NAME
 
 def bPrint(*strings, sep=b" ", end=b"\n", file : BinaryIO=None, encoding : str="utf-8"):
 	file.write(sep.join(map(lambda s : s.encode("utf-8"), strings)) + end)
@@ -37,30 +39,40 @@ class Command:
 
 	commands : ParallelCommands
 
-	def __init__(self, args : str|list, category=None, hooks : Hooks=None, logFiles : list[str]|str=None, names : Iterable=None):
+	def __init__(self, args : str|list, category=None, hooks : Hooks=None, logDir : Path=Path("."), names : Iterable=None):
 		try:
 			self.raw = args if type(args) is str else " & ".join(args)
-			self.logFiles = [logFiles] if type(logFiles) is str else logFiles
 			self.category = category
 			self.hooks = hooks
+			self.names = names
 			self.returncodes = {}
 			self.exceptions = {}
+			if self.raw.strip() != "":
+				def parallelFinished(eventInfo, self : Command):
+					try:
+						for name in self.commands:
+							if eventInfo["object"] is self.commands[name]:
+								self.returncodes[name] = None if len(eventInfo["object"].processes) == 0 else eventInfo["object"].processes[-1].returncode
+								self.hooks.trigger(f"{self.category}ProcessFinished", {"threadN" : name, "Command" : self})
+								return
+					except Exception as e:
+						e.add_note("'parallelFinished' event exception.")
+						LOGGER.exception(e)
+						return
+
+				self._hook = self.hooks.addHook(f"SequentialCommands{self.category}Finished", target=parallelFinished, args=[self])
+				
+				self.commands = ParallelCommands(self.raw, category, hooks, logDir=logDir, names=names)
+			else:
+				def parallelFinished(eventInfo, self : Command):
+					for name in self.names:
+						self.returncodes[name] = 0
+						self.hooks.trigger(f"{self.category}ProcessFinished", {"threadN" : name, "Command" : self})
+				
+				self.commands = None
+
+				self._hook = self.hooks.addHook(f"SequentialCommands{self.category}Finished", target=parallelFinished, args=[self])
 			
-			def parallelFinished(eventInfo, self : Command):
-				try:
-					for name in self.commands:
-						if eventInfo["object"] is self.commands[name]:
-							self.returncodes[name] = None if len(eventInfo["object"].processes) == 0 else eventInfo["object"].processes[-1].returncode
-							self.hooks.trigger(f"{self.category}ProcessFinished", {"threadN" : name, "Command" : self} | eventInfo)
-							return
-				except Exception as e:
-					e.add_note("'parallelFinished' event exception.")
-					LOGGER.exception(e)
-					return
-
-			self._hook = self.hooks.addHook(f"SequentialCommands{self.category}Finished", target=parallelFinished, args=[self])
-
-			self.commands = ParallelCommands(self.raw, category, hooks, logFiles=self.logFiles, names=names)
 		except Exception as e:
 			e.add_note(f"{type(self).__name__} failed to initialize.")
 			LOGGER.exception(e)
@@ -82,10 +94,16 @@ class Command:
 		self.hooks.removeHook(f"SequentialCommands{self.category}Finished", self._hook)
 	
 	def start(self):
-		self.commands.start()
+		if self.commands is not None:
+			self.commands.start()
+		else:
+			self.hooks.trigger(f"SequentialCommands{self.category}Finished")
 
 	def run(self):
-		self.commands.run()
+		if self.commands is not None:
+			self.commands.run()
+		else:
+			self.hooks.trigger(f"SequentialCommands{self.category}Finished")
 
 class Commands:
 	"""Only meant to be inherited from"""
@@ -98,10 +116,9 @@ class Commands:
 	logFile : TextIO
 	raw : str
 
-	def __init__(self, args, category : str, hooks : Hooks, logFile : TextIO=None):
+	def __init__(self, args : list[str], category : str, hooks : Hooks, logDir : Path=Path(".")):
 		try:
 			self.raw = "".join(args).strip()
-			self.logFile = logFile
 			self.category = category
 			self.hooks = hooks
 			_list = [[]]
@@ -122,7 +139,7 @@ class Commands:
 					else:
 						_list[-1].append(c)
 			
-			self._list = [self.nextType(l, category, hooks, logFile=self.logFile) for l in _list]
+			self._list = [self.nextType(l, category, hooks, logDir=logDir) for l in _list if len(l) > 0]
 		except Exception as e:
 			e.add_note(f"{type(self).__name__} failed to initialize.")
 			LOGGER.exception(e)
@@ -153,13 +170,20 @@ class DumpCommands(Commands):
 	def nextType(args, *overFlowArgs, **kwargs) -> list[str]:
 		return args
 
-	def __init__(self, args, category : str, hooks : Hooks, logFile : TextIO=None):
+	def __init__(self, args, category : str, hooks : Hooks, logDir : Path=Path(".")):
 		try:
 			super().__init__(args, category, hooks, logFile)
 		
 			command = self._list[0]
 			self.command = list(filter(lambda s : whitePattern.fullmatch(s) is None, command))
 			LOGGER.debug(f"{command=}, {self.command=}")
+			logFile = logDir.create(f"{command}_{SOFTWARE_NAME}.log")
+			try:
+				self.logFile = open(logFile, "wb")
+			except:
+				LOGGER.warning(f"Failed to create {logFile=}")
+				import os
+				self.logFile = open(os.devnull, "wb")
 
 			if len(self._list) == 1:
 				self.outFile = None
@@ -178,7 +202,7 @@ class DumpCommands(Commands):
 			LOGGER.exception(e)
 			raise e
 		
-	def run(self, stdin=None, stdout=PIPE, stderr=PIPE, **kwargs) -> Popen:
+	def run(self, stdin=None, stdout=None, stderr=None, **kwargs) -> Popen:
 		LOGGER.debug(f"Starting {self!r}")
 		ex = shutil.which(self.command[0])
 		if ex is None:
@@ -186,9 +210,12 @@ class DumpCommands(Commands):
 			raise FileNotFoundError(2, "Could not find command/executable", f"{self.command[0]}")
 		else:
 			self.command[0] = ex
-		p : Popen = Popen(self.command, stdin=stdin, stdout=self.outFile or stdout, stderr=stderr, **kwargs)
+		p : Popen = Popen(self.command, stdin=stdin, stdout=self.outFile or stdout or self.logFile, stderr=stderr or self.logFile, **kwargs)
 		LOGGER.debug(f"Started {self!r}")
 		return p
+
+	def __del__(self):
+		self.logFile.close()
 
 class PipeCommands(Commands):
 	"""Takes string dividing commands by "|" and runs the commands simultaneously,
@@ -201,9 +228,12 @@ class PipeCommands(Commands):
 	def run(self, **kwargs) -> CompletedProcess:
 		if len(self._list) == 0: return []
 
-		processes : list[Popen] = [self._list[0].run(stdout=PIPE, stderr=PIPE, **kwargs)]
-		for i, dc in enumerate(self._list[1:]):
-			processes.append( dc.run(stdin=processes[i].stdout, stdout=PIPE, stderr=PIPE, **kwargs))
+		processes : list[Popen] = []
+		lastSTDOUT = PIPE
+		for i, dc in enumerate(self._list[:-1]):
+			processes.append( dc.run(stdin=lastSTDOUT, stdout=PIPE, **kwargs))
+			lastSTDOUT = processes[i].stdout
+		processes.append( dc.run(stdin=lastSTDOUT, **kwargs))
 
 		processes[-1].wait()
 
@@ -212,14 +242,6 @@ class PipeCommands(Commands):
 				LOGGER.error(f"Section of pipe closed. Returncodes of commands in pipe: {[p.returncode for p in processes]}\nPipeCommands in question: {self}")
 				break
 
-		for i, p in enumerate(processes):
-			bPrint(f"{p.args!r}\n{p.args!r}[EXITCODE]\n{p.returncode}\n{p.args!r}[STDERR]", file=self.logFile)
-			self.logFile.write(p.stderr.read()) if p.stderr.readable() else bPrint("", file=self.logFile)
-			if p == processes[-1] and self._list[i].outFile is None:
-				bPrint(f"{p.args!r}[STDOUT]", file=self.logFile)
-				self.logFile.write(p.stdout.read()) if p.stdout.readable() else bPrint("", file=self.logFile)
-			elif p == processes[-1]:
-				bPrint(f"{p.args!r}[STDOUT]\n# Output dumped to: {self._list[i].outFile}", file=self.logFile)
 		for i, p in enumerate(processes):
 			if p.returncode != 0:
 				return processes[:i+1]
@@ -287,7 +309,7 @@ class ParallelCommands(Commands):
 	nextType = SequentialCommands
 	_list : dict[Any,SequentialCommands]
 
-	def __init__(self, args : str, category : str, hooks : Hooks, logFiles : list[str]=None, names : Iterable=None):
+	def __init__(self, args : str, category : str, hooks : Hooks, logDir : Path=Path("."), names : Iterable=None):
 		
 		try:
 			self.category = category
@@ -301,18 +323,9 @@ class ParallelCommands(Commands):
 				names = _names()
 			else:
 				names = iter(names)
-			if logFiles is None:
-				def _logFiles():
-					while True:
-						yield None
-				logFiles = _logFiles()
-			else:
-				logFiles = iter(map(lambda f: open(f, "ab"), logFiles))
 			
-			logFile = next(logFiles)
 			name = next(names)
 			_list = {name:[]}
-			self.logFiles = {name:logFile}
 			self.raw = args
 			for c in argsPattern.split(self.raw.strip()):
 				if c is None:
@@ -320,7 +333,6 @@ class ParallelCommands(Commands):
 				elif self.pattern.fullmatch(c):
 					name = next(names)
 					_list[name] = []
-					self.logFiles[name] = next(logFiles)
 				else:
 					if c.startswith("'"):
 						_list[name].append(c.strip("'"))
@@ -329,18 +341,11 @@ class ParallelCommands(Commands):
 					else:
 						_list[name].append(c.strip())
 			
-			self._list = {name:self.nextType(command, category, hooks, logFile=self.logFiles[name]) for name, command in _list.items()}
+			self._list = {name:self.nextType(command, category, hooks, logDir=logDir) for name, command in _list.items()}
 		except Exception as e:
 			e.add_note(f"{type(self).__name__} failed to initialize.")
 			LOGGER.exception(e)
 			raise e
-
-	def __del__(self):
-		for l in self.logFiles.values():
-			try:
-				l.close()
-			except:
-				pass
 	
 	def start(self) -> list[CompletedProcess]:
 		for sc in self._list.values():

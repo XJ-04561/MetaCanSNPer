@@ -173,7 +173,7 @@ class MetaCanSNPer:
 		'''Align sequences using subprocesses.'''
 
 		LOGGER.info(f"Creating software wrapper for {softwareClass.softwareName!r} of type {softwareClass.__name__!r}")
-		software : IndexingWrapper = softwareClass(self.Lib, self.database, self.outputTemplate, out=outputDict, hooks=self.hooks, flags=flags)
+		software : IndexingWrapper = softwareClass(self.Lib, self.database, self.outputTemplate, out=outputDict, hooks=self.hooks, flags=flags, settings=self.settings)
 
 		# Check that error did not occur.
 		while software.canRun():

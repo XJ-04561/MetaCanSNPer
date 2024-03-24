@@ -30,7 +30,7 @@ class ProcessWrapper:
 	command : Command
 	_hooksList : dict
 
-	def __init__(self, lib : DirectoryLibrary, database : DatabaseReader, outputTemplate : str, out : dict[str,str]={}, hooks : Hooks=Hooks()):
+	def __init__(self, lib : DirectoryLibrary, database : DatabaseReader, outputTemplate : str, out : dict[str,str]={}, hooks : Hooks=Hooks(), settings : dict[str,Any]={}):
 		self.Lib = lib
 		self.database = database
 		self.queryName = self.Lib.queryName ## get name of file and remove ending
@@ -42,6 +42,7 @@ class ProcessWrapper:
 		self.skip = set()
 		self.outputs = out
 		self._hooksList = {}
+		self.settings = settings
 
 	def formatCommands(self, *args, **kwargs):
 		"""Not implemented for the template class, check the wrapper of the
@@ -54,16 +55,23 @@ class ProcessWrapper:
 
 	def createCommand(self):
 		""""""
-		names, commands, logs, outputs = self.formatCommands()
-		for name in names:
+		names, commands, outputs = self.formatCommands()
+		for i in range(len(names))[::-1]:
+			name, outFile = names[i], outputs[i]
 			if name not in self.history:
 				self.history[name] = []
 				self.outputs[name] = None
-		
-		self.hooks.removeHook(f"{self.category}ProcessFinished", self._hooksList.get("ProcessFinished"))
-		self._hooksList["ProcessFinished"] = self.hooks.addHook(f"{self.category}ProcessFinished", target=self.updateOutput, args=[dict(zip(names, outputs))])
+			if self.settings.get("saveTemp") is True and pExists(outFile):
+				self.history[name].append(0)
+				self.outputs[name] = outFile
 
-		self.command = Command(commands, self.category, self.hooks, logFiles=logs, names=names)
+				names.pop(i), commands.pop(i), outputs.pop(i)
+				
+			
+			self.hooks.removeHook(f"{self.category}ProcessFinished", self._hooksList.get("ProcessFinished"))
+			self._hooksList["ProcessFinished"] = self.hooks.addHook(f"{self.category}ProcessFinished", target=self.updateOutput, args=[dict(zip(names, outputs))])
+
+			self.command = Command(commands, self.category, self.hooks, logDir=self.Lib.resultDir.create("SoftwareLogs"), names=names)
 
 	def start(self) -> list[tuple[tuple[str,str],str]]:
 		"""Starts processes in new threads. Returns information of the output of the processes, but does not ensure the processes have finished."""
@@ -183,15 +191,12 @@ class IndexingWrapper(ProcessWrapper):
 	solutions : ErrorFixes.SolutionContainer
 
 	
-	def __init__(self, lib : DirectoryLibrary, database : DatabaseReader, outputTemplate : str, out : dict={}, hooks : Hooks=Hooks(), flags : list[str]=[]):
-		super().__init__(lib=lib, database=database, outputTemplate=outputTemplate, hooks=hooks)
+	def __init__(self, lib : DirectoryLibrary, database : DatabaseReader, outputTemplate : str, out : dict[str,str], hooks : Hooks=Hooks(), flags : list[str]=[]):
+		super().__init__(lib=lib, database=database, outputTemplate=outputTemplate, out=out, hooks=hooks)
 		
 		self.flags = flags
 		self.command = None
 		self.solutions : ErrorFixes.SolutionContainer = ErrorFixes.get(self.softwareName)(self)
-		
-		if not os.path.exists(self.Lib.tmpDir > self.softwareName):
-			pMakeDirs(self.Lib.tmpDir.writable > self.softwareName)
 
 		self.formatDict = {
 			"tmpDir" : self.Lib.tmpDir,
@@ -206,7 +211,7 @@ class IndexingWrapper(ProcessWrapper):
 		
 		try:
 			name = eventInfo["threadN"]
-			assert self.command[name] is eventInfo["object"]
+			assert self.command is eventInfo["Command"]
 			self.semaphore.release()
 			if self.command.returncodes[name] not in self.solutions:
 				if self.command.returncodes[name] == 0:
@@ -217,37 +222,33 @@ class IndexingWrapper(ProcessWrapper):
 					self.hooks.trigger(f"{self.category}Progress", {"threadN" : name, "progress" : None})
 					self.hooks.trigger(f"{self.category}Finished", {"threadN" : name})
 		except (AssertionError) as e:
-			e.add_note(f'<{self.command[eventInfo["threadN"]]!r} is {eventInfo["object"]!r} = {self.command[eventInfo["threadN"]] is eventInfo["object"]}>')
+			e.add_note(f'<{self.command!r} is {eventInfo["Command"]!r} = {self.command is eventInfo["Command"]}>')
 			LOGGER.exception(e, stacklevel=logging.DEBUG)
 		except Exception as e:
 			LOGGER.exception(e, stacklevel=logging.DEBUG)
 
-	def formatCommands(self) -> tuple[list[Any], list[str], list[str], list[tuple[tuple[str,str],str]]]:
+	def formatCommands(self) -> tuple[list[Any], list[str], list[tuple[tuple[str,str],str]]]:
 		
 		outDir = self.Lib.tmpDir.create(self.softwareName, purpose="w")
 
 		names = []
-		logs = []
 		commands = []
 		outputs = []
 		for i, (_, refName, _, _, _) in enumerate(self.database.references):
 			if i in self.skip: continue
 
-			refPath = self.Lib.references[refName]
-			'''Not every command needs all information, but the format function is supplied with a dictionary that has
-			everything that could ever be needed.'''
+			"""Not every command needs all information, but the format function is supplied with a dictionary that has
+			everything that could ever be needed."""
 
 			self.formatDict["refName"] = refName
-			self.formatDict["refPath"] = refPath
+			self.formatDict["refPath"] = self.Lib.references[refName]
 			self.formatDict["mapPath"] = self.Lib.maps[refName]
 			self.formatDict["alignmentPath"] = self.Lib.alignments[refName]
 			self.formatDict["targetSNPs"] = self.Lib.targetSNPs[refName]
 			
 			output = outDir > self.outputTemplate.format(**self.formatDict)
-			logfile = self.Lib.resultDir > f"{self.softwareName}_{refName}.log"
 
 			self.formatDict["output"] = output
-			self.formatDict["logFile"] = logfile
 
 			LOGGER.info(f"Created command (if --dry-run has been specified, this will not be the true command ran):\n{self.commandTemplate.format(**self.formatDict)}")
 			if not Globals.DRY_RUN:
@@ -263,9 +264,8 @@ class IndexingWrapper(ProcessWrapper):
 
 			names.append(i)
 			commands.append(command)
-			logs.append(logfile)
 			outputs.append((refName, output))
-		return names, commands, logs, outputs
+		return names, commands, outputs
 
 #
 #	Aligner, Mapper, and SNPCaller classes to inherit from
