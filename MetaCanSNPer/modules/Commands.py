@@ -49,8 +49,7 @@ class Command:
 			def parallelFinished(eventInfo, self : Command):
 				try:
 					for name in self.commands:
-						com = self.commands[name]
-						if eventInfo["object"] is com:
+						if eventInfo["object"] is self.commands[name]:
 							self.returncodes[name] = None if len(eventInfo["object"].processes) == 0 else eventInfo["object"].processes[-1].returncode
 							self.hooks.trigger(f"{self.category}ProcessFinished", {"threadN" : name, "Command" : self} | eventInfo)
 							return
@@ -70,7 +69,7 @@ class Command:
 	def __len__(self):
 		return len(self.commands._list)
 	
-	def __getitem__(self, key):
+	def __iter__(self):
 		return iter(self.commands)
 	
 	def __getitem__(self, key):
