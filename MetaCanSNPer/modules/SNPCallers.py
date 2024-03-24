@@ -18,13 +18,13 @@ class ParseXMFA2(SNPCaller):
 
 class GATK_Mutect2(SNPCaller):
 	softwareName = "gatk_Mutect2"
-	commandTemplate = "gatk IndexFeatureFile -I {targetSNPs!r} && gatk Mutect2 --genotype-germline-sites --genotype-pon-sites -R {refPath!r} -I {mapPath!r} -L {targetSNPs!r} --force-call-filtered-alleles --alleles {targetSNPs!r} -O {output!r}"
+	commandTemplate = "gatk IndexFeatureFile -I {targetSNPs!r} --java-options '-DGATK_STACKTRACE_ON_USER_EXCEPTION=true' && gatk Mutect2 --genotype-germline-sites --genotype-pon-sites --java-options '-DGATK_STACKTRACE_ON_USER_EXCEPTION=true' -R {refPath!r} -I {mapPath!r} -L {targetSNPs!r} --force-call-filtered-alleles --alleles {targetSNPs!r} -O {output!r}"
 	inFormat = ["bam"]
 	outFormat = "vcf"
 
 class GATK_HaplotypeCaller(SNPCaller):
 	softwareName = "gatk_HaplotypeCaller"
-	commandTemplate = "gatk IndexFeatureFile -I {targetSNPs!r} && gatk HaplotypeCaller -R {refPath!r} -I {mapPath!r} -L {targetSNPs!r} --alleles {targetSNPs!r} -O {output!r}"
+	commandTemplate = "gatk IndexFeatureFile -I {targetSNPs!r} --java-options '-DGATK_STACKTRACE_ON_USER_EXCEPTION=true' && gatk HaplotypeCaller --java-options '-DGATK_STACKTRACE_ON_USER_EXCEPTION=true' -R {refPath!r} -I {mapPath!r} -L {targetSNPs!r} --alleles {targetSNPs!r} -O {output!r}"
 	inFormat = ["bam"]
 	outFormat = "vcf"
 
