@@ -22,6 +22,11 @@ class GATK_Mutect2(SNPCaller):
 	inFormat = ["bam"]
 	outFormat = "vcf"
 
+	def preProcess(self, *args, **kwargs):
+		for genome, refPath in self.Lib.references:
+			assert 0 == os.system(f"samtools faidx {refPath!r}")
+
+
 class GATK_HaplotypeCaller(SNPCaller):
 	softwareName = "gatk_HaplotypeCaller"
 	commandTemplate = "gatk IndexFeatureFile -I {targetSNPs!r} --java-options '-DGATK_STACKTRACE_ON_USER_EXCEPTION=true' && gatk HaplotypeCaller --java-options '-DGATK_STACKTRACE_ON_USER_EXCEPTION=true' -R {refPath!r} -I {mapPath!r} -L {targetSNPs!r} --alleles {targetSNPs!r} -O {output!r}"
