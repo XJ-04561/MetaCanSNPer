@@ -57,13 +57,14 @@ class ProcessWrapper:
 		""""""
 		names, commands, outputs = self.formatCommands()
 		for i in range(len(names))[::-1]:
-			name, outFile = names[i], outputs[i][1]
+			name = names[i]
+			genome, outFile = outputs[i][1]
 			if name not in self.history:
 				self.history[name] = []
-				self.outputs[self.database.references[name][1]] = None
+				self.outputs[genome] = None
 			if self.settings.get("saveTemp") is True and pExists(outFile):
 				self.history[name].append(0)
-				self.outputs[self.database.references[name][1]] = outFile
+				self.outputs[genome] = outFile
 				self.skip.add(name)
 
 				self.hooks.trigger(f"{self.category}Progress", {"threadN" : name, "progress" : 1.0})
@@ -218,7 +219,8 @@ class IndexingWrapper(ProcessWrapper):
 			self.semaphore.release()
 			if self.command.returncodes[name] not in self.solutions:
 				if self.command.returncodes[name] == 0:
-					self.outputs[self.database.references[name][1]] = outputs[name]
+					genome, outFile = outputs[name]
+					self.outputs[genome] = outFile
 					self.hooks.trigger(f"{self.category}Progress", {"threadN" : name, "progress" : 1.0})
 					self.hooks.trigger(f"{self.category}Finished", {"threadN" : name})
 				else:
