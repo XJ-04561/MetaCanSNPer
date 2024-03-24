@@ -19,7 +19,7 @@ def bPrint(*strings, sep=b" ", end=b"\n", file : BinaryIO=None, encoding : str="
 	file.write(sep.join(map(lambda s : s.encode("utf-8"), strings)) + end)
 
 parallelPattern = re.compile("\s*[&]\s*")
-sequentialPattern = re.compile("\s*[;]\s*|\s*[&][&]\s*|\s*[|][|]\s*")
+sequentialPattern = re.compile("\s*([;])\s*|\s*([&][&])\s*|\s*([|][|])\s*")
 pipePattern = re.compile("\s*[|]\s*")
 dumpPattern = re.compile("\s*[>]\s*")
 whitePattern = re.compile("\s*")
@@ -118,6 +118,7 @@ class Commands:
 			self.category = category
 			self.hooks = hooks
 			_list = [[]]
+			self.separators = []
 			
 			for c in args:
 				LOGGER.debug(f"{self.pattern}.fullmatch({c}) -> {self.pattern.fullmatch(c)}")
@@ -125,6 +126,7 @@ class Commands:
 					continue
 				elif self.pattern.fullmatch(c):
 					_list.append([])
+					self.separators.append(self.pattern.fullmatch(c).group().strip())
 				else:
 					if c.startswith("'"):
 						_list[-1].append(c.strip("'"))
@@ -132,6 +134,7 @@ class Commands:
 						_list[-1].append(c.strip("\""))
 					else:
 						_list[-1].append(c)
+			self.separators.append("&&")
 			
 			self._list = [self.nextType(l, category, hooks, logDir=logDir) for l in _list if len(l) > 0]
 		except Exception as e:
@@ -291,10 +294,14 @@ class SequentialCommands(Commands):
 			self.returncodes = []
 			def runInSequence(self : SequentialCommands):
 				try:
-					for pc in self._list:
+					for i, pc in enumerate(self._list):
 						returncode = pc.run()
 						self.returncodes.append(returncode)
-						if returncode != 0:
+						if self.separators[i] == ";":
+							break
+						elif returncode != 0 and self.separators[i] == "&&":
+							break
+						elif returncode == 0 and self.separators[i] == "||":
 							break
 					self.hooks.trigger(f"SequentialCommands{self.category}Finished", {"object" : self})
 				except Exception as e:
