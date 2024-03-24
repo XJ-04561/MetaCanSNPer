@@ -4,7 +4,7 @@
 
 import re, shutil, sys
 from subprocess import Popen, PIPE, CompletedProcess
-from typing import TextIO, BinaryIO
+from typing import TextIO, BinaryIO, Iterable
 from threading import Thread
 
 from MetaCanSNPer.modules.LogKeeper import createLogger
@@ -37,24 +37,22 @@ class Command:
 
 	commands : ParallelCommands
 
-	def __init__(self, string : str=None, category=None, hooks : Hooks=None, logFiles : list[str]|str=None):
+	def __init__(self, args : str|list, category=None, hooks : Hooks=None, logFiles : list[str]|str=None, names : Iterable=None):
 		try:
-			self.raw = string
+			self.raw = args if type(args) is str else " & ".join(args)
 			self.logFiles = [logFiles] if type(logFiles) is str else logFiles
 			self.category = category
 			self.hooks = hooks
 			self.returncodes = {}
 			self.exceptions = {}
-
+			
 			def parallelFinished(eventInfo, self : Command):
 				try:
-					i = self.commands._list.index(eventInfo["object"])
-					assert id(eventInfo["object"]) == id(self.commands._list[i]) # Unsure if needed, but ensures they are the same exact object.
-					self.returncodes[i] = None if len(eventInfo["object"].processes) == 0 else eventInfo["object"].processes[-1].returncode
-					self.hooks.trigger(f"{self.category}ProcessFinished", {"threadN" : i, "Command" : self} | eventInfo)
-				except AssertionError:
-					LOGGER.error(f"`assert id(eventInfo[\"object\"]) == id(self.commands._list[i])` did not pass.\n\t{eventInfo['object']=}\n\t{self.commands._list[i]=}")
-					return
+					for name, com in self.commands:
+						if eventInfo["object"] is com:
+							self.returncodes[name] = None if len(eventInfo["object"].processes) == 0 else eventInfo["object"].processes[-1].returncode
+							self.hooks.trigger(f"{self.category}ProcessFinished", {"threadN" : name, "Command" : self} | eventInfo)
+							return
 				except Exception as e:
 					e.add_note("'parallelFinished' event exception.")
 					LOGGER.exception(e)
@@ -62,7 +60,7 @@ class Command:
 
 			self._hook = self.hooks.addHook(f"SequentialCommands{self.category}Finished", target=parallelFinished, args=[self])
 
-			self.commands = ParallelCommands(string, category, hooks, logFiles=self.logFiles)
+			self.commands = ParallelCommands(self.raw, category, hooks, logFiles=self.logFiles, names=names)
 		except Exception as e:
 			e.add_note(f"{type(self).__name__} failed to initialize.")
 			LOGGER.exception(e)
@@ -288,55 +286,72 @@ class ParallelCommands(Commands):
 	nextType = SequentialCommands
 	_list : list[SequentialCommands]
 
-	def __init__(self, string, category : str, hooks : Hooks, logFiles : list[str]=None):
+	def __init__(self, args : str, category : str, hooks : Hooks, logFiles : list[str]=None, names : Iterable=None):
 		
 		try:
-			self.raw = string
 			self.category = category
 			self.hooks = hooks
 			self.logFiles = []
-			_list = [[]]
-			for c in argsPattern.split(string.strip()):
+			if names is None:
+				def _names():
+					n = 0
+					while True:
+						yield n
+						n += 1
+				names = _names()
+			else:
+				names = iter(names)
+			if logFiles is None:
+				def _logFiles():
+					while True:
+						yield None
+				logFiles = _logFiles()
+			else:
+				logFiles = iter(map(lambda f: open(f, "ab"), logFiles))
+			
+			logFile = next(logFiles)
+			name = next(names)
+			_list = {name:[]}
+			self._logFiles = {name:logFile}
+			self.raw = args
+			for c in argsPattern.split(self.raw.strip()):
 				if c is None:
 					continue
 				elif c.strip() == "":
 					continue
 				elif self.pattern.fullmatch(c):
-					_list.append([])
+					name = next(names)
+					_list[name] = []
+					_logFiles[name] = next(logFiles)
 				else:
 					if c.startswith("'"):
-						_list[-1].append(c.strip("'"))
+						_list[name].append(c.strip("'"))
 					elif c.startswith("\""):
-						_list[-1].append(c.strip("\""))
+						_list[name].append(c.strip("\""))
 					else:
-						_list[-1].append(c)
+						_list[name].append(c)
 			
-			if logFiles is None:
-				self.logFiles = [None]*len(_list)
-			else:
-				self.logFiles = [open(l, "ab") for l in logFiles]
-			
-			self._list = [self.nextType(l, category, hooks, logFile=logFile) for l, logFile in zip(_list, self.logFiles)]
+			self._list = {name:self.nextType(command, category, hooks, logFile=self._logFiles[name]) for name, command in _list.items()}
 		except Exception as e:
 			e.add_note(f"{type(self).__name__} failed to initialize.")
 			LOGGER.exception(e)
 			raise e
 
 	def __del__(self):
-		for l in self.logFiles:
+		for l in self.logFiles.values():
 			try:
 				l.close()
 			except:
 				pass
 	
 	def start(self) -> list[CompletedProcess]:
-		for sc in self._list:
+		for sc in self._list.values():
 			sc.start()
 	
 	def run(self) -> list[CompletedProcess]:
 		processes = []
 		
-		for sc in self._list:
+		for sc in self._list.values():
 			p = sc.run()
 			processes.extend(p)
 			if processes[-1].returncode != 0:

@@ -1,9 +1,10 @@
 
 
 import os, random, sys
-from PseudoPathy import MinimalPathLibrary, PathLibrary, PathGroup, Path, DirectoryPath, FilePath, DisposablePath, PathList
+from PseudoPathy import MinimalPathLibrary, PathLibrary, PathGroup, Path, DirectoryPath, FilePath, PathList
 from PseudoPathy.Functions import createTemp
 import PseudoPathy.Globals
+from VariantCallFixer import openVCF
 
 import MetaCanSNPer.modules.LogKeeper as LogKeeper
 from MetaCanSNPer.modules.DownloadReferences import DownloadQueue, DownloadFailed
@@ -232,7 +233,6 @@ class DirectoryLibrary(PathLibrary):
 					self.references[genome] = filename
 				else:
 					raise DownloadFailed(f"Could not download genome {genome!r} to path: {filename!r}")
-
 		LOGGER.info(f"Finished downloading {len(references)} reference genomes!")
 
 	def setMaps(self, maps : dict[str,str]):
@@ -255,14 +255,25 @@ class DirectoryLibrary(PathLibrary):
 				self.alignments[r] = path
 		LOGGER.debug(f"Setting alignments to:{self.alignments}")
 	
-	def settargetSNPs(self, targetSNPs : dict[str,str]):
-		if type(targetSNPs) is MinimalPathLibrary:
-			self.targetSNPs = targetSNPs
-		else:
-			self.targetSNPs = MinimalPathLibrary()
-			for r,path in targetSNPs.items():
-				self.access(path, mode="r")
-				self.targetSNPs[r] = path
+	def setTargetSNPs(self, targetSNPs : dict[str,list[tuple[str,int,str,str]]], force : bool=False):
+		self.targetSNPs = MinimalPathLibrary()
+		for genome, SNPEntries, in targetSNPs:
+			refPath = self.references[genome]
+			if pExists(refPath):
+				if self.refDir.find(pName(refPath) + ".vcf") is not None or force:
+					accession = open(refPath, "r").readline()[1:].split()[0]
+					filename = f"{self.Lib.refDir.writable > pName(refPath)}.vcf"
+
+					vcfFile = openVCF(filename, "w", referenceFile=refPath)
+					
+					for snpID, pos, ref, alt in SNPEntries:
+						# CHROM has to be the same as the accession id that is in the reference file.
+						vcfFile.add(CHROM=accession, POS=pos, ID=snpID, REF="N", ALT="A,T,C,G")
+					vcfFile.close()
+						
+					self.targetSNPs[genome] = filename
+			else:
+				raise FileNotFoundError(f"Could not find a local path for {genome=}.")
 		LOGGER.debug(f"Setting targetSNPs to:{self.targetSNPs}")
 
 	def setResultSNPs(self, resultSNPs : dict[str,str]):

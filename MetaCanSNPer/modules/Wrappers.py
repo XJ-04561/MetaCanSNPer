@@ -1,10 +1,7 @@
 
 import os, shutil
-from collections.abc import Callable
-from threading import Semaphore, Condition, current_thread, main_thread, ThreadError
-from threading import Thread as _Thread
-from subprocess import Popen, DEVNULL, PIPE, STDOUT, CompletedProcess
-from VariantCallFixer import openVCF
+from typing import Any, Iterable, Callable
+from threading import Semaphore, ThreadError
 
 import MetaCanSNPer.modules.LogKeeper as LogKeeper
 import MetaCanSNPer.modules.ErrorFixes as ErrorFixes
@@ -51,39 +48,21 @@ class ProcessWrapper:
 		specific software you are intending to use."""
 		raise NotImplementedError(f"Called `.formatCommands` on a object of a class which has not implemented it. Object class is `{type(self)}`")
 
-	def updateOutput(self, eventInfo, outputs : dict[str,str]):
-		try:
-			i = eventInfo["threadN"]
-			assert self.command[i] is eventInfo["object"]
-			self.semaphore.release()
-			if eventInfo["Command"].returncodes[i] not in self.solutions:
-				j = i
-				for s in sorted(self.skip): # Adjust thread index for all the skipped commands.
-					if j >= s:
-						j += 1
-					else:
-						break
-				if eventInfo["Command"].returncodes[i] == 0:
-					self.outputs[self.database.references[j][1]] = outputs[i]
-					self.hooks.trigger(f"{self.category}Progress", {"threadN" : j, "progress" : 1.0})
-					self.hooks.trigger(f"{self.category}Finished", {"threadN" : j})
-				elif eventInfo["Command"].returncodes[i] not in self.solutions:
-					self.hooks.trigger(f"{self.category}Progress", {"threadN" : j, "progress" : None})
-					self.hooks.trigger(f"{self.category}Finished", {"threadN" : j})
-		except (AssertionError) as e:
-			e.add_note(f'<{self.command[i]!r} is {eventInfo["object"]!r} = {self.command[i] is eventInfo["object"]}>')
-			LOGGER.exception(e, stacklevel=logging.DEBUG)
-		except Exception as e:
-			LOGGER.exception(e, stacklevel=logging.DEBUG)
+	def updateOutput(self, eventInfo, outputs : dict[int,str]):
+		"""Not Implemented in the base class."""
+		pass
 
 	def createCommand(self):
 		""""""
-		commands, logs, outputs = self.formatCommands()
+		names, commands, logs, outputs = self.formatCommands()
+		for name in names:
+			if name not in self.history:
+				self.history[name] = []
 		
 		self.hooks.removeHook(f"{self.category}ProcessFinished", self._hooksList.get("ProcessFinished"))
-		self._hooksList["ProcessFinished"] = self.hooks.addHook(f"{self.category}ProcessFinished", target=self.updateOutput, args=[outputs])
+		self._hooksList["ProcessFinished"] = self.hooks.addHook(f"{self.category}ProcessFinished", target=self.updateOutput, args=[dict(zip(names, outputs))])
 
-		self.command = Command(" & ".join(commands), self.category, self.hooks, logFiles=logs)
+		self.command = Command(commands, self.category, self.hooks, logFiles=logs, names=names)
 
 	def start(self) -> list[tuple[tuple[str,str],str]]:
 		"""Starts processes in new threads. Returns information of the output of the processes, but does not ensure the processes have finished."""
@@ -222,10 +201,31 @@ class IndexingWrapper(ProcessWrapper):
 			"outFormat" : self.outFormat
 		}
 	
-	def formatCommands(self) -> tuple[list[str], list[str], list[tuple[tuple[str,str],str]]]:
+	def updateOutput(self, eventInfo, outputs: dict[int, str]):
+		
+		try:
+			name = eventInfo["threadN"]
+			assert self.command[name] is eventInfo["object"]
+			self.semaphore.release()
+			if self.command.returncodes[name] not in self.solutions:
+				if self.command.returncodes[name] == 0:
+					self.outputs[self.database.references[name][1]] = outputs[name]
+					self.hooks.trigger(f"{self.category}Progress", {"threadN" : name, "progress" : 1.0})
+					self.hooks.trigger(f"{self.category}Finished", {"threadN" : name})
+				else:
+					self.hooks.trigger(f"{self.category}Progress", {"threadN" : name, "progress" : None})
+					self.hooks.trigger(f"{self.category}Finished", {"threadN" : name})
+		except (AssertionError) as e:
+			e.add_note(f'<{self.command[eventInfo["threadN"]]!r} is {eventInfo["object"]!r} = {self.command[eventInfo["threadN"]] is eventInfo["object"]}>')
+			LOGGER.exception(e, stacklevel=logging.DEBUG)
+		except Exception as e:
+			LOGGER.exception(e, stacklevel=logging.DEBUG)
+
+	def formatCommands(self) -> tuple[list[Any], list[str], list[str], list[tuple[tuple[str,str],str]]]:
 		
 		outDir = self.Lib.tmpDir.create(self.softwareName, purpose="w")
 
+		names = []
 		logs = []
 		commands = []
 		outputs = []
@@ -260,10 +260,11 @@ class IndexingWrapper(ProcessWrapper):
 					raise MissingDependancy("To perform a --dry-run, either the command 'sleep SECONDS' or 'timeout SECONDS' is needed.")
 				open(output, "w").close()
 
+			names.append(i)
 			commands.append(command)
 			logs.append(logfile)
 			outputs.append((refName, output))
-		return commands, logs, outputs
+		return names, commands, logs, outputs
 
 #
 #	Aligner, Mapper, and SNPCaller classes to inherit from
@@ -286,24 +287,3 @@ class SNPCaller(IndexingWrapper):
 	the two class attributes accordingly.
 	"""
 	category = "SNPCallers"
-	
-	def preProcess(self, force : bool=False):
-		# Create VCF files that contain the to-be called SNPs
-
-		SNPFiles = {}
-		for _, genome, _, _, _ in self.database.references:
-			refPath = self.Lib.references[genome]
-			accession = open(refPath, "r").readline()[1:].split()[0]
-			filename = f"{self.Lib.refDir.writable > pName(refPath)}.vcf"
-
-			if force is True or not pExists(filename):
-				vcfFile = openVCF(filename, "w", referenceFile=refPath)
-				
-				for snpID, pos, ref, alt in self.database.SNPsByGenome[genome]:
-					# CHROM has to be the same as the accession id that is in the reference file.
-					vcfFile.add(CHROM=accession, POS=pos, ID=snpID, REF="N", ALT="A,T,C,G")
-				vcfFile.close()
-				
-			SNPFiles[genome] = filename
-		self.Lib.settargetSNPs(SNPFiles)
-

@@ -235,7 +235,7 @@ class MetaCanSNPer:
 		LOGGER.info("Loading References from database.")
 		self.database.references
 		LOGGER.info("Loading SNPs from database.")
-		self.database.SNPsByGenome
+		self.Lib.setTargetSNPs(self.database.SNPsByGenome)
 		LOGGER.info("Loaded a total of {n} SNPs.".format(n=sum(sum(1 for _ in SNPs) for SNPs in self.database.SNPsByGenome.values())))
 		
 		self.runSoftware(SNPCallerType, outputDict=self.Lib.resultSNPs, flags=flags)

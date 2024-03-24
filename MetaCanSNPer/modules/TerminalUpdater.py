@@ -4,7 +4,7 @@ from threading import Thread
 from time import sleep
 from timeit import default_timer as timer
 from sys import stdout
-from typing import TextIO
+from typing import TextIO, Iterable
 from functools import cached_property
 from MetaCanSNPer.modules.LogKeeper import createLogger
 
@@ -16,16 +16,15 @@ class TerminalUpdater:
 	thread : Thread
 	hooks : Hooks
 	out : TextIO
-	def __init__(self, message, category, hooks : Hooks, nThreads, out=stdout):
+	def __init__(self, message, category, hooks : Hooks, threadNames : Iterable, out=stdout):
 		
-		if nThreads < 1:
-			raise ValueError(f"'nThreads' must have a value over zero.")
 		self.startTime = timer()
 		
 		self.message = message
 		self.category = category
 		self.hooks = hooks
-		self.threads = {key:0.0 for key in range(nThreads)}
+		self.threadNames = threadNames
+		self.threads = {name:0.0 for name in threadNames}
 		self.out = out
 		self.finishedThreads = set()
 		
@@ -147,8 +146,8 @@ class TerminalUpdater:
 			print(f"{self.message} ... ", end=backspaces.replace("\b", " "), flush=True, file=self.out)
 			while self.running:
 				msg = ""
-				for i, key in enumerate(self.threads):
-					prog = self.threads[key]
+				for i, name in enumerate(self.threadNames):
+					prog = self.threads[name]
 					if self.running:
 						if prog == 1.0:
 							msg += f"{borders[0]}{finishSymbol}{borders[1]}{sep if i < N-1 else ''}"
@@ -190,8 +189,8 @@ class TerminalUpdater:
 			print(f"{self.message} ... ", end=backspaces.replace("\b", " "), flush=True, file=self.out)
 			while self.running:
 				msg = ""
-				for i, key in enumerate(keys):
-					prog = self.threads[key]
+				for i, name in enumerate(self.threadNames):
+					prog = self.threads[name]
 					if self.running:
 						if prog is not None:
 							msg += f"{borders[0]}{symbols[int(N*prog)]}{borders[1]}{sep if i < N-1 else ''}"
@@ -228,8 +227,8 @@ class TerminalUpdater:
 			print(f"{self.message} ... ", end=backspaces.replace("\b", " "), flush=True, file=self.out)
 			while self.running:
 				msg = ""
-				for i, key in enumerate(keys):
-					prog = self.threads[key]
+				for i, name in enumerate(self.threadNames):
+					prog = self.threads[name]
 					if self.running:
 						if prog == 1.0:
 							msg += f"{borders[0]}{finishColor}{innerLength*fill}{borders[1]}{sep if i < N-1 else ''}"
