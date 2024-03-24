@@ -175,12 +175,12 @@ class DumpCommands(Commands):
 		try:
 			super().__init__(args, category, hooks, logDir=logDir)
 		
-			command = self._list[0]
-			LOGGER.debug(f"{command=}, {self.command=}")
+			self.command = self._list[0]
+			LOGGER.debug(f"{self.command=}")
 			if len(self.command) > 1 and self.command[1].isalnum():
-				logFile = logDir.create(f"{self.command[0]}_{self.command[1]}_{SOFTWARE_NAME}.log")
+				logFile = logDir > f"{self.command[0]}_{self.command[1]}_{SOFTWARE_NAME}.log"
 			else:
-				logFile = logDir.create(f"{self.command[0]}_{SOFTWARE_NAME}.log")
+				logFile = logDir.writable > f"{self.command[0]}_{SOFTWARE_NAME}.log"
 			
 			try:
 				self.logFile = open(logFile, "wb")
@@ -228,7 +228,10 @@ class DumpCommands(Commands):
 			os.rename(self.outFile.name, self.outFileName)
 		except:
 			pass
-		self.logFile.close()
+		try:
+			self.logFile.close()
+		except:
+			pass
 
 class PipeCommands(Commands):
 	"""Takes string dividing commands by "|" and runs the commands simultaneously,
