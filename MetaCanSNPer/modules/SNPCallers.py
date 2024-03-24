@@ -1,6 +1,7 @@
 
 from MetaCanSNPer.Globals import *
 import MetaCanSNPer.modules.LogKeeper as LogKeeper
+from subprocess import Popen
 
 LOGGER = LogKeeper.createLogger(__name__)
 
@@ -18,15 +19,9 @@ class ParseXMFA2(SNPCaller):
 
 class GATK_Mutect2(SNPCaller):
 	softwareName = "gatk_Mutect2"
-	commandTemplate = "gatk IndexFeatureFile -I {targetSNPs!r} --java-options '-DGATK_STACKTRACE_ON_USER_EXCEPTION=true' && gatk Mutect2 --genotype-germline-sites --genotype-pon-sites --java-options '-DGATK_STACKTRACE_ON_USER_EXCEPTION=true' -R {refPath!r} -I {mapPath!r} -L {targetSNPs!r} --force-call-filtered-alleles --alleles {targetSNPs!r} -O {output!r}"
+	commandTemplate = "samtools faidx {refPath!r} && gatk CreateSequenceDictionary -R {refPath!r} && gatk IndexFeatureFile -I {targetSNPs!r} --java-options '-DGATK_STACKTRACE_ON_USER_EXCEPTION=true' && gatk Mutect2 --genotype-germline-sites --genotype-pon-sites --java-options '-DGATK_STACKTRACE_ON_USER_EXCEPTION=true' -R {refPath!r} -I {mapPath!r} -L {targetSNPs!r} --force-call-filtered-alleles --alleles {targetSNPs!r} -O {output!r}"
 	inFormat = ["bam"]
 	outFormat = "vcf"
-
-	def preProcess(self, *args, **kwargs):
-		for genome, refPath in self.Lib.references:
-			assert 0 == os.system(f"samtools faidx {refPath!r}")
-			assert 0 == os.system(f"gatk CreateSequenceDictionary -R {refPath!r}")
-
 
 class GATK_HaplotypeCaller(SNPCaller):
 	softwareName = "gatk_HaplotypeCaller"
