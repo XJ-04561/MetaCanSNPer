@@ -241,7 +241,8 @@ class MetaCanSNPer:
 		self.runSoftware(SNPCallerType, outputDict=self.Lib.resultSNPs, flags=flags)
 
 		for genome, filePath in self.Lib.resultSNPs:
-			getSNPdata(filePath, out=self.SNPresults)
+			for pos, (ref, *r) in getSNPdata(filePath):
+				self.SNPresults[self.database.SNPByPos(pos, genome=genome)] = (ref, *r)
 	
 	def traverseTree(self):
 		'''Depth-first tree search.'''
@@ -260,7 +261,7 @@ class MetaCanSNPer:
 					if child.nodeID in nodeScores: continue
 					for childSNPID, (pos, anc, der) in self.database.SNPsByNode(child.nodeID):
 						nodeScores[child.nodeID] = nodeScores[node.nodeID]
-						(called, *_) = self.SNPresults[pos]
+						(called, *_) = self.SNPresults[childSNPID]
 						if der == called:
 							nodeScores[child.nodeID] += award[0]
 						elif anc == called:

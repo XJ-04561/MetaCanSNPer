@@ -28,6 +28,14 @@ class Branch:
 	def children(self) -> list[Self]:
 		return [Branch(self._connection, childID) for (childID,) in self._connection.execute(f"SELECT {TREE_COLUMN_CHILD} FROM {TABLE_NAME_TREE} WHERE {TREE_COLUMN_PARENT} = ?", [self.nodeID]).fetchall()]
 
+# class Table:
+# 	_connection : sqlite3.Connection
+# 	tableName : str
+
+# 	def __init__(self, conn : sqlite3.Connection, tableName : str):
+# 		self.conn = conn
+# 		self.tableName = tableName
+
 class DatabaseReader:
 	_connection : sqlite3.Connection
 
@@ -77,6 +85,12 @@ class DatabaseReader:
 	@property
 	def SNPsByGenome(self) -> dict[str,list[tuple[str,int,str,str]]]:
 		return {genome:self._getSNPsByGenomeId(genome_id) for genome_id, genome, _, _, _ in self.references}
+
+	def SNPByPos(self, pos : int, genome : str=None) -> list[tuple[str]]|tuple[str]:
+		if genome is None:
+			return self._connection.execute(f"SELECT {SNP_COLUMN_SNP_ID} FROM {TABLE_NAME_SNP_ANNOTATION} WHERE {SNP_COLUMN_POSITION} = ?", [pos]).fetchall()
+		else:
+			return self._connection.execute(f"SELECT {SNP_COLUMN_SNP_ID} FROM {TABLE_NAME_SNP_ANNOTATION} WHERE {SNP_COLUMN_POSITION} = ? AND {SNP_COLUMN_GENOME_ID} = ?", [pos, self.genomeID(genome)]).fetchone()
 
 	@cached_property
 	def SNPsByID(self) -> dict[str,Iterable[tuple[str,int,str,str]]]:
