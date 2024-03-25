@@ -226,8 +226,8 @@ class IndexingWrapper(ProcessWrapper):
 						for fileName in os.listdir(self.Lib.tmpDir.find(f".{self.softwareName}", purpose="w") / illegalPattern.sub("-", genome)):
 							try:
 								os.rename(
-									self.Lib.tmpDir.find(f".{self.softwareName}", purpose="w") / illegalPattern.sub("-", genome) / fileName,
-									(self.Lib.tmpDir / self.softwareName ).create(illegalPattern.sub("-", genome), purpose="w") / fileName
+									(self.Lib.tmpDir / f".{self.softwareName}" / illegalPattern.sub("-", genome)).find(fileName),
+									(self.Lib.tmpDir / self.softwareName / illegalPattern.sub("-", genome)).writable / fileName
 								)
 							except:
 								pass
