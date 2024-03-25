@@ -304,7 +304,7 @@ class MetaCanSNPer:
 			notCalled.write(header)
 			noCoverage.write(header)
 			unique.write(header)
-		if self.settings.get("debug"):
+		else:
 			LOGGER.debug(f"open({dst or self.Lib.resultDir.writable!r} / {self.Lib.queryName!r}+'_snps.tsv', 'w')")
 			LOGGER.debug(f"open({dst or self.Lib.resultDir.writable!r} / {self.Lib.queryName!r}+'_not_called.tsv', 'w')")
 			called = open((dst or self.Lib.resultDir.writable) / self.Lib.queryName+"_snps.tsv", "w")
