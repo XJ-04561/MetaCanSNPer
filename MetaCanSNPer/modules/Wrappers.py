@@ -232,7 +232,7 @@ class IndexingWrapper(ProcessWrapper):
 				else:
 					if self.settings.get("saveTemp") is True:
 						genome, outFile = outputs[name]
-						for dPath in (self.Lib.tmpDir > ("."+self.softwareName) > illegalPattern.sub("-", genome)):
+						for dPath in ((self.Lib.tmpDir > ("."+self.softwareName)) > illegalPattern.sub("-", genome)):
 							if pExists(dPath):
 								try:
 									shutil.rmtree(dPath)
