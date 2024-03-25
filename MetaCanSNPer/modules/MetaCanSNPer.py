@@ -280,10 +280,10 @@ class MetaCanSNPer:
 		with open((dst or self.Lib.resultDir.writable) / self.Lib.queryName+"_final.tsv", "w") as finalFile:
 			(finalNodeID, score), scores = self.traverseTree()
 			
-			finalFile.write(f"{self.database.nodes[finalNodeID]}\t{score}\n\n")
+			finalFile.write(f"{self.database.nodes[finalNodeID]:<20}{score}\n\n")
 			if self.settings.get("debug"):
 				for nodeID in scores:
-					finalFile.write(f"{self.database.nodes[nodeID]}\t{scores[nodeID]}\n")
+					finalFile.write(f"{self.database.nodes[nodeID]:<20}{scores[nodeID]}\n")
 
 	def saveSNPdata(self, dst : str=None):
 		""""""
