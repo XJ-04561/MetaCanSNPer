@@ -69,6 +69,7 @@ class DatabaseReader:
 
 	def genomeID(self, genome : str) -> int:
 		if (out := self._connection.execute(f"SELECT {REFERENCE_COLUMN_GENOME_ID} FROM {TABLE_NAME_REFERENCES} WHERE {REFERENCE_COLUMN_GENOME} = ?", [genome]).fetchone()) is not None:
+			LOGGER.debug(f"genomeID({genome!r}) -> {out!r}")
 			return out[0]
 		else:
 			raise ValueError(f"No genome id found for {genome=}")
@@ -87,7 +88,11 @@ class DatabaseReader:
 
 	@property
 	def SNPsByGenome(self) -> dict[str,list[tuple[str,int,str,str]]]:
-		return {genome:self._getSNPsByGenomeId(genome_id) for genome_id, genome, _, _, _ in self.references}
+		out = {}
+		for genome_id, genome, _, _, _ in self.references:
+			LOGGER.debug(f"{self.filename!r}: {genome_id=}, {genome=}")
+			out[genome] = self._getSNPsByGenomeId(genome_id)
+		return out
 
 	def SNPByPos(self, pos : int, genome : str=None) -> list[tuple[str]]|tuple[str]:
 		if genome is None:
