@@ -68,7 +68,10 @@ class DatabaseReader:
 		self._connection.commit()
 
 	def genomeID(self, genome) -> int:
-		return self._connection.execute(f"SELECT {REFERENCE_COLUMN_GENOME_ID} FROM {TABLE_NAME_REFERENCES} WHERE {REFERENCE_COLUMN_GENOME} = ?", [genome]).fetchone()
+		if (out := self._connection.execute(f"SELECT {REFERENCE_COLUMN_GENOME_ID} FROM {TABLE_NAME_REFERENCES} WHERE {REFERENCE_COLUMN_GENOME} = ?", [genome]).fetchone()) is not None:
+			return out[0]
+		else:
+			raise ValueError(f"No genome id found for {genome=}")
 
 	@cached_property
 	def references(self) -> list[tuple[int,str,str,str,str]]:
