@@ -374,7 +374,7 @@ class ParallelCommands(Commands):
 			LOGGER.exception(e)
 			raise e
 	
-	def start(self) -> list[CompletedProcess]:
+	def start(self):
 		for sc in self._list.values():
 			sc.start()
 	

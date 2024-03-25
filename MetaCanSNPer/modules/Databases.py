@@ -1,14 +1,14 @@
 
 from functools import cached_property
 import sqlite3
-from typing import Generator, Callable, Iterable
+from typing import Generator, Callable, Iterable, Self
 
 from MetaCanSNPer.Globals import *
 from MetaCanSNPer.modules.LogKeeper import createLogger
 
 LOGGER = createLogger(__name__)
 
-class Branch: pass
+
 class Branch:
 
 
@@ -25,7 +25,7 @@ class Branch:
 		self.nodeID = nodeID
 	
 	@property
-	def children(self) -> list[Branch]:
+	def children(self) -> list[Self]:
 		return [Branch(self._connection, childID) for (childID,) in self._connection.execute(f"SELECT {TREE_COLUMN_CHILD} FROM {TABLE_NAME_TREE} WHERE {TREE_COLUMN_PARENT} = ?", [self.nodeID]).fetchall()]
 
 class DatabaseReader:
@@ -87,7 +87,7 @@ class DatabaseReader:
 	def nodes(self) -> dict[str,list[tuple[str,int,str,str]]]:
 		return dict(self._connection.execute(f"SELECT {NODE_COLUMN_ID}, {NODE_COLUMN_NAME} FROM {TABLE_NAME_NODES}"))
 	
-	def SNPsByName(self, nodeID : int) -> Generator[tuple[str,tuple[int,str,str]], None, None]:
+	def SNPsByNode(self, nodeID : int) -> Generator[tuple[str,tuple[int,str,str]], None, None]:
 		for (nodeSNPName, ) in self._connection.execute(f"SELECT {NODE_COLUMN_NAME} FROM {TABLE_NAME_NODES} WHERE {NODE_COLUMN_ID} = ?", [nodeID]):
 			yield (nodeSNPName, self.SNPsByID[nodeSNPName])
 

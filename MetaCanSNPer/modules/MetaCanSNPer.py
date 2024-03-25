@@ -254,24 +254,23 @@ class MetaCanSNPer:
 
 		paths.append([node])
 		while paths[-1] != []:
-			for node in paths[-1]:
-				paths.append([])
+			paths.append([])
+			for node in paths[-2]:
 				for child in node.children:
-					if child.nodeID in paths[-2]: continue
-					childSNPID = self.database.node(child.nodeID)
-					pos, anc, der = self.database.SNPsByID[childSNPID]
-					nodeScores[child.nodeID] = nodeScores[node.nodeID]
-					if der == self.SNPresults[pos]:
-						nodeScores[child.nodeID] += award[0]
-					elif anc == self.SNPresults[pos]:
-						nodeScores[child.nodeID] += award[1]
-					else:
-						nodeScores[child.nodeID] += award[2]
+					if child.nodeID in nodeScores: continue
+					for childSNPID, (pos, anc, der) in self.database.SNPsByNode(child.nodeID):
+						nodeScores[child.nodeID] = nodeScores[node.nodeID]
+						if der == self.SNPresults[pos]:
+							nodeScores[child.nodeID] += award[0]
+						elif anc == self.SNPresults[pos]:
+							nodeScores[child.nodeID] += award[1]
+						else:
+							nodeScores[child.nodeID] += award[2]
 					paths[-1].append(child)
-				if paths[-1] == []:
-					paths = paths[:-1]
-					LOGGER.info(f"Finished traversed tree.")
-					return max(nodeScores.items(), key=lambda nodeTupe: nodeTupe[1]), nodeScores
+			if paths[-1] == []:
+				paths = paths[:-1]
+				LOGGER.info(f"Finished traversed tree.")
+				return max(nodeScores.items(), key=lambda nodeTupe: nodeTupe[1]), nodeScores
 
 	'''Functions'''
 
@@ -280,10 +279,10 @@ class MetaCanSNPer:
 		with open((dst or self.Lib.resultDir.writable) / self.Lib.queryName+"_final.tsv", "w") as finalFile:
 			(finalNodeID, score), scores = self.traverseTree()
 			
-			finalFile.write(f"{self.database.node(finalNodeID)}\t{score}\n\n")
+			finalFile.write(f"{self.database.nodes[finalNodeID]}\t{score}\n\n")
 			if self.settings.get("debug"):
 				for nodeID in scores:
-					finalFile.write(f"{self.database.node(nodeID)}\t{scores[nodeID]}\n")
+					finalFile.write(f"{self.database.nodes[nodeID]}\t{scores[nodeID]}\n")
 
 	def saveSNPdata(self, dst : str=None):
 		""""""
