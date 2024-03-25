@@ -59,14 +59,13 @@ class ProcessWrapper:
 		""""""
 		names, commands, outputs = self.formatCommands()
 		for i in range(len(names))[::-1]:
-			name = names[i]
-			genome, outFile = outputs[i]
+			name, outFile = outputs[i]
 			if name not in self.history:
 				self.history[name] = []
-				self.outputs[genome] = None
+				self.outputs[name] = None
 			if self.settings.get("saveTemp") is True and pExists(outFile):
 				self.history[name].append(0)
-				self.outputs[genome] = outFile
+				self.outputs[name] = outFile
 				self.skip.add(name)
 
 				self.hooks.trigger(f"{self.category}Progress", {"threadN" : name, "progress" : 1.0})
@@ -75,7 +74,7 @@ class ProcessWrapper:
 				names.pop(i), commands.pop(i), outputs.pop(i)
 			
 		self.hooks.removeHook(f"{self.category}ProcessFinished", self._hooksList.get("ProcessFinished"))
-		self._hooksList["ProcessFinished"] = self.hooks.addHook(f"{self.category}ProcessFinished", target=self.updateOutput, args=[dict(zip(names, outputs))])
+		self._hooksList["ProcessFinished"] = self.hooks.addHook(f"{self.category}ProcessFinished", target=self.updateOutput, args=[dict(outputs)])
 
 		self.command = Command(commands, self.category, self.hooks, logDir=self.Lib.resultDir.create("SoftwareLogs"), names=names)
 
@@ -119,35 +118,35 @@ class ProcessWrapper:
 	def fixable(self):
 		'''Checks whether there is a known or suspected solution available for any errors that occured. If tried once,
 		then will not show up again for that process.'''
-		return any(e in self.solutions for i,e in self.command.returncodes.items() if e not in self.history[i][:-1])
+		return any(e in self.solutions for name,e in self.command.returncodes.items() if e not in self.history[name][:-1])
 
 	def planB(self):
 		'''Runs suggested solutions for non-zero exitcodes.'''
 		errors = {e:[] for e in set(self.command.returncodes.values())}
 		previousUnsolved = []
-		for i, e in self.command.returncodes.items():
-			if e in self.history[i]:
-				previousUnsolved.append((i,e))
+		for name, e in self.command.returncodes.items():
+			if e in self.history[name]:
+				previousUnsolved.append((name,e))
 			else:
-				errors[e].append(i)
-				self.history[i].append(e)
+				errors[e].append(name)
+				self.history[name].append(e)
 		
 		if len(previousUnsolved) > 0:
-			for i, e in previousUnsolved:
-				LOGGER.error(f"Thread {i} of {self.softwareName} ran command: {self.command.args[i][0]!r} and returned exitcode {self.command.returncodes[i]} even after applying a fix for this exitcode.")
+			for name, e in previousUnsolved:
+				LOGGER.error(f"Thread {name} of {self.softwareName} ran command: {self.command.args[name][0]!r} and returned exitcode {self.command.returncodes[name]} even after applying a fix for this exitcode.")
 			raise ChildProcessError(f"{self.softwareName} process(es) returned non-zero value(s). A solution was attempted but the process returned the same exitcode. Check logs for details.")
 
 		failed = [(e,errors[e]) for e in errors if e not in self.solutions and e != 0 and e not in self.ignoredErrors]
 		if len(failed) != 0:
 			for e, threads in failed:
-				for i in threads:
-					LOGGER.error(f"Thread {i} of {self.softwareName} ran command: {self.command.args[i][0]!r} and returned exitcode {self.command.returncodes[i]}.")
+				for name in threads:
+					LOGGER.error(f"Thread {name} of {self.softwareName} ran command: {self.command.args[name][0]!r} and returned exitcode {self.command.returncodes[name]}.")
 			raise ChildProcessError(f"{self.softwareName} process(es) returned non-zero value(s) which do not have an implemented fix. Check logs for details.")
 		
 		for e in errors:
 			if e == 0 or e in self.ignoredErrors:
-				for i in errors[e]:
-					self.skip.add(i)
+				for name in errors[e]:
+					self.skip.add(name)
 			else:
 				self.solutions[e](self, errors[e])
 		self.command = None
@@ -171,14 +170,14 @@ class ProcessWrapper:
 			f"{'QUERY':<30}|{'REFERENCE':<58} = {'EXITCODE':<8}"
 		]
 		if self.command is None:
-			for i in sorted(self.history.keys()):
-				e = self.history[i][-1] if self.history[i] != [] else ""
-				key = self.database.references[i][1]
+			for name in sorted(self.history.keys()):
+				e = self.history[name][-1] if self.history[name] != [] else ""
+				key = self.database.references[name][1]
 				msg.append(f"{self.Lib.queryName:<30}|{key:<28} = {e:^8}")
 		else:
-			for i in sorted(self.command.returncodes.keys()):
-				e = self.command.returncodes.get(i, "")
-				key = self.database.references[i][1]
+			for name in sorted(self.command.returncodes.keys()):
+				e = self.command.returncodes.get(name, "")
+				key = self.database.references[name][1]
 				msg.append(f"{self.Lib.queryName:<30}|{key:<28} = {e:^8}")
 		
 		out("\n".join(msg))
@@ -216,12 +215,12 @@ class IndexingWrapper(ProcessWrapper):
 	def updateOutput(self, eventInfo, outputs: dict[int, str]):
 		
 		try:
-			name = eventInfo["threadN"]
+			genome = eventInfo["threadN"]
 			assert self.command is eventInfo["Command"]
 			self.semaphore.release()
-			if self.command.returncodes[name] not in self.solutions:
-				if self.command.returncodes[name] == 0:
-					genome, outFile = outputs[name]
+			if self.command.returncodes[genome] not in self.solutions:
+				if self.command.returncodes[genome] == 0:
+					outFile = outputs[genome]
 					
 					if self.settings.get("saveTemp") is True:
 						os.rename(
@@ -229,19 +228,19 @@ class IndexingWrapper(ProcessWrapper):
 							self.Lib.tmpDir.create(self.softwareName, purpose="w") / illegalPattern.sub("-", genome))
 
 					self.outputs[genome] = outFile
-					self.hooks.trigger(f"{self.category}Progress", {"threadN" : name, "progress" : 1.0})
-					self.hooks.trigger(f"{self.category}Finished", {"threadN" : name})
+					self.hooks.trigger(f"{self.category}Progress", {"threadN" : genome, "progress" : 1.0})
+					self.hooks.trigger(f"{self.category}Finished", {"threadN" : genome})
 				else:
 					if self.settings.get("saveTemp") is True:
-						genome, outFile = outputs[name]
+						genome, outFile = outputs[genome]
 						for dPath in self.Lib.tmpDir / f".{self.softwareName}" / illegalPattern.sub("-", genome):
 							if pExists(dPath):
 								try:
 									shutil.rmtree(dPath)
 								except:
 									pass
-					self.hooks.trigger(f"{self.category}Progress", {"threadN" : name, "progress" : None})
-					self.hooks.trigger(f"{self.category}Finished", {"threadN" : name})
+					self.hooks.trigger(f"{self.category}Progress", {"threadN" : genome, "progress" : None})
+					self.hooks.trigger(f"{self.category}Finished", {"threadN" : genome})
 		except (AssertionError) as e:
 			e.add_note(f'<{self.command!r} is {eventInfo["Command"]!r} = {self.command is eventInfo["Command"]}>')
 			LOGGER.exception(e, stacklevel=logging.DEBUG)
@@ -295,7 +294,7 @@ class IndexingWrapper(ProcessWrapper):
 					raise MissingDependancy("To perform a --dry-run, either the command 'sleep SECONDS' or 'timeout SECONDS' is needed.")
 				open(output, "w").close()
 
-			names.append(i)
+			names.append(refName)
 			commands.append(command)
 			outputs.append((refName, outDirFinal.create(illegalPattern.sub("-", refName), purpose="w") / self.outputTemplate.format(**self.formatDict)))
 		return names, commands, outputs
