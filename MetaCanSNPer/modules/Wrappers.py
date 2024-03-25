@@ -1,5 +1,5 @@
 
-import os, shutil
+import os, shutil, re
 from typing import Any, Iterable, Callable
 from threading import Semaphore, ThreadError
 
@@ -13,6 +13,8 @@ from MetaCanSNPer.Globals import *
 import MetaCanSNPer.Globals as Globals
 
 LOGGER = LogKeeper.createLogger(__name__)
+
+illegalPattern = re.compile(r"[^\w_ \-\.]")
 
 # Aligner and Mapper classes to inherit from
 class ProcessWrapper:
@@ -219,19 +221,23 @@ class IndexingWrapper(ProcessWrapper):
 			self.semaphore.release()
 			if self.command.returncodes[name] not in self.solutions:
 				if self.command.returncodes[name] == 0:
-					os.rename(self.Lib.tmpDir.find("."+self.softwareName, purpose="w"), self.Lib.tmpDir.writable > (self.softwareName))
-
 					genome, outFile = outputs[name]
+					
+					if self.settings.get("saveTemp") is True:
+						os.rename(self.Lib.tmpDir.find("."+self.softwareName, purpose="w") > illegalPattern.sub("-", genome), self.Lib.tmpDir.create(self.softwareName, purpose="w") > illegalPattern.sub("-", genome))
+
 					self.outputs[genome] = outFile
 					self.hooks.trigger(f"{self.category}Progress", {"threadN" : name, "progress" : 1.0})
 					self.hooks.trigger(f"{self.category}Finished", {"threadN" : name})
 				else:
-					for dPath in (self.Lib.tmpDir > ("."+self.softwareName)):
-						if pExists(dPath):
-							try:
-								shutil.rmtree(dPath)
-							except:
-								pass
+					if self.settings.get("saveTemp") is True:
+						genome, outFile = outputs[name]
+						for dPath in (self.Lib.tmpDir > ("."+self.softwareName) > illegalPattern.sub("-", genome)):
+							if pExists(dPath):
+								try:
+									shutil.rmtree(dPath)
+								except:
+									pass
 					self.hooks.trigger(f"{self.category}Progress", {"threadN" : name, "progress" : None})
 					self.hooks.trigger(f"{self.category}Finished", {"threadN" : name})
 		except (AssertionError) as e:
@@ -271,7 +277,7 @@ class IndexingWrapper(ProcessWrapper):
 			self.formatDict["alignmentPath"] = self.Lib.alignments[refName]
 			self.formatDict["targetSNPs"] = self.Lib.targetSNPs[refName]
 			
-			output = outDirTmp > self.outputTemplate.format(**self.formatDict)
+			output = outDirTmp.create(illegalPattern.sub("-", refName), purpose="w") > self.outputTemplate.format(**self.formatDict)
 
 			self.formatDict["output"] = output
 
@@ -289,7 +295,7 @@ class IndexingWrapper(ProcessWrapper):
 
 			names.append(i)
 			commands.append(command)
-			outputs.append((refName, outDirFinal > self.outputTemplate.format(**self.formatDict)))
+			outputs.append((refName, outDirFinal.create(illegalPattern.sub("-", refName), purpose="w") > self.outputTemplate.format(**self.formatDict)))
 		return names, commands, outputs
 
 #
