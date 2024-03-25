@@ -258,7 +258,7 @@ class IndexingWrapper(ProcessWrapper):
 			for dPath in self.Lib.tmpDir / f".{self.softwareName}":
 				if pExists(dPath):
 					try:
-						shutil.rmtree(dPath)
+						shutil.rmtree(dPath, ignore_errors=True)
 					except:
 						pass
 
