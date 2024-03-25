@@ -260,9 +260,10 @@ class MetaCanSNPer:
 					if child.nodeID in nodeScores: continue
 					for childSNPID, (pos, anc, der) in self.database.SNPsByNode(child.nodeID):
 						nodeScores[child.nodeID] = nodeScores[node.nodeID]
-						if der == self.SNPresults[pos]:
+						(called, *_) = self.SNPresults[pos]
+						if der == called:
 							nodeScores[child.nodeID] += award[0]
-						elif anc == self.SNPresults[pos]:
+						elif anc == called:
 							nodeScores[child.nodeID] += award[1]
 						else:
 							nodeScores[child.nodeID] += award[2]
