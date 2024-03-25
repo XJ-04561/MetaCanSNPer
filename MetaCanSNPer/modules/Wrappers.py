@@ -219,11 +219,19 @@ class IndexingWrapper(ProcessWrapper):
 			self.semaphore.release()
 			if self.command.returncodes[name] not in self.solutions:
 				if self.command.returncodes[name] == 0:
+					os.rename(self.Lib.tmpDir.find("."+self.softwareName, purpose="w"), self.Lib.tmpDir.writable > (self.softwareName))
+
 					genome, outFile = outputs[name]
 					self.outputs[genome] = outFile
 					self.hooks.trigger(f"{self.category}Progress", {"threadN" : name, "progress" : 1.0})
 					self.hooks.trigger(f"{self.category}Finished", {"threadN" : name})
 				else:
+					for dPath in (self.Lib.tmpDir > ("."+self.softwareName)):
+						if pExists(dPath):
+							try:
+								shutil.rmtree(dPath)
+							except:
+								pass
 					self.hooks.trigger(f"{self.category}Progress", {"threadN" : name, "progress" : None})
 					self.hooks.trigger(f"{self.category}Finished", {"threadN" : name})
 		except (AssertionError) as e:
@@ -234,7 +242,19 @@ class IndexingWrapper(ProcessWrapper):
 
 	def formatCommands(self) -> tuple[list[Any], list[str], list[tuple[tuple[str,str],str]]]:
 		
-		outDir = self.Lib.tmpDir.create(self.softwareName, purpose="w")
+		if self.settings.get("saveTemp") is True:
+			for dPath in (self.Lib.tmpDir > ("."+self.softwareName)):
+				if pExists(dPath):
+					try:
+						shutil.rmtree(dPath)
+					except:
+						pass
+
+			outDirTmp = self.Lib.tmpDir.create("."+self.softwareName, purpose="w")
+			outDirFinal = self.Lib.tmpDir.create(self.softwareName, purpose="w")
+		else:
+			outDirTmp = self.Lib.tmpDir.create(self.softwareName, purpose="w")
+			outDirFinal = self.Lib.tmpDir.create(self.softwareName, purpose="w")
 
 		names = []
 		commands = []
@@ -251,7 +271,7 @@ class IndexingWrapper(ProcessWrapper):
 			self.formatDict["alignmentPath"] = self.Lib.alignments[refName]
 			self.formatDict["targetSNPs"] = self.Lib.targetSNPs[refName]
 			
-			output = outDir > self.outputTemplate.format(**self.formatDict)
+			output = outDirTmp > self.outputTemplate.format(**self.formatDict)
 
 			self.formatDict["output"] = output
 
@@ -269,7 +289,7 @@ class IndexingWrapper(ProcessWrapper):
 
 			names.append(i)
 			commands.append(command)
-			outputs.append((refName, output))
+			outputs.append((refName, outDirFinal > self.outputTemplate.format(**self.formatDict)))
 		return names, commands, outputs
 
 #

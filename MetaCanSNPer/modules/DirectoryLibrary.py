@@ -262,13 +262,13 @@ class DirectoryLibrary(PathLibrary):
 			if pExists(refPath):
 				if (filename := self.refDir.find(pName(refPath) + ".vcf")) is None or force:
 					accession = open(refPath, "r").readline()[1:].split()[0]
-					filename = f"{self.refDir.writable > pName(refPath)}.vcf"
+					filename = f"{self.refDir.writable > pName(refPath)}.vcf.tmp"
 
 					with openVCF(filename, "w", referenceFile=refPath) as vcfFile:
 						for snpID, pos, ref, alt in SNPEntries:
 							# CHROM has to be the same as the accession id that is in the reference file.
 							vcfFile.add(CHROM=accession, POS=pos, ID=snpID, REF="N", ALT="A,T,C,G")
-						
+					os.rename(filename, filename[:-4])
 				self.targetSNPs[genome] = filename
 			else:
 				raise FileNotFoundError(f"Could not find a local path for {genome=}.")
