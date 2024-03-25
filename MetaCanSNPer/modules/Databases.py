@@ -68,26 +68,23 @@ class DatabaseReader:
 		return self._connection.execute( f"SELECT {REFERENCE_COLUMN_GENOME_ID}, {REFERENCE_COLUMN_GENOME}, {REFERENCE_COLUMN_GENBANK}, {REFERENCE_COLUMN_REFSEQ}, {REFERENCE_COLUMN_ASSEMBLY} FROM {TABLE_NAME_REFERENCES} ORDER BY {REFERENCE_COLUMN_GENOME_ID} ASC").fetchall()
 
 	def _getSNPsByGenomeId(self, genomeID : int) -> sqlite3.Cursor:
-		c = self._connection.execute(f"SELECT {SNP_COLUMN_SNP_ID}, {SNP_COLUMN_POSITION}, {SNP_COLUMN_ANCESTRAL}, {SNP_COLUMN_DERIVED} FROM {TABLE_NAME_SNP_ANNOTATION} WHERE {SNP_COLUMN_GENOME_ID} = ? ORDER BY {SNP_COLUMN_POSITION} ASC", [genomeID])
-		LOGGER.debug(f'self._connection.execute("SELECT {SNP_COLUMN_SNP_ID}, {SNP_COLUMN_POSITION}, {SNP_COLUMN_ANCESTRAL}, {SNP_COLUMN_DERIVED} FROM {TABLE_NAME_SNP_ANNOTATION} WHERE {SNP_COLUMN_GENOME_ID} = ? ORDER BY {SNP_COLUMN_POSITION} ASC", {[genomeID]}) -> N={c.rowcount}')
-		return c
+		return self._connection.execute(f"SELECT {SNP_COLUMN_SNP_ID}, {SNP_COLUMN_POSITION}, {SNP_COLUMN_ANCESTRAL}, {SNP_COLUMN_DERIVED} FROM {TABLE_NAME_SNP_ANNOTATION} WHERE {SNP_COLUMN_GENOME_ID} = ? ORDER BY {SNP_COLUMN_POSITION} ASC", [genomeID])
 	
-	@cached_property
+	@property
 	def SNPs(self) -> sqlite3.Cursor:
 		return self._connection.execute(f"SELECT {SNP_COLUMN_SNP_ID}, {SNP_COLUMN_POSITION}, {SNP_COLUMN_ANCESTRAL}, {SNP_COLUMN_DERIVED} FROM {TABLE_NAME_SNP_ANNOTATION} ORDER BY {SNP_COLUMN_POSITION} ASC")
 
-	@cached_property
+	@property
 	def SNPsByGenome(self) -> dict[str,list[tuple[str,int,str,str]]]:
 		return {genome:self._getSNPsByGenomeId(genome_id) for genome_id, genome, _, _, _ in self.references}
 
 	@cached_property
-	def SNPsByID(self) -> dict[str,list[tuple[str,int,str,str]]]:
-		'''{SNP_ID : (POSITION, ANCESTRAL, DERIVED)}'''
-		return {snpID:(pos, anc, der) for snpID, pos, anc, der in self.SNPs}
+	def SNPsByID(self) -> dict[str,Iterable[tuple[str,int,str,str]]]:
+		'''{SNP_ID : [(POSITION, ANCESTRAL, DERIVED), ...]}'''
+		return {snpID:self._connection.execute(f"SELECT {SNP_COLUMN_POSITION}, {SNP_COLUMN_ANCESTRAL}, {SNP_COLUMN_DERIVED} FROM {TABLE_NAME_SNP_ANNOTATION} WHERE {SNP_COLUMN_SNP_ID} = ?", [snpID]).fetchone() for snpID in self._connection.execute(f"SELECT {SNP_COLUMN_SNP_ID} FROM {TABLE_NAME_SNP_ANNOTATION}")}
 	
-	@cached_property
-	def nodes(self) -> dict[str,list[tuple[str,int,str,str]]]:
-		return dict(self._connection.execute(f"SELECT {NODE_COLUMN_ID}, {NODE_COLUMN_NAME} FROM {TABLE_NAME_NODES}"))
+	def nodeName(self, nodeID : int) -> dict[str,list[tuple[str,int,str,str]]]:
+		return self._connection.execute(f"SELECT {NODE_COLUMN_NAME} FROM {TABLE_NAME_NODES} WHERE {NODE_COLUMN_ID} = ?", [nodeID])
 	
 	def SNPsByNode(self, nodeID : int) -> Generator[tuple[str,tuple[int,str,str]], None, None]:
 		for (nodeSNPName, ) in self._connection.execute(f"SELECT {NODE_COLUMN_NAME} FROM {TABLE_NAME_NODES} WHERE {NODE_COLUMN_ID} = ?", [nodeID]):
@@ -99,7 +96,6 @@ class DatabaseReader:
 		for (nodeID,) in self._connection.execute(f"SELECT {TREE_COLUMN_CHILD} FROM {TABLE_NAME_TREE} WHERE {TREE_COLUMN_PARENT} = ?", [2]):
 			if nodeID != 2:
 				return Branch(self._connection, nodeID)
-		
 
 
 class DatabaseWriter(DatabaseReader):
