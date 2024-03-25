@@ -177,7 +177,7 @@ def main():
 		if flags["sessionName"] is not None: mObj.setSessionName(flags["sessionName"])
 		
 		if flags.get("mapper") is not None:
-			TU = TerminalUpdater("Creating Maps", "Mappers", mObj.hooks, range(len(mObj.database.references)))
+			TU = TerminalUpdater("Creating Maps", "Mappers", mObj.hooks, map(lambda tupe: tupe[1], mObj.database.references))
 			TU.start()
 
 			mObj.createMap(softwareName=flags["mapper"], flags=argsDict.get("--mapperOptions", {}))
@@ -185,14 +185,14 @@ def main():
 			TU.deadmans()
 
 		if flags.get("aligner") is not None:
-			TU = TerminalUpdater("Creating Alignments", "Aligners", mObj.hooks, range(len(mObj.database.references)))
+			TU = TerminalUpdater("Creating Alignments", "Aligners", mObj.hooks, map(lambda tupe: tupe[1], mObj.database.references))
 			TU.start()
 
 			mObj.createAlignment(softwareName=flags["aligner"], flags=argsDict.get("--alignerOptions", {}))
 			
 			TU.deadmans()
 		
-		TU = TerminalUpdater("Calling SNPs", "SNPCallers", mObj.hooks, range(len(mObj.database.references)))
+		TU = TerminalUpdater("Calling SNPs", "SNPCallers", mObj.hooks, map(lambda tupe: tupe[1], mObj.database.references))
 		TU.start()
 
 		mObj.callSNPs(softwareName=flags["snpCaller"], flags=argsDict.get("--snpCallerOptions", {}))

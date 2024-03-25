@@ -223,9 +223,14 @@ class IndexingWrapper(ProcessWrapper):
 					outFile = outputs[genome]
 					
 					if self.settings.get("saveTemp") is True:
-						os.rename(
-							self.Lib.tmpDir.find(f".{self.softwareName}", purpose="w") / illegalPattern.sub("-", genome),
-							self.Lib.tmpDir.create(self.softwareName, purpose="w") / illegalPattern.sub("-", genome))
+						for fileName in os.listdir(self.Lib.tmpDir.find(f".{self.softwareName}", purpose="w") / illegalPattern.sub("-", genome)):
+							try:
+								os.rename(
+									self.Lib.tmpDir.find(f".{self.softwareName}", purpose="w") / illegalPattern.sub("-", genome) / fileName,
+									(self.Lib.tmpDir / self.softwareName ).create(illegalPattern.sub("-", genome), purpose="w") / fileName
+								)
+							except:
+								pass
 
 					self.outputs[genome] = outFile
 					self.hooks.trigger(f"{self.category}Progress", {"threadN" : genome, "progress" : 1.0})
@@ -266,8 +271,8 @@ class IndexingWrapper(ProcessWrapper):
 		names = []
 		commands = []
 		outputs = []
-		for i, (_, refName, _, _, _) in enumerate(self.database.references):
-			if i in self.skip: continue
+		for _, refName, _, _, _ in self.database.references:
+			if refName in self.skip: continue
 
 			"""Not every command needs all information, but the format function is supplied with a dictionary that has
 			everything that could ever be needed."""
