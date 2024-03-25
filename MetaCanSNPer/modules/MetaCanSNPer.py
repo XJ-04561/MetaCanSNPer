@@ -265,7 +265,7 @@ class MetaCanSNPer:
 				if paths[-1] == []:
 					paths = paths[:-1]
 					LOGGER.info(f"Finished traversed tree.")
-					return max(nodeScores.items(), key=lambda nodeID, score: score)
+					return max(nodeScores, key=lambda nodeID: nodeScores[nodeID])
 
 	'''Functions'''
 
