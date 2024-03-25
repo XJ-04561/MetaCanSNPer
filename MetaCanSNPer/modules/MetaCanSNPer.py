@@ -241,7 +241,7 @@ class MetaCanSNPer:
 		self.runSoftware(SNPCallerType, outputDict=self.Lib.resultSNPs, flags=flags)
 
 		for genome, filePath in self.Lib.resultSNPs:
-			for pos, (ref, *r) in getSNPdata(filePath):
+			for pos, (ref, *r) in getSNPdata(filePath).items():
 				self.SNPresults[self.database.SNPByPos(pos, genome=genome)] = (ref, *r)
 	
 	def traverseTree(self):
