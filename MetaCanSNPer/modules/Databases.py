@@ -90,7 +90,7 @@ class DatabaseReader:
 		if genome is None:
 			return self._connection.execute(f"SELECT {SNP_COLUMN_SNP_ID} FROM {TABLE_NAME_SNP_ANNOTATION} WHERE {SNP_COLUMN_POSITION} = ?", [pos]).fetchall()
 		else:
-			return self._connection.execute(f"SELECT {SNP_COLUMN_SNP_ID} FROM {TABLE_NAME_SNP_ANNOTATION} WHERE {SNP_COLUMN_POSITION} = ? AND {SNP_COLUMN_GENOME_ID} = ?", [pos, self.genomeID(genome)]).fetchone()
+			return self._connection.execute(f"SELECT {SNP_COLUMN_SNP_ID} FROM {TABLE_NAME_SNP_ANNOTATION} WHERE {SNP_COLUMN_POSITION} = ? AND {SNP_COLUMN_GENOME_ID} = ?", [pos, *self.genomeID(genome)]).fetchone()
 
 	@cached_property
 	def SNPsByID(self) -> dict[str,Iterable[tuple[str,int,str,str]]]:

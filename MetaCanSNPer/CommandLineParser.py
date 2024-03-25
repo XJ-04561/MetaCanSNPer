@@ -226,11 +226,8 @@ def main():
 			for err in pattern.finditer(open(LOGGER_FILEHANDLER.baseFilename, "r").read()):
 				print(err.group(1), file=sys.stderr)
 				print(file=sys.stderr)
-			m = re.search(r"^[a-zA-Z0-9]\w*?[:].*", traceback.format_exc(), flags=re.MULTILINE+re.DOTALL)
-			if m is None:
-				print(traceback.format_exc(), file=sys.stderr)
-			else:
-				print(m.group(), file=sys.stderr)
+
+			print(traceback.format_exc(), file=sys.stderr)
 		else:
 			print(f"{type(e).__name__}: "+str(e), file=sys.stderr)
 		exit(1)
