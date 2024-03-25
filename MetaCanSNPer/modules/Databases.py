@@ -93,7 +93,7 @@ class DatabaseReader:
 		if genome is None:
 			return self._connection.execute(f"SELECT {SNP_COLUMN_SNP_ID} FROM {TABLE_NAME_SNP_ANNOTATION} WHERE {SNP_COLUMN_POSITION} = ?", [pos]).fetchall()
 		else:
-			if (out := self._connection.execute(f"SELECT {SNP_COLUMN_SNP_ID} FROM {TABLE_NAME_SNP_ANNOTATION} WHERE {SNP_COLUMN_POSITION} = ? AND {SNP_COLUMN_GENOME_ID} = ?", [pos, *self.genomeID(genome)]).fetchone()) is not None:
+			if (out := self._connection.execute(f"SELECT {SNP_COLUMN_SNP_ID} FROM {TABLE_NAME_SNP_ANNOTATION} WHERE {SNP_COLUMN_POSITION} = ? AND {SNP_COLUMN_GENOME_ID} = ?", [pos, self.genomeID(genome)]).fetchone()) is not None:
 				return out[0]
 			else:
 				raise ValueError(f"No SNP found at {pos=} in {genome=}")
