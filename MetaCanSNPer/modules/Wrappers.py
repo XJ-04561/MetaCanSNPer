@@ -224,7 +224,9 @@ class IndexingWrapper(ProcessWrapper):
 					genome, outFile = outputs[name]
 					
 					if self.settings.get("saveTemp") is True:
-						os.rename(self.Lib.tmpDir.find("."+self.softwareName, purpose="w") > illegalPattern.sub("-", genome), self.Lib.tmpDir.create(self.softwareName, purpose="w") > illegalPattern.sub("-", genome))
+						os.rename(
+							self.Lib.tmpDir.find(f".{self.softwareName}", purpose="w") / illegalPattern.sub("-", genome),
+							self.Lib.tmpDir.create(self.softwareName, purpose="w") / illegalPattern.sub("-", genome))
 
 					self.outputs[genome] = outFile
 					self.hooks.trigger(f"{self.category}Progress", {"threadN" : name, "progress" : 1.0})
@@ -232,7 +234,7 @@ class IndexingWrapper(ProcessWrapper):
 				else:
 					if self.settings.get("saveTemp") is True:
 						genome, outFile = outputs[name]
-						for dPath in ((self.Lib.tmpDir > ("."+self.softwareName)) > illegalPattern.sub("-", genome)):
+						for dPath in self.Lib.tmpDir / f".{self.softwareName}" / illegalPattern.sub("-", genome):
 							if pExists(dPath):
 								try:
 									shutil.rmtree(dPath)
@@ -249,14 +251,14 @@ class IndexingWrapper(ProcessWrapper):
 	def formatCommands(self) -> tuple[list[Any], list[str], list[tuple[tuple[str,str],str]]]:
 		
 		if self.settings.get("saveTemp") is True:
-			for dPath in (self.Lib.tmpDir > ("."+self.softwareName)):
+			for dPath in self.Lib.tmpDir / f".{self.softwareName}":
 				if pExists(dPath):
 					try:
 						shutil.rmtree(dPath)
 					except:
 						pass
 
-			outDirTmp = self.Lib.tmpDir.create("."+self.softwareName, purpose="w")
+			outDirTmp = self.Lib.tmpDir.create(f".{self.softwareName}", purpose="w")
 			outDirFinal = self.Lib.tmpDir.create(self.softwareName, purpose="w")
 		else:
 			outDirTmp = self.Lib.tmpDir.create(self.softwareName, purpose="w")
@@ -277,7 +279,7 @@ class IndexingWrapper(ProcessWrapper):
 			self.formatDict["alignmentPath"] = self.Lib.alignments[refName]
 			self.formatDict["targetSNPs"] = self.Lib.targetSNPs[refName]
 			
-			output = outDirTmp.create(illegalPattern.sub("-", refName), purpose="w") > self.outputTemplate.format(**self.formatDict)
+			output = outDirTmp.create(illegalPattern.sub("-", refName), purpose="w") / self.outputTemplate.format(**self.formatDict)
 
 			self.formatDict["output"] = output
 
@@ -295,7 +297,7 @@ class IndexingWrapper(ProcessWrapper):
 
 			names.append(i)
 			commands.append(command)
-			outputs.append((refName, outDirFinal.create(illegalPattern.sub("-", refName), purpose="w") > self.outputTemplate.format(**self.formatDict)))
+			outputs.append((refName, outDirFinal.create(illegalPattern.sub("-", refName), purpose="w") / self.outputTemplate.format(**self.formatDict)))
 		return names, commands, outputs
 
 #

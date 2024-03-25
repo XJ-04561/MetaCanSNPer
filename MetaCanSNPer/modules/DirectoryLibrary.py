@@ -98,7 +98,7 @@ class DirectoryLibrary(PathLibrary):
 		elif pIsAbs(targetDir):
 			self.targetDir = Path(targetDir)
 		else:
-			self.targetDir = self.commonGroups.W > targetDir
+			self.targetDir = self.commonGroups.W / targetDir
 		LOGGER.debug(f"Set targetDir to:\n{self.targetDir}")
 	
 	def setRefDir(self, organism : str, refDir : str=None):
@@ -110,21 +110,21 @@ class DirectoryLibrary(PathLibrary):
 			self.refDir = DirectoryPath(organism, purpose="r")
 		else:
 			if refDir is None:
-				self.refDir = (self.commonGroups.shared > (SOFTWARE_NAME+"-Data")) > "References"
+				self.refDir = (self.commonGroups.shared / (SOFTWARE_NAME+"-Data")) / "References"
 			elif pIsAbs(refDir):
 				self.refDir = DirectoryPath(refDir, organism, purpose="r")
 			else:
-				self.refDir = self.workDir > refDir
+				self.refDir = self.workDir / refDir
 		LOGGER.debug(f"Set refDir to:\n{self.refDir}")
 	
 	def setDatabaseDir(self, databaseDir : str=None):
 		""""""
 		if databaseDir is None:
-			self.databaseDir = (self.commonGroups.shared > (SOFTWARE_NAME+"-Data")) > "Databases"
+			self.databaseDir = (self.commonGroups.shared / (SOFTWARE_NAME+"-Data")) / "Databases"
 		elif pIsAbs(databaseDir):
 			self.databaseDir = DirectoryPath(databaseDir, purpose="r")
 		else:
-			self.databaseDir = self.workDir > databaseDir
+			self.databaseDir = self.workDir / databaseDir
 		LOGGER.debug(f"Set databaseDir to:\n{self.databaseDir}")
 
 	def setTmpDir(self, tmpDir : str=None):
@@ -135,31 +135,31 @@ class DirectoryLibrary(PathLibrary):
 		removes child paths once they are trash collected the same way as for absolute paths."""
 		if tmpDir is None:
 			if self.settings.get("saveTemp") == True:
-				self.tmpDir = (self.commonGroups.locals > SOFTWARE_NAME) > f"tmp-[{SOFTWARE_NAME}]"
+				self.tmpDir = (self.commonGroups.locals / SOFTWARE_NAME) / f"tmp-[{SOFTWARE_NAME}]"
 			else:
 				self.tmpDir = createTemp(prefix=f"tmp-[{SOFTWARE_NAME}]")
 		else:
 			tmpDir = DirectoryPath(tmpDir, purpose="w")
 			if pIsAbs(tmpDir):
 				if self.settings.get("saveTemp") == True:
-					self.tmpDir = (tmpDir > SOFTWARE_NAME) > f"tmp-[{SOFTWARE_NAME}]"
+					self.tmpDir = (tmpDir / SOFTWARE_NAME) / f"tmp-[{SOFTWARE_NAME}]"
 				else:
 					self.tmpDir = createTemp(dir=tmpDir, prefix=f"tmp-[{SOFTWARE_NAME}]")
 			else:
 				if self.settings.get("saveTemp") == True:
-					self.tmpDir = ((self.commonGroups.locals > tmpDir) > SOFTWARE_NAME) > f"tmp-[{SOFTWARE_NAME}]"
+					self.tmpDir = ((self.commonGroups.locals / tmpDir) / SOFTWARE_NAME) / f"tmp-[{SOFTWARE_NAME}]"
 				else:
-					self.tmpDir = createTemp(dir=self.commonGroups.locals > tmpDir, prefix=f"tmp-[{SOFTWARE_NAME}]")
+					self.tmpDir = createTemp(dir=self.commonGroups.locals / tmpDir, prefix=f"tmp-[{SOFTWARE_NAME}]")
 		self.tmpDir.defaultPurpose = "rw"
 		LOGGER.debug(f"Set tmpDir to:\n{self.tmpDir}")
 	
 	def setOutDir(self, outDir : str=None):
 		if outDir is None:
-			self.outDir = self.commonGroups.locals > SOFTWARE_NAME+"-Results"
+			self.outDir = self.commonGroups.locals / SOFTWARE_NAME+"-Results"
 		elif pIsAbs(outDir):
 			self.outDir = Path(outDir, purpose="w")
 		else:
-			self.outDir = (self.commonGroups.locals > outDir)
+			self.outDir = (self.commonGroups.locals / outDir)
 		self.outDir.defaultPurpose = "rwx"
 		LOGGER.debug(f"Set outDir to:\n{self.outDir}")
 		
@@ -216,7 +216,7 @@ class DirectoryLibrary(PathLibrary):
 			if self.refDir.find(filename) is None or force:
 				jobID = DQ.download(genbank_id, refseq_id, assembly_name, dst=self.refDir.writable, filename=filename, force=force, stdout=out)
 				assert jobID != -1
-				jobs[jobID] = (genome, self.refDir.writable > filename)
+				jobs[jobID] = (genome, self.refDir.writable / filename)
 			else:
 				LOGGER.debug(f"self.references[{genome!r}] = {self.refDir.find(filename)=}")
 				print(f"{pName(filename):<20} -- Exists!", flush=True, file=out)
@@ -262,7 +262,7 @@ class DirectoryLibrary(PathLibrary):
 			if pExists(refPath):
 				if (filename := self.refDir.find(pName(refPath) + ".vcf")) is None or force:
 					accession = open(refPath, "r").readline()[1:].split()[0]
-					filename = f"{self.refDir.writable > pName(refPath)}.vcf.tmp"
+					filename = f"{self.refDir.writable / pName(refPath)}.vcf.tmp"
 
 					with openVCF(filename, "w", referenceFile=refPath) as vcfFile:
 						for snpID, pos, ref, alt in SNPEntries:
@@ -294,8 +294,8 @@ if __name__ == "__main__":
 	dg1 = p1 | p2
 	print("p1 | p2 = ", dg1)
 
-	p3 = p2 > "Documents"
-	print("p2 > \"Documents\" = ", p3)
+	p3 = p2 / "Documents"
+	print("p2 / \"Documents\" = ", p3)
 
 	p4 = p1 + "-Data"
 	print("p1 + \"-Data\" = ", p4)
@@ -305,5 +305,5 @@ if __name__ == "__main__":
 
 	print("dg1 | dg2 = ", dg1 | dg2)
 
-	ex1 = p2 > "myReads.fq"+".log"
+	ex1 = p2 / "myReads.fq"+".log"
 	print(ex1)

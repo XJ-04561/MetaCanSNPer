@@ -175,9 +175,9 @@ class DumpCommands(Commands):
 			self.command = self._list[0]
 			LOGGER.debug(f"{self.command=}")
 			if len(self.command) > 1 and self.command[1].isalnum():
-				logFile = logDir.writable > f"{self.command[0]}_{self.command[1]}_{SOFTWARE_NAME}.log"
+				logFile = logDir.writable / f"{self.command[0]}_{self.command[1]}_{SOFTWARE_NAME}.log"
 			else:
-				logFile = logDir.writable > f"{self.command[0]}_{SOFTWARE_NAME}.log"
+				logFile = logDir.writable / f"{self.command[0]}_{SOFTWARE_NAME}.log"
 			
 			try:
 				self.logFile = open(logFile, "wb")
@@ -368,7 +368,7 @@ class ParallelCommands(Commands):
 					else:
 						_list[name].append(c)
 			
-			self._list = {name:self.nextType(command, category, hooks, logDir=logDir > illegalPattern.sub("-", str(name))) for name, command in _list.items()}
+			self._list = {name:self.nextType(command, category, hooks, logDir=logDir / illegalPattern.sub("-", str(name))) for name, command in _list.items()}
 		except Exception as e:
 			e.add_note(f"{type(self).__name__} failed to initialize.")
 			LOGGER.exception(e)

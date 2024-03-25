@@ -175,7 +175,7 @@ class DownloadQueue(WorkerQueue):
 
 	def download(self, genbank_id : str, refseq_id : str, assembly_name : str, dst : DirectoryPath, filename : str=None, source : str="genbank", force=False, stdout=sys.stdout):
 		"""Returns ID of job. Returns -1 if the file to be downloaded already exists and force==False."""
-		filename = dst > (filename or f"{assembly_name}.fna")
+		filename = dst / (filename or f"{assembly_name}.fna")
 		if pExists(filename) and not force:
 			LOGGER.debug(f"File: {filename!r} already exists, not queueing for download.")
 			return -1

@@ -1,6 +1,7 @@
 
 from functools import cached_property
 import sqlite3
+from typing import Generator, Callable, Iterable
 
 from MetaCanSNPer.Globals import *
 from MetaCanSNPer.modules.LogKeeper import createLogger
@@ -86,9 +87,9 @@ class DatabaseReader:
 	def nodes(self) -> dict[str,list[tuple[str,int,str,str]]]:
 		return dict(self._connection.execute(f"SELECT {NODE_COLUMN_ID}, {NODE_COLUMN_NAME} FROM {TABLE_NAME_NODES}"))
 	
-	def node(self, nodeID : int) -> str:
+	def SNPsByName(self, nodeID : int) -> Generator[tuple[str,tuple[int,str,str]], None, None]:
 		for (nodeSNPName, ) in self._connection.execute(f"SELECT {NODE_COLUMN_NAME} FROM {TABLE_NAME_NODES} WHERE {NODE_COLUMN_ID} = ?", [nodeID]):
-			return nodeSNPName
+			yield (nodeSNPName, self.SNPsByID[nodeSNPName])
 
 	@cached_property
 	def tree(self) -> Branch:
