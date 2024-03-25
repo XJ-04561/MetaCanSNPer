@@ -204,15 +204,14 @@ class IndexingWrapper(ProcessWrapper):
 		self.solutions : ErrorFixes.SolutionContainer = ErrorFixes.get(self.softwareName)(self)
 
 		self.formatDict = {
-			"tmpDir" : self.Lib.tmpDir,
-			"refDir" : self.Lib.refDir,
+			"tmpDir" : self.Lib.tmpDir.writable,
 			"query" : self.Lib.query,
 			"queryName" : self.queryName,
 			"options" : " ".join(self.flags),
 			"outFormat" : self.outFormat
 		}
 	
-	def updateOutput(self, eventInfo, outputs: dict[int, str]):
+	def updateOutput(self, eventInfo, outputs: dict[str, str]):
 		
 		try:
 			genome = eventInfo["threadN"]
@@ -237,11 +236,11 @@ class IndexingWrapper(ProcessWrapper):
 					self.hooks.trigger(f"{self.category}Finished", {"threadN" : genome})
 				else:
 					if self.settings.get("saveTemp") is True:
-						genome, outFile = outputs[genome]
+						outFile = outputs[genome]
 						for dPath in self.Lib.tmpDir / f".{self.softwareName}" / illegalPattern.sub("-", genome):
 							if pExists(dPath):
 								try:
-									shutil.rmtree(dPath)
+									shutil.rmtree(dPath, ignore_errors=True)
 								except:
 									pass
 					self.hooks.trigger(f"{self.category}Progress", {"threadN" : genome, "progress" : None})

@@ -67,7 +67,7 @@ class DatabaseReader:
 	def commit(self):
 		self._connection.commit()
 
-	def genomeID(self, genome) -> int:
+	def genomeID(self, genome : str) -> int:
 		if (out := self._connection.execute(f"SELECT {REFERENCE_COLUMN_GENOME_ID} FROM {TABLE_NAME_REFERENCES} WHERE {REFERENCE_COLUMN_GENOME} = ?", [genome]).fetchone()) is not None:
 			return out[0]
 		else:
