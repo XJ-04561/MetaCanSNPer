@@ -172,13 +172,11 @@ class ProcessWrapper:
 		if self.command is None:
 			for name in sorted(self.history.keys()):
 				e = self.history[name][-1] if self.history[name] != [] else ""
-				key = self.database.references[name][1]
-				msg.append(f"{self.Lib.queryName:<30}|{key:<28} = {e:^8}")
+				msg.append(f"{self.Lib.queryName:<30}|{name:<28} = {e:^8}")
 		else:
 			for name in sorted(self.command.returncodes.keys()):
 				e = self.command.returncodes.get(name, "")
-				key = self.database.references[name][1]
-				msg.append(f"{self.Lib.queryName:<30}|{key:<28} = {e:^8}")
+				msg.append(f"{self.Lib.queryName:<30}|{name:<28} = {e:^8}")
 		
 		out("\n".join(msg))
 
