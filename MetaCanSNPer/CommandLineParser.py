@@ -162,7 +162,7 @@ def main():
 		PseudoPathy.Globals.PROGRAM_DIRECTORY = args.installDir
 
 	flags = dict(args._get_kwargs())
-	genomes = list(map(lambda tupe: tupe[1], mObj.database.references))
+	
 	try:
 		mObj = MetaCanSNPer(settings=flags, settingsFile=args.settingsFile)
 		
@@ -176,6 +176,8 @@ def main():
 		mObj.setReferenceFiles()
 		
 		if flags["sessionName"] is not None: mObj.setSessionName(flags["sessionName"])
+
+		genomes = list(map(lambda tupe: tupe[1], mObj.database.references))
 		
 		if flags.get("mapper") is not None:
 			TU = TerminalUpdater("Creating Maps", "Mappers", mObj.hooks, genomes)
