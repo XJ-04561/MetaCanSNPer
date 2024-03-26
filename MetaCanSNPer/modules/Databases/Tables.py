@@ -47,34 +47,23 @@ class Table:
 
 			if self._mode == "a":
 				self._conn.execute(f"INSERT INTO {self._tableName} SELECT * FROM {self._tableName}2;")
-# nodeID, snpID, genomeID, position, ancestral, derived, snpReference, date, genome, starin, genbankID, refseqID, assembly, chromosome
-class TableQuery:
-
-	_conn : sqlite3.Connection
-	_tableName : str
-	_mode : str
-	_columns : list[str]
-
-	def __init__(self, conn, tableName, mode, columns):
-		self._conn = conn
-		self._tableName = tableName
-		self._mode = mode
-		self._columns = columns
 
 	@overload
 	def get(self, *columnsToGet : ColumnFlag, nodeID : int=None, snpID : str=None, genomeID : int=None, position : int=None, ancestral : Literal["A","T","C","G"]=None, derived : Literal["A","T","C","G"]=None, snpReference : str=None, date : str=None, genome : str=None, strain : str=None, genbankID : str=None, refseqID : str=None, assembly : str=None, chromosome : str=None):
 		pass
 	
-	@typechecked
 	@final
-	def get(self, *select : ColumnFlag, orderBy : ColumnFlag|tuple[ColumnFlag,str|bool]|list[tuple[ColumnFlag,str|bool]]=[], **where : Any):
+	def get(self, *select : ColumnFlag, orderBy : ColumnFlag|tuple[ColumnFlag,Literal["DESC","ASC"]]|list[tuple[ColumnFlag,Literal["DESC","ASC"]]]=[], **where : Any):
 		
 		T4 = [TABLE_NAME_NODES, TABLE_NAME_REFERENCES, TABLE_NAME_SNP_ANNOTATION, TABLE_NAME_TREE]
 		T4.remove(self._tableName)
 		
 		if all(col in Columns.LOOKUP[self._tableName] for col in select):
 			# All values needed are in this table.
-			selection = ", ".join([Columns.LOOKUP[self._tableName][col] for col in select])
+			if Columns.ALL in select:
+				selection = "*"
+			else:
+				selection = ", ".join([Columns.LOOKUP[self._tableName][col] for col in select])
 			
 			source = self._tableName
 
@@ -82,20 +71,13 @@ class TableQuery:
 			
 			conditions = " AND ".join([f"{Columns.LOOKUP[self._tableName][col]} = ?" for col in vars])
 
-			order = []
+			
 			if type(orderBy) is ColumnFlag:
 				orderBy = [(orderBy, False)]
 			elif type(orderBy) is tuple:
 				orderBy = [orderBy]
 				
-			for tupe in orderBy:
-				if type(tupe) is ColumnFlag:
-					var, direction = Columns.LOOKUP[self._tableName][tupe], "DESC"
-				elif type(tupe) is tuple:
-					var, direction = Columns.LOOKUP[self._tableName][tupe[0]], ["DESC", "ASC"][tupe[1]] if type(tupe[1]) is bool else tupe[1]
-				else:
-					raise ValueError(f"Incorrect types for 'order by' in list. Element in question: {tupe}")
-				order.append(f"{var} {direction}")
+			order = [f"{Columns.LOOKUP[self._tableName][col]} {direction}" for col, direction in orderBy]
 			
 			keyColumn = f" ORDER BY {', '.join(order)}" if order != [] else ""
 
@@ -105,39 +87,77 @@ class TableQuery:
 			# Selection requires joining with other table.
 			thisTable = Columns.LOOKUP[self._tableName]
 			relations = Columns.RELATIONSHIPS[self._tableName]
-			
-			selection = ", ".join([f"{'.'.join(relations[col])}" for col in select])
-			
-			source = self._tableName
+
+			if Columns.ALL in select:
+				selection = "*"
+				tables = []
+				for table, col in map(lambda col : thisTable.get(col) or relations.get(col), select):
+					if table is None: continue
+					if table not in tables:
+						tables.append(table)
+			else:
+				selection = []
+				tables = []
+				for table, col in map(lambda col : thisTable.get(col) or relations.get(col), select):
+					selection.append(f"{table}.{Columns.LOOKUP[table][col]}")
+					if table not in tables:
+						tables.append(table)
+				selection = ", ".join(selection)
+
+			source = ", ".join(tables)
 
 			vars = list(where.keys())
 			
-			conditions = " AND ".join([f"{Columns.LOOKUP[self._tableName][col]} = ?" for col in vars])
+			conditions = []
+			params = []
+			for col in vars:
+				if col in thisTable:
+					conditions.append(f"{self._tableName}.{Columns.LOOKUP[self._tableName][col]} = ?")
+					params.append(where[col])
+				else:
+					otherTable, commonCol = relations[col]
+					conditions.append(f"{self._tableName}.{Columns.LOOKUP[self._tableName][commonCol]} = {otherTable}.{Columns.LOOKUP[otherTable][commonCol]}")
+					conditions.append(f"{otherTable}.{Columns.LOOKUP[otherTable][col]} = ?")
+					params.append(where[col])
+			conditions = " AND ".join(conditions)
 
-			order = []
+			
 			if type(orderBy) is ColumnFlag:
-				orderBy = [(orderBy, False)]
+				orderBy = [(orderBy, "DESC")]
 			elif type(orderBy) is tuple:
 				orderBy = [orderBy]
-				
-			for tupe in orderBy:
-				if type(tupe) is ColumnFlag:
-					var, direction = Columns.LOOKUP[self._tableName][tupe], "DESC"
-				elif type(tupe) is tuple:
-					var, direction = Columns.LOOKUP[self._tableName][tupe[0]], ["DESC", "ASC"][tupe[1]] if type(tupe[1]) is bool else tupe[1]
+			order = []	
+			for col, direction in orderBy:
+				if col in thisTable:
+					order.append(f"{Columns.LOOKUP[self._tableName][col]} {direction}")
 				else:
-					raise ValueError(f"Incorrect types for 'order by' in list. Element in question: {tupe}")
-				order.append(f"{var} {direction}")
+					order.append(f"{Columns.LOOKUP[relations[col][0]][col]} {direction}")
 			
 			keyColumn = f" ORDER BY {', '.join(order)}" if order != [] else ""
 
 			params = [where[col] for col in vars]
 		else:
 			raise NotImplementedError(f"Can't find values={[Columns.NAMES[col] for col in select]} associated with column values=({[key+'='+str(val) for key, val in where]}) in table={self._tableName}")
-			
-
+		
 		self._conn.execute(f"SELECT {selection} FROM {source} WHERE {conditions} ORDER BY {keyColumn};", params)
 
+	@overload
+	def first(self, *columnsToGet : ColumnFlag, nodeID : int=None, snpID : str=None, genomeID : int=None, position : int=None, ancestral : Literal["A","T","C","G"]=None, derived : Literal["A","T","C","G"]=None, snpReference : str=None, date : str=None, genome : str=None, strain : str=None, genbankID : str=None, refseqID : str=None, assembly : str=None, chromosome : str=None):
+		pass
+	
+	@final
+	def first(self, *select : ColumnFlag, orderBy : ColumnFlag|tuple[ColumnFlag,Literal["DESC","ASC"]]|list[tuple[ColumnFlag,Literal["DESC","ASC"]]]=[], **where : Any):
+		for row in self.get(*select, orderBy=orderBy, **where):
+			return row
+	
+	@overload
+	def all(self, *columnsToGet : ColumnFlag, nodeID : int=None, snpID : str=None, genomeID : int=None, position : int=None, ancestral : Literal["A","T","C","G"]=None, derived : Literal["A","T","C","G"]=None, snpReference : str=None, date : str=None, genome : str=None, strain : str=None, genbankID : str=None, refseqID : str=None, assembly : str=None, chromosome : str=None):
+		pass
+	
+	@final
+	def all(self, *select : ColumnFlag, orderBy : ColumnFlag|tuple[ColumnFlag,Literal["DESC","ASC"]]|list[tuple[ColumnFlag,Literal["DESC","ASC"]]]=[], **where : Any):
+		for row in self.get(*select, orderBy=orderBy, **where):
+			yield row
 
 class SNPTable(Table):
 
