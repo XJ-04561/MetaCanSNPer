@@ -11,7 +11,6 @@ LOGGER = createLogger(__name__)
 
 class Branch:
 
-
 	_connection : sqlite3.Connection
 	nodeID : int
 	parameters = [
@@ -25,8 +24,9 @@ class Branch:
 		self.nodeID = nodeID
 	
 	@property
-	def children(self) -> list[Self]:
-		return [Branch(self._connection, childID) for (childID,) in self._connection.execute(f"SELECT {TREE_COLUMN_CHILD} FROM {TABLE_NAME_TREE} WHERE {TREE_COLUMN_PARENT} = ?", [self.nodeID]).fetchall()]
+	def children(self) -> Generator[Self,None,None]:
+		for (childID,) in self._connection.execute(f"SELECT {TREE_COLUMN_CHILD} FROM {TABLE_NAME_TREE} WHERE {TREE_COLUMN_PARENT} = ?", [self.nodeID]):
+			yield Branch(self._connection, childID)
 
 # class Table:
 # 	_connection : sqlite3.Connection
@@ -68,33 +68,33 @@ class DatabaseReader:
 		self._connection.commit()
 
 	def genomeID(self, genome : str) -> int:
-		if (out := self._connection.execute(f"SELECT {REFERENCE_COLUMN_GENOME_ID} FROM {TABLE_NAME_REFERENCES} WHERE {REFERENCE_COLUMN_GENOME} = ?", [genome]).fetchone()) is not None:
-			LOGGER.debug(f"genomeID({genome!r}) -> {out!r}")
-			return out[0]
-		else:
-			raise ValueError(f"No genome id found for {genome=}")
+		for (genomeID,) in self._connection.execute(f"SELECT {REFERENCE_COLUMN_GENOME_ID} FROM {TABLE_NAME_REFERENCES} WHERE {REFERENCE_COLUMN_GENOME} = ?", [genome]):
+			return genomeID
+		raise ValueError(f"No genome id found for {genome=}")
 
-	@cached_property
-	def references(self) -> list[tuple[int,str,str,str,str]]:
+	@property
+	def references(self) -> Generator[tuple[int,str,str,str,str],None,None]:
 		''''''
-		return self._connection.execute( f"SELECT {REFERENCE_COLUMN_GENOME_ID}, {REFERENCE_COLUMN_GENOME}, {REFERENCE_COLUMN_GENBANK}, {REFERENCE_COLUMN_REFSEQ}, {REFERENCE_COLUMN_ASSEMBLY} FROM {TABLE_NAME_REFERENCES} ORDER BY {REFERENCE_COLUMN_GENOME_ID} ASC").fetchall()
+		for genomeID, genome, genbankID, refseqID, assemblyName in self._connection.execute( f"SELECT {REFERENCE_COLUMN_GENOME_ID}, {REFERENCE_COLUMN_GENOME}, {REFERENCE_COLUMN_GENBANK}, {REFERENCE_COLUMN_REFSEQ}, {REFERENCE_COLUMN_ASSEMBLY} FROM {TABLE_NAME_REFERENCES} ORDER BY {REFERENCE_COLUMN_GENOME_ID} ASC"):
+			yield genomeID, genome, genbankID, refseqID, assemblyName
 
-	def _getSNPsByGenomeId(self, genomeID : int) -> sqlite3.Cursor:
-		return self._connection.execute(f"SELECT {SNP_COLUMN_SNP_ID}, {SNP_COLUMN_POSITION}, {SNP_COLUMN_ANCESTRAL}, {SNP_COLUMN_DERIVED} FROM {TABLE_NAME_SNP_ANNOTATION} WHERE {SNP_COLUMN_GENOME_ID} = ? ORDER BY {SNP_COLUMN_POSITION} ASC", [genomeID])
+	def _getSNPsByGenomeId(self, genomeID : int) -> Generator[tuple[str,int,str,str],None,None]:
+		for snpID, pos, anc, der in self._connection.execute(f"SELECT {SNP_COLUMN_SNP_ID}, {SNP_COLUMN_POSITION}, {SNP_COLUMN_ANCESTRAL}, {SNP_COLUMN_DERIVED} FROM {TABLE_NAME_SNP_ANNOTATION} WHERE {SNP_COLUMN_GENOME_ID} = ? ORDER BY {SNP_COLUMN_POSITION} ASC", [genomeID]):
+			yield snpID, pos, anc, der
 	
 	@property
-	def SNPs(self) -> sqlite3.Cursor:
-		return self._connection.execute(f"SELECT {SNP_COLUMN_SNP_ID}, {SNP_COLUMN_POSITION}, {SNP_COLUMN_ANCESTRAL}, {SNP_COLUMN_DERIVED} FROM {TABLE_NAME_SNP_ANNOTATION} ORDER BY {SNP_COLUMN_POSITION} ASC")
+	def SNPs(self) -> Generator[tuple[str,int,str,str],None,None]:
+		for snpID, pos, anc, der in self._connection.execute(f"SELECT {SNP_COLUMN_SNP_ID}, {SNP_COLUMN_POSITION}, {SNP_COLUMN_ANCESTRAL}, {SNP_COLUMN_DERIVED} FROM {TABLE_NAME_SNP_ANNOTATION} ORDER BY {SNP_COLUMN_POSITION} ASC"):
+			yield snpID, pos, anc, der
 
 	@property
-	def SNPsByGenome(self) -> dict[str,list[tuple[str,int,str,str]]]:
+	def SNPsByGenome(self) -> dict[str,Generator[tuple[str,int,str,str],None,None]]:
 		out = {}
 		for genome_id, genome, _, _, _ in self.references:
-			LOGGER.debug(f"{self.filename!r}: {genome_id=}, {genome=}")
 			out[genome] = self._getSNPsByGenomeId(genome_id)
 		return out
 
-	def SNPByPos(self, pos : int, genome : str=None) -> list[tuple[str]]|tuple[str]:
+	def SNPByPos(self, pos : int, genome : str=None) -> list[tuple[str]]|str:
 		if genome is None:
 			return self._connection.execute(f"SELECT {SNP_COLUMN_SNP_ID} FROM {TABLE_NAME_SNP_ANNOTATION} WHERE {SNP_COLUMN_POSITION} = ?", [pos]).fetchall()
 		else:
@@ -106,10 +106,12 @@ class DatabaseReader:
 	@cached_property
 	def SNPsByID(self) -> dict[str,Iterable[tuple[str,int,str,str]]]:
 		'''{SNP_ID : [(POSITION, ANCESTRAL, DERIVED), ...]}'''
-		return {snpID:self._connection.execute(f"SELECT {SNP_COLUMN_POSITION}, {SNP_COLUMN_ANCESTRAL}, {SNP_COLUMN_DERIVED} FROM {TABLE_NAME_SNP_ANNOTATION} WHERE {SNP_COLUMN_SNP_ID} = ?", [snpID]).fetchone() for snpID in self._connection.execute(f"SELECT {SNP_COLUMN_SNP_ID} FROM {TABLE_NAME_SNP_ANNOTATION}")}
+		return {snpID:self._connection.execute(f"SELECT {SNP_COLUMN_POSITION}, {SNP_COLUMN_ANCESTRAL}, {SNP_COLUMN_DERIVED} FROM {TABLE_NAME_SNP_ANNOTATION} WHERE {SNP_COLUMN_SNP_ID} = ?", [snpID]).fetchone() for (snpID,) in self._connection.execute(f"SELECT {SNP_COLUMN_SNP_ID} FROM {TABLE_NAME_SNP_ANNOTATION}")}
 	
 	def nodeName(self, nodeID : int) -> dict[str,list[tuple[str,int,str,str]]]:
-		return self._connection.execute(f"SELECT {NODE_COLUMN_NAME} FROM {TABLE_NAME_NODES} WHERE {NODE_COLUMN_ID} = ?", [nodeID])
+		for (nodeName,) in self._connection.execute(f"SELECT {NODE_COLUMN_NAME} FROM {TABLE_NAME_NODES} WHERE {NODE_COLUMN_ID} = ?", [nodeID]):
+			return nodeName
+		raise ValueError(f"No node found for {nodeID=}")
 	
 	def SNPsByNode(self, nodeID : int) -> Generator[tuple[str,tuple[int,str,str]], None, None]:
 		for (nodeSNPName, ) in self._connection.execute(f"SELECT {NODE_COLUMN_NAME} FROM {TABLE_NAME_NODES} WHERE {NODE_COLUMN_ID} = ?", [nodeID]):

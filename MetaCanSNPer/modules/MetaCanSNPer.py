@@ -206,7 +206,7 @@ class MetaCanSNPer:
 			LOGGER.error("References not set.")
 			raise FileNotFoundError("References not set. Can be set with MetaCanSNPer.setReferences")
 		
-		LOGGER.info("Loaded a total of {n} References.".format(n=len(self.database.references)))
+		LOGGER.info(f"Loaded a total of {len(self.database.references)} References.")
 		
 		self.runSoftware(MapperType, outputDict=self.Lib.maps, flags=flags)
 
@@ -221,7 +221,7 @@ class MetaCanSNPer:
 			LOGGER.error("References not set.")
 			raise FileNotFoundError("References not set. Can be set with MetaCanSNPer.setReferences")
 		
-		LOGGER.info("Loaded a total of {n} References.".format(n=len(self.database.references)))
+		LOGGER.info(f"Loaded a total of {len(self.database.references)} References.")
 		
 		self.runSoftware(AlignerType, outputDict=self.Lib.alignments, flags=flags)
 
@@ -236,8 +236,6 @@ class MetaCanSNPer:
 			LOGGER.error("References not set.")
 			raise FileNotFoundError("References not set. Can be set with MetaCanSNPer.setReferences")
 		
-		LOGGER.info("Loading References from database.")
-		self.database.references
 		LOGGER.info("Loading SNPs from database.")
 		self.Lib.setTargetSNPs(self.database.SNPsByGenome)
 		LOGGER.info("Loaded a total of {n} SNPs.".format(n=sum(sum(1 for _ in SNPs) for SNPs in self.database.SNPsByGenome.values())))
@@ -247,9 +245,7 @@ class MetaCanSNPer:
 		LOGGER.info(f"Result of SNPCalling in: {self.Lib.resultSNPs}")
 
 		for genome, filePath in self.Lib.resultSNPs:
-			LOGGER.debug(f"for {genome=}, {filePath=} in self.Lib.resultSNPs:")
 			for pos, (ref, *r) in getSNPdata(filePath):
-				LOGGER.debug(f"for {pos=}, ({ref=}, {r=}) in getSNPdata({filePath=}):")
 				self.SNPresults[self.database.SNPByPos(pos, genome=genome)] = (ref, *r)
 	
 	def traverseTree(self):
@@ -289,8 +285,9 @@ class MetaCanSNPer:
 		with open((dst or self.Lib.resultDir.writable) / self.Lib.queryName+"_final.tsv", "w") as finalFile:
 			(finalNodeID, score), scores = self.traverseTree()
 			
-			finalFile.write(f"{self.database.nodeName(finalNodeID):<20}{score}\n\n")
+			finalFile.write(f"{self.database.nodeName(finalNodeID):<20}{score}\n")
 			if self.settings.get("debug"):
+				finalFile.write("\n")
 				for nodeID in scores:
 					finalFile.write(f"{self.database.nodeName(nodeID):<20}{scores[nodeID]}\n")
 
@@ -336,9 +333,9 @@ class MetaCanSNPer:
 				else:
 					noCoverage.write(entry)
 		called.close()
-		notCalled.close()
+		noCoverage.close()
 		try:
-			noCoverage.close()
+			notCalled.close()
 			unique.close()
 		except:
 			pass
