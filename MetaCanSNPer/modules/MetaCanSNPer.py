@@ -247,7 +247,9 @@ class MetaCanSNPer:
 		LOGGER.info(f"Result of SNPCalling in: {self.Lib.resultSNPs}")
 
 		for genome, filePath in self.Lib.resultSNPs:
-			for pos, (ref, *r) in getSNPdata(filePath).items():
+			LOGGER.debug(f"for {genome=}, {filePath=} in self.Lib.resultSNPs:")
+			for pos, (ref, *r) in getSNPdata(filePath):
+				LOGGER.debug(f"for {pos=}, ({ref=}, {r=}) in getSNPdata({filePath=}):")
 				self.SNPresults[self.database.SNPByPos(pos, genome=genome)] = (ref, *r)
 	
 	def traverseTree(self):
