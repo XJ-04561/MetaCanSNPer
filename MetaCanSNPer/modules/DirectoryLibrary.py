@@ -208,13 +208,13 @@ class DirectoryLibrary(PathLibrary):
 	
 	def setReferences(self, references : Iterable[tuple[int,str,str,str,str]], force : bool=False, silent : bool=False):
 		self.references = MinimalPathLibrary()
-		LOGGER.info(f"Downloading references:{[genome for _, genome, *_ in references]}")
 		DQ = DownloadQueue()
 		jobs = {}
 		out = open(os.devnull, "w") if silent else sys.stdout
 		for genomeID, genome, genbank_id, refseq_id, assembly_name in references:
 			filename = f"{assembly_name}.fna"
 			if self.refDir.find(filename) is None or force:
+				LOGGER.info(f"Queueing download for {genome=} as {filename=}")
 				jobID = DQ.download(genbank_id, refseq_id, assembly_name, dst=self.refDir.writable, filename=filename, force=force, stdout=out)
 				assert jobID != -1
 				jobs[jobID] = (genome, self.refDir.writable / filename)
@@ -234,7 +234,7 @@ class DirectoryLibrary(PathLibrary):
 					self.references[genome] = filename
 				else:
 					raise DownloadFailed(f"Could not download genome {genome!r} to path: {filename!r}")
-		LOGGER.info(f"Finished downloading {sum(1 for _ in references)} reference genomes!")
+		LOGGER.info(f"Finished downloading {len(jobs)} reference genomes!")
 
 	def setMaps(self, maps : dict[str,str]):
 		if type(maps) is MinimalPathLibrary:
