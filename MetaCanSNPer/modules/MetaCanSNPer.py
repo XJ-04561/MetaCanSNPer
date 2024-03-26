@@ -206,7 +206,7 @@ class MetaCanSNPer:
 			LOGGER.error("References not set.")
 			raise FileNotFoundError("References not set. Can be set with MetaCanSNPer.setReferences")
 		
-		LOGGER.info(f"Loaded a total of {len(self.database.references)} References.")
+		LOGGER.info(f"Loaded a total of {sum(1 for r in self.database.references)} References.")
 		
 		self.runSoftware(MapperType, outputDict=self.Lib.maps, flags=flags)
 
@@ -221,7 +221,7 @@ class MetaCanSNPer:
 			LOGGER.error("References not set.")
 			raise FileNotFoundError("References not set. Can be set with MetaCanSNPer.setReferences")
 		
-		LOGGER.info(f"Loaded a total of {len(self.database.references)} References.")
+		LOGGER.info(f"Loaded a total of {sum(1 for r in self.database.references)} References.")
 		
 		self.runSoftware(AlignerType, outputDict=self.Lib.alignments, flags=flags)
 
@@ -238,7 +238,7 @@ class MetaCanSNPer:
 		
 		LOGGER.info("Loading SNPs from database.")
 		self.Lib.setTargetSNPs(self.database.SNPsByGenome)
-		LOGGER.info("Loaded a total of {n} SNPs.".format(n=sum(sum(1 for _ in SNPs) for SNPs in self.database.SNPsByGenome.values())))
+		LOGGER.info(f"Loaded a total of {sum(1 for SNPs in self.database.SNPsByGenome.values() for _ in SNPs)} SNPs.")
 		
 		self.runSoftware(SNPCallerType, outputDict=self.Lib.resultSNPs, flags=flags)
 
