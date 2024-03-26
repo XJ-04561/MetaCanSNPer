@@ -1,13 +1,5 @@
 
-from functools import cached_property
-import sqlite3
-from typing import Generator, Callable, Iterable, Self
-
-from MetaCanSNPer.Globals import *
-from MetaCanSNPer.modules.LogKeeper import createLogger
-
-LOGGER = createLogger(__name__)
-
+from MetaCanSNPer.modules.Databases.Globals import *
 
 class Branch:
 
@@ -27,14 +19,7 @@ class Branch:
 	def children(self) -> Generator[Self,None,None]:
 		for (childID,) in self._connection.execute(f"SELECT {TREE_COLUMN_CHILD} FROM {TABLE_NAME_TREE} WHERE {TREE_COLUMN_PARENT} = ?", [self.nodeID]):
 			yield Branch(self._connection, childID)
-
-# class Table:
-# 	_connection : sqlite3.Connection
-# 	tableName : str
-
-# 	def __init__(self, conn : sqlite3.Connection, tableName : str):
-# 		self.conn = conn
-# 		self.tableName = tableName
+			
 
 class DatabaseReader:
 	_connection : sqlite3.Connection
@@ -128,8 +113,25 @@ class DatabaseReader:
 class DatabaseWriter(DatabaseReader):
 	_connection : sqlite3.Connection
 
-	def __init__(self, database : str):
+	def __init__(self, database : str, mode : str):
 		self._connection = sqlite3.connect(database)
+		"""CREATE TABLE {append}{TABLE_NAME_REFERENCES} (
+			{REFERENCE_COLUMN_GENOME_ID} INTEGER PRIMARY KEY,
+			{REFERENCE_COLUMN_GENOME} VARCHAR(6),
+			{REFERENCE_COLUMN_STRAIN} VARCHAR(200),
+			{REFERENCE_COLUMN_GENBANK} VARCHAR(20),
+			{REFERENCE_COLUMN_REFSEQ} VARCHAR(20),
+			{REFERENCE_COLUMN_ASSEMBLY} VARCHAR(200)
+		);"""
+		"""CREATE TABLE {append}{TABLE_NAME_NODES} (
+			{NODE_COLUMN_ID} INTEGER,
+			{NODE_COLUMN_NAME} VARCHAR(6) PRIMARY KEY
+		);"""
+		"""CREATE TABLE {append}{TABLE_NAME_TREE} (
+			{TREE_COLUMN_PARENT} INTEGER,
+			{TREE_COLUMN_CHILD} INTEGER,
+			{TREE_COLUMN_RANK} INTEGER
+		);"""
 
 	def addSNP(self, nodeID, position, ancestral, derived, reference, date, genomeID):
 		self._connection.execute("INSERT (?,?,?,?,?,?,?) INTO ?", [nodeID, position, ancestral, derived, reference, date, genomeID, TABLE_NAME_SNP_ANNOTATION])

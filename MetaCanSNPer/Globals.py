@@ -25,6 +25,8 @@ import PseudoPathy.Globals as PPGlobals
 import VariantCallFixer.Globals as VCFGlobals
 from PseudoPathy.Library import CommonGroups
 import random, logging, re, time
+from typeguard import typechecked
+from typing import Iterable, Callable, Any, Generator, Literal, AnyStr
 random.seed()
 from tempfile import NamedTemporaryFile
 
@@ -74,34 +76,6 @@ command call or the corresponding flag for Mapper or Aligner options.
 ## Database Globals
 
 SOURCES = ["https://github.com/FOI-Bioinformatics/CanSNPer2-data/raw/master/database/{databaseName}"]
-
-TABLE_NAME_SNP_ANNOTATION = "snp_annotation"
-TABLE_NAME_REFERENCES = "snp_references"
-TABLE_NAME_NODES = "nodes"
-TABLE_NAME_TREE = "tree"
-
-SNP_COLUMN_NODE_ID      = "node_id"
-SNP_COLUMN_SNP_ID       = "snp_id"
-SNP_COLUMN_POSITION     = "position"
-SNP_COLUMN_ANCESTRAL    = "ancestral_base"
-SNP_COLUMN_DERIVED      = "derived_base"
-SNP_COLUMN_REFERENCE    = "reference"
-SNP_COLUMN_DATE         = "date"
-SNP_COLUMN_GENOME_ID    = "genome_i"
-
-REFERENCE_COLUMN_GENOME_ID    = "id"
-REFERENCE_COLUMN_GENOME       = "genome"
-REFERENCE_COLUMN_STRAIN       = "strain"
-REFERENCE_COLUMN_GENBANK      = "genbank_id"
-REFERENCE_COLUMN_REFSEQ       = "refseq_id"
-REFERENCE_COLUMN_ASSEMBLY     = "assembly_name"
-
-NODE_COLUMN_ID                  = "id"
-NODE_COLUMN_NAME                = "name"
-
-TREE_COLUMN_PARENT              = "parent"
-TREE_COLUMN_CHILD               = "child"
-TREE_COLUMN_RANK                = "rank_i"
 
 ## DownloadReferences Globals
 
