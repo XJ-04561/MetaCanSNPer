@@ -206,7 +206,7 @@ class DirectoryLibrary(PathLibrary):
 		self.queryName = fileNameAlign(*[pName(q) for q in self.query])
 		LOGGER.debug(f"Setting queryName to: {self.queryName!r}")
 	
-	def setReferences(self, references : Iterable[int,str,str,str,str], force : bool=False, silent : bool=False):
+	def setReferences(self, references : Iterable[tuple[int,str,str,str,str]], force : bool=False, silent : bool=False):
 		self.references = MinimalPathLibrary()
 		LOGGER.info(f"Downloading references:{[genome for _, genome, *_ in references]}")
 		DQ = DownloadQueue()

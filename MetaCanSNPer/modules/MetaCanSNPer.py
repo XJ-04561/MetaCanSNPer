@@ -151,7 +151,7 @@ class MetaCanSNPer:
 	'''MetaCanSNPer get functions'''
 
 	def getReferenceFiles(self) -> dict[str,Path]:
-		self.Lib.references
+		return self.Lib.references
 
 	def getReferences(self):
 		'''Fetch names of reference genomes in connected database. Download any reference genomes not present locally.'''
