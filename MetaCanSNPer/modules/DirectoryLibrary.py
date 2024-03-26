@@ -1,6 +1,7 @@
 
 
 import os, random, sys
+from typing import Iterable, Generator, Callable
 from PseudoPathy import MinimalPathLibrary, PathLibrary, PathGroup, Path, DirectoryPath, FilePath, PathList
 from PseudoPathy.Functions import createTemp
 import PseudoPathy.Globals
@@ -205,9 +206,9 @@ class DirectoryLibrary(PathLibrary):
 		self.queryName = fileNameAlign(*[pName(q) for q in self.query])
 		LOGGER.debug(f"Setting queryName to: {self.queryName!r}")
 	
-	def setReferences(self, references : list[str,str,str,str,str], force : bool=False, silent : bool=False):
+	def setReferences(self, references : Iterable[int,str,str,str,str], force : bool=False, silent : bool=False):
 		self.references = MinimalPathLibrary()
-		LOGGER.info(f"Downloading references:{references}")
+		LOGGER.info(f"Downloading references:{[genome for _, genome, *_ in references]}")
 		DQ = DownloadQueue()
 		jobs = {}
 		out = open(os.devnull, "w") if silent else sys.stdout
@@ -233,7 +234,7 @@ class DirectoryLibrary(PathLibrary):
 					self.references[genome] = filename
 				else:
 					raise DownloadFailed(f"Could not download genome {genome!r} to path: {filename!r}")
-		LOGGER.info(f"Finished downloading {len(references)} reference genomes!")
+		LOGGER.info(f"Finished downloading {sum(1 for _ in references)} reference genomes!")
 
 	def setMaps(self, maps : dict[str,str]):
 		if type(maps) is MinimalPathLibrary:
