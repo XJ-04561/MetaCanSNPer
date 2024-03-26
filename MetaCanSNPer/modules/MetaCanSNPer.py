@@ -210,6 +210,8 @@ class MetaCanSNPer:
 		
 		self.runSoftware(MapperType, outputDict=self.Lib.maps, flags=flags)
 
+		LOGGER.info(f"Result of Mapping in: {self.Lib.maps}")
+
 	def createAlignment(self, softwareName : str, flags : list=[]):
 		''''''
 		LOGGER.info(f"Creating alignment using:{softwareName}")
@@ -222,6 +224,8 @@ class MetaCanSNPer:
 		LOGGER.info("Loaded a total of {n} References.".format(n=len(self.database.references)))
 		
 		self.runSoftware(AlignerType, outputDict=self.Lib.alignments, flags=flags)
+
+		LOGGER.info(f"Result of Alignment in: {self.Lib.alignments}")
 
 	def callSNPs(self, softwareName : str, flags : list=[]):
 		''''''
@@ -239,6 +243,8 @@ class MetaCanSNPer:
 		LOGGER.info("Loaded a total of {n} SNPs.".format(n=sum(sum(1 for _ in SNPs) for SNPs in self.database.SNPsByGenome.values())))
 		
 		self.runSoftware(SNPCallerType, outputDict=self.Lib.resultSNPs, flags=flags)
+
+		LOGGER.info(f"Result of SNPCalling in: {self.Lib.resultSNPs}")
 
 		for genome, filePath in self.Lib.resultSNPs:
 			for pos, (ref, *r) in getSNPdata(filePath).items():
