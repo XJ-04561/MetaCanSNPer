@@ -1,6 +1,6 @@
 
 
-from functools import cached_property
+from functools import cached_property, cache
 import sqlite3
 from typing import Generator, Callable, Iterable, Self, overload, final, Literal, Any
 

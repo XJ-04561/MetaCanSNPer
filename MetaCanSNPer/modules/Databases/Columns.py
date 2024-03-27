@@ -26,7 +26,7 @@ genoType		= ColumnFlag(17)
 chromosome		= ColumnFlag(18)
 
 NAMES = [
-    "*",
+	ALL,
 	nodeID,
 	snpID,
 	genomeID,
@@ -47,69 +47,102 @@ NAMES = [
 	chromosome
 ]
 
-LOOKUP = {
+LOOKUP : dict[str,dict[ColumnFlag, str]] = {
     TABLE_NAME_NODES : {
-        nodeID		: (TABLE_NAME_NODES, NODE_COLUMN_ID),
-        genoType	: (TABLE_NAME_NODES, NODE_COLUMN_NAME)
+        ALL			: "*",
+        nodeID		: NODE_COLUMN_ID,
+        genoType	: NODE_COLUMN_NAME
 	},
     TABLE_NAME_REFERENCES : {
-        genomeID	: (TABLE_NAME_REFERENCES, REFERENCE_COLUMN_GENOME_ID),
-		genome		: (TABLE_NAME_REFERENCES, REFERENCE_COLUMN_GENOME),
-		strain		: (TABLE_NAME_REFERENCES, REFERENCE_COLUMN_STRAIN),
-		genbankID	: (TABLE_NAME_REFERENCES, REFERENCE_COLUMN_GENBANK),
-		refseqID	: (TABLE_NAME_REFERENCES, REFERENCE_COLUMN_REFSEQ),
-		assembly	: (TABLE_NAME_REFERENCES, REFERENCE_COLUMN_ASSEMBLY)
+        ALL			: "*",
+        genomeID	: REFERENCE_COLUMN_GENOME_ID,
+		genome		: REFERENCE_COLUMN_GENOME,
+		strain		: REFERENCE_COLUMN_STRAIN,
+		genbankID	: REFERENCE_COLUMN_GENBANK,
+		refseqID	: REFERENCE_COLUMN_REFSEQ,
+		assembly	: REFERENCE_COLUMN_ASSEMBLY
 	},
     TABLE_NAME_SNP_ANNOTATION : {
-        nodeID			: (TABLE_NAME_SNP_ANNOTATION, SNP_COLUMN_NODE_ID),
-		snpID			: (TABLE_NAME_SNP_ANNOTATION, SNP_COLUMN_SNP_ID),
-		position		: (TABLE_NAME_SNP_ANNOTATION, SNP_COLUMN_POSITION),
-		ancestral		: (TABLE_NAME_SNP_ANNOTATION, SNP_COLUMN_ANCESTRAL),
-		derived			: (TABLE_NAME_SNP_ANNOTATION, SNP_COLUMN_DERIVED),
-		snpReference	: (TABLE_NAME_SNP_ANNOTATION, SNP_COLUMN_REFERENCE),
-		date			: (TABLE_NAME_SNP_ANNOTATION, SNP_COLUMN_DATE),
-		genomeID		: (TABLE_NAME_SNP_ANNOTATION, SNP_COLUMN_GENOME_ID)
+        ALL				: "*",
+        nodeID			: SNP_COLUMN_NODE_ID,
+		snpID			: SNP_COLUMN_SNP_ID,
+		position		: SNP_COLUMN_POSITION,
+		ancestral		: SNP_COLUMN_ANCESTRAL,
+		derived			: SNP_COLUMN_DERIVED,
+		snpReference	: SNP_COLUMN_REFERENCE,
+		date			: SNP_COLUMN_DATE,
+		genomeID		: SNP_COLUMN_GENOME_ID
 	},
     TABLE_NAME_TREE : {
-        treeParent	: (TABLE_NAME_TREE, TREE_COLUMN_PARENT),
-		treeChild	: (TABLE_NAME_TREE, TREE_COLUMN_CHILD),
-		treeRank	: (TABLE_NAME_TREE, TREE_COLUMN_RANK)
+        ALL			: "*",
+        treeParent	: TREE_COLUMN_PARENT,
+		treeChild	: TREE_COLUMN_CHILD,
+		treeRank	: TREE_COLUMN_RANK
 	}
 }
 
-RELATIONSHIPS :dict[str,dict[ColumnFlag,str]]= {
+UNIQUES = set(LOOKUP[TABLE_NAME_NODES]).difference(LOOKUP[TABLE_NAME_REFERENCES], LOOKUP[TABLE_NAME_SNP_ANNOTATION], LOOKUP[TABLE_NAME_TREE])
+UNIQUELOOKUP = {
+    col : [table for table in LOOKUP if col in LOOKUP[table]][0] for col in UNIQUES
+}
+COMMONS = set(LOOKUP[TABLE_NAME_NODES]).intersection(LOOKUP[TABLE_NAME_REFERENCES], LOOKUP[TABLE_NAME_SNP_ANNOTATION], LOOKUP[TABLE_NAME_TREE])
+COMMONLOOKUP = {
+    col : {table for table in LOOKUP if col in LOOKUP[table]} for col in COMMONS
+}
+
+RELATIONS : dict[tuple[str,str],ColumnFlag] = {
+    (TABLE_NAME_NODES, TABLE_NAME_SNP_ANNOTATION) : nodeID,
+    (TABLE_NAME_SNP_ANNOTATION, TABLE_NAME_NODES) : nodeID,
+    
+	(TABLE_NAME_NODES, TABLE_NAME_TREE) : nodeID,
+    (TABLE_NAME_TREE, TABLE_NAME_NODES) : nodeID,
+    
+	(TABLE_NAME_REFERENCES, TABLE_NAME_SNP_ANNOTATION) : genomeID,
+    (TABLE_NAME_SNP_ANNOTATION, TABLE_NAME_REFERENCES) : genomeID,
+    
+	(TABLE_NAME_SNP_ANNOTATION, TABLE_NAME_REFERENCES) : genomeID,
+    (TABLE_NAME_REFERENCES, TABLE_NAME_SNP_ANNOTATION) : genomeID,
+    
+	(TABLE_NAME_SNP_ANNOTATION, TABLE_NAME_NODES) : nodeID,
+    (TABLE_NAME_NODES, TABLE_NAME_SNP_ANNOTATION) : nodeID,
+    
+	(TABLE_NAME_SNP_ANNOTATION, TABLE_NAME_TREE) : nodeID,
+    (TABLE_NAME_TREE, TABLE_NAME_SNP_ANNOTATION) : nodeID
+}
+
+RELATIONSHIPS : dict[str,dict[ColumnFlag, str]]= {
 	TABLE_NAME_NODES : {
-		snpID			: (TABLE_NAME_SNP_ANNOTATION, nodeID),
-		position		: (TABLE_NAME_SNP_ANNOTATION, nodeID),
-		ancestral		: (TABLE_NAME_SNP_ANNOTATION, nodeID),
-		derived			: (TABLE_NAME_SNP_ANNOTATION, nodeID),
-		snpReference	: (TABLE_NAME_SNP_ANNOTATION, nodeID),
-		date			: (TABLE_NAME_SNP_ANNOTATION, nodeID),
-		genomeID		: (TABLE_NAME_SNP_ANNOTATION, nodeID),
+		snpID			: TABLE_NAME_SNP_ANNOTATION,
+		position		: TABLE_NAME_SNP_ANNOTATION,
+		ancestral		: TABLE_NAME_SNP_ANNOTATION,
+		derived			: TABLE_NAME_SNP_ANNOTATION,
+		snpReference	: TABLE_NAME_SNP_ANNOTATION,
+		date			: TABLE_NAME_SNP_ANNOTATION,
+		genomeID		: TABLE_NAME_SNP_ANNOTATION,
         
-		treeParent	: (TABLE_NAME_TREE, nodeID),
-		treeChild	: (TABLE_NAME_TREE, nodeID),
-		treeRank	: (TABLE_NAME_TREE, nodeID)
+		treeParent	: TABLE_NAME_TREE,
+		treeChild	: TABLE_NAME_TREE,
+		treeRank	: TABLE_NAME_TREE
 	},
     TABLE_NAME_REFERENCES : {
-        nodeID			: (TABLE_NAME_SNP_ANNOTATION, genomeID),
-		snpID			: (TABLE_NAME_SNP_ANNOTATION, genomeID),
-		position		: (TABLE_NAME_SNP_ANNOTATION, genomeID),
-		ancestral		: (TABLE_NAME_SNP_ANNOTATION, genomeID),
-		derived			: (TABLE_NAME_SNP_ANNOTATION, genomeID),
-		snpReference	: (TABLE_NAME_SNP_ANNOTATION, genomeID),
-		date			: (TABLE_NAME_SNP_ANNOTATION, genomeID)
+        nodeID			: TABLE_NAME_SNP_ANNOTATION,
+		snpID			: TABLE_NAME_SNP_ANNOTATION,
+		position		: TABLE_NAME_SNP_ANNOTATION,
+		ancestral		: TABLE_NAME_SNP_ANNOTATION,
+		derived			: TABLE_NAME_SNP_ANNOTATION,
+		snpReference	: TABLE_NAME_SNP_ANNOTATION,
+		date			: TABLE_NAME_SNP_ANNOTATION
 	},
     TABLE_NAME_SNP_ANNOTATION : {
-        genome		: (TABLE_NAME_REFERENCES, genomeID),
-		strain		: (TABLE_NAME_REFERENCES, genomeID),
-		genbankID	: (TABLE_NAME_REFERENCES, genomeID),
-		refseqID	: (TABLE_NAME_REFERENCES, genomeID),
-		assembly	: (TABLE_NAME_REFERENCES, genomeID),
+        genome		: TABLE_NAME_REFERENCES,
+		strain		: TABLE_NAME_REFERENCES,
+		genbankID	: TABLE_NAME_REFERENCES,
+		refseqID	: TABLE_NAME_REFERENCES,
+		assembly	: TABLE_NAME_REFERENCES,
         
-		genoType	: (TABLE_NAME_NODES, nodeID),
+		genoType	: TABLE_NAME_NODES,
         
-		treeParent	: (TABLE_NAME_TREE, nodeID),
-		treeChild	: (TABLE_NAME_TREE, nodeID)
+		treeParent	: TABLE_NAME_TREE,
+		treeChild	: TABLE_NAME_TREE
 	}
 }
