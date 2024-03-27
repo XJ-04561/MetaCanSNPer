@@ -13,40 +13,32 @@ class Table:
 	_types : list[tuple[str]]
 	_appendRows : list[str]
 
-	def __init__(self, conn : sqlite3.Connection, mode : str):
+	def __init__(self, conn : sqlite3.Connection, mode : Literal["r","w","a"]):
 		self._conn = conn
-		if mode.lower() in ["r", "w", "a"]:
-			self._mode = mode.lower()
-		else:
-			ValueError(f"Table argument 'mode' must be either 'r', 'a', or 'w', not {mode!r}.")
+		self._mode = mode
+
+	def create(self) -> bool:
+		queryString = [f"{name} {' '.join(colType)}" for name, colType in zip(self._columns, self._types)]
+		queryString += self._appendRows
+
+		self._conn.execute(f"CREATE TABLE IF NOT EXISTS {self._tableName} (\n\t\t{',\n\t\t'.join(queryString)}\n);")
+	
+	def recreate(self) -> bool:
+		try:
+			self._conn.execute(f"ALTER TABLE {self._tableName} RENAME TO {self._tableName}2;")
+		except:
+			# Table doesn't exist
+			pass
+		
+		queryString = [f"{name} {' '.join(colType)}," for name, colType in zip(self._columns, self._types)]
+		queryString += self._appendRows
+
+		self._conn.execute(f"CREATE TABLE {self._tableName} (\n\t\t{',\n\t\t'.join(queryString)}\n);")
 		
 		try:
-			pragma = self._conn.execute(f"PRAGMA table_info({self._tableName});").fetchall()
-			if len(pragma) != len(self._columns):
-				raise TableDefinitionMissmatch(f"Column count does not match between database and {SOFTWARE_NAME}. {SOFTWARE_NAME} had columns: {self._columns} and Database had PRAGMA: {pragma}")
-			for (_, name, dataType, _, _, isPrimaryKey), (colName, colType) in zip(pragma, zip(self._columns, self._types)):
-				if name != colName: raise TableDefinitionMissmatch(f"Column name in database ({name}) not consistent with name in {SOFTWARE_NAME} ({colName})")
-				if dataType != colType: raise TableDefinitionMissmatch(f"Column data type in database ({dataType}) not consistent with data type in {SOFTWARE_NAME} ({colType})")
-				if isPrimaryKey and colType not in colType: raise TableDefinitionMissmatch(f"Column is PRIMARY KEY in database but should not be for compliance with {SOFTWARE_NAME}.")
-				if not isPrimaryKey and colType in colType: raise TableDefinitionMissmatch(f"Column is not PRIMARY KEY in database but should be for compliance with {SOFTWARE_NAME}.")
-		except Exception as e:
-			LOGGER.exception(e)
-			if self._mode == "r" or type(e) is not TableDefinitionMissmatch: 
-				raise e
-			
-			if self._mode == "a": self._conn.execute(f"ALTER TABLE {self._tableName} RENAME TO {self._tableName}2;")
-			
-			queryString = [f"CREATE TABLE {self._tableName} ("]
-			
-			for name, colType in zip(self._columns, self._types):
-				queryString.append( f"{name} {' '.join(colType)},")
-			queryString += self._appendRows
-			queryString.append(");")
-
-			self._conn.execute("\n".join(queryString))
-
-			if self._mode == "a":
-				self._conn.execute(f"INSERT INTO {self._tableName} SELECT * FROM {self._tableName}2;")
+			self._conn.execute(f"INSERT INTO {self._tableName} SELECT * FROM {self._tableName}2;")
+		except:
+			pass
 
 	@overload
 	def get(self, *columnsToGet : ColumnFlag, orderBy : ColumnFlag|tuple[ColumnFlag,Literal["DESC","ASC"]]|list[tuple[ColumnFlag,Literal["DESC","ASC"]]]=[], nodeID : int=None, snpID : str=None, genomeID : int=None, position : int=None, ancestral : Literal["A","T","C","G"]=None, derived : Literal["A","T","C","G"]=None, snpReference : str=None, date : str=None, genome : str=None, strain : str=None, genbankID : str=None, refseqID : str=None, assembly : str=None, chromosome : str=None) -> Generator[tuple[Any],None,None]:
@@ -99,6 +91,9 @@ class SNPTable(Table):
 		SNP_COLUMN_DATE_TYPE,
 		SNP_COLUMN_GENOME_ID_TYPE
 	]
+	_appendRows = [
+		f"FOREIGN KEY ({SNP_COLUMN_GENOME_ID}) REFERENCES {TABLE_NAME_REFERENCES} ({REFERENCE_COLUMN_GENOME_ID})"
+	]
 
 class ReferenceTable(Table):
 
@@ -119,6 +114,7 @@ class ReferenceTable(Table):
 		REFERENCE_COLUMN_REFSEQ_TYPE,
 		REFERENCE_COLUMN_ASSEMBLY_TYPE
 	]
+	_appendRows = []
 
 class NodeTable(Table):
 
@@ -131,6 +127,7 @@ class NodeTable(Table):
 		NODE_COLUMN_ID_TYPE,
 		NODE_COLUMN_NAME_TYPE
 	]
+	_appendRows = []
 
 class TreeTable(Table):
 
@@ -144,4 +141,38 @@ class TreeTable(Table):
 		TREE_COLUMN_PARENT_TYPE,
 		TREE_COLUMN_CHILD_TYPE,
 		TREE_COLUMN_RANK_TYPE
+	]
+	_appendRows = [
+		f"FOREIGN KEY ({TREE_COLUMN_PARENT}) REFERENCES {TABLE_NAME_NODES} ({NODE_COLUMN_ID})"
+		f"FOREIGN KEY ({TREE_COLUMN_CHILD}) REFERENCES {TABLE_NAME_NODES} ({NODE_COLUMN_ID})"
+		f"FOREIGN KEY ({TREE_COLUMN_RANK}) REFERENCES {TABLE_NAME_RANKS} ({RANKS_COLUMN_ID})"
+		f"unique ({TREE_COLUMN_PARENT}, {TREE_COLUMN_CHILD})"
+	]
+
+class RankTable(Table):
+	
+	_tableName = TABLE_NAME_RANKS
+	_columns = [
+		RANKS_COLUMN_ID,
+		RANKS_COLUMN_RANK
+	]
+	_types = [
+		RANKS_COLUMN_ID_TYPE,
+		RANKS_COLUMN_RANK_TYPE
+	]
+	_appendRows = []
+
+class GenomesTable(Table):
+	
+	_tableName = TABLE_NAME_RANKS
+	_columns = [		
+		GENOMES_COLUMN_ID,
+		GENOMES_COLUMN_NAME
+	]
+	_types = [
+		GENOMES_COLUMN_ID_TYPE,
+		GENOMES_COLUMN_NAME_TYPE
+	]
+	_appendRows = [
+		f"FOREIGN KEY ({GENOMES_COLUMN_ID}) REFERENCES {TABLE_NAME_NODES} ({NODE_COLUMN_ID})"
 	]

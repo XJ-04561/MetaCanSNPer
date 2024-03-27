@@ -1,33 +1,57 @@
 
 from MetaCanSNPer.modules.Databases.Globals import *
-from MetaCanSNPer.modules.Databases.Tables import SNPTable, ReferenceTable, NodeTable, TreeTable
+import MetaCanSNPer.modules.Databases.Globals as Globals
+from MetaCanSNPer.modules.Databases.Tables import SNPTable, ReferenceTable, NodeTable, TreeTable, RankTable, GenomesTable
 import MetaCanSNPer.modules.Databases.Columns as Columns
 from MetaCanSNPer.modules.Databases.Tree import Branch
-			
 
-class DatabaseReader:
+class Database:
+
 	_connection : sqlite3.Connection
-
+	_mode : str
 	filename : str
 
-	def __init__(self, database : str):
-		if not pExists(database):
-			raise FileNotFoundError(f"Database file {database} not found on the system.")
-		self.filename = database
-		# Convert to URI acceptable filename
-		cDatabase = "/".join(filter(lambda s : s != "", database.replace('?', '%3f').replace('#', '%23').split(os.path.sep)))
-		if not cDatabase.startswith("/"): # Path has to be absolute already, and windows paths need a prepended '/'
-			cDatabase = "/"+cDatabase
+	def __init__(self, database : sqlite3.Connection):
+		self.filename = database.execute("PRAGMA database_list;").fetchone()[2]
+		self._connection = database
+
+		self.SNPTable = SNPTable(self._connection, self._mode)
+		self.ReferenceTable = ReferenceTable(self._connection, self._mode)
+		self.NodeTable = NodeTable(self._connection, self._mode)
+		self.TreeTable = TreeTable(self._connection, self._mode)
+		self.RankTable = RankTable(self._connection, self._mode)
+		self.GenomesTable = GenomesTable(self._connection, self._mode)
+
+		if set(TABLES).isdisjoint([table for (table,) in self._connection.execute("SELECT tableName FROM sqlite_master WHERE type='table';")]):
+			# Table is new
+			self.SNPTable.create()
+			self.ReferenceTable.create()
+			self.NodeTable.create()
+			self.TreeTable.create()
+			self.RankTable.create()
+			self.GenomesTable.create()
+		elif self.schemaHash != Globals.DATABASE_VERSION_HASH:
+			LOGGER.warning(f"Database version does not match the currently set version. (user_version={database.execute('PRAGMA user_version;').fetchone()[0]})")
+			if Globals.STRICT:
+				raise sqlite3.DatabaseError(f"Database version does not match the currently set version. (user_version={database.execute('PRAGMA user_version;').fetchone()[0]})")
+			elif self._mode == "w":
+				# Transfer data from old tables into new tables
+				self.SNPTable.recreate()
+				self.ReferenceTable.recreate()
+				self.NodeTable.recreate()
+				self.TreeTable.recreate()
+				self.RankTable.recreate()
+				self.GenomesTable.recreate()
+	
+	def __enter__(self):
+		return self
+	
+	def __exit__(self):
 		try:
-			self._connection = sqlite3.connect(f"file:{cDatabase}?immutable=1", uri=True)
-		except Exception as e:
-			LOGGER.error("Failed to connect to database using URI: "+f"file:{cDatabase}?immutable=1")
-			raise e
-		
-		self.SNPTable = SNPTable(self._connection, "r")
-		self.ReferenceTable = ReferenceTable(self._connection, "r")
-		self.NodeTable = NodeTable(self._connection, "r")
-		self.TreeTable = TreeTable(self._connection, "r")
+			self.commit()
+		except:
+			pass
+		del self
 
 	def __del__(self):
 		try:
@@ -54,17 +78,27 @@ class DatabaseReader:
 			if nodeID != 2:
 				return Branch(self._connection, nodeID)
 
+	@property
+	def schemaHash(self):
+		return hashlib.md5(
+			whitespacePattern.sub(
+				" ",
+				"; ".join([
+					x[0]
+					for x in self._connection.execute(f"SELECT sql FROM sqlite_schema;")
+					if type(x) is tuple and x[0] is not None
+				])
+			).encode("utf-8")
+		).hexdigest()
 
-class DatabaseWriter(DatabaseReader):
-	_connection : sqlite3.Connection
+class DatabaseReader(Database):
+	
+	_mode = "r"
 
-	def __init__(self, database : str, mode : str):
-		self._connection = sqlite3.connect(database)
 
-		self.SNPTable = SNPTable(self._connection, mode=mode)
-		self.ReferenceTable = ReferenceTable(self._connection, mode=mode)
-		self.NodeTable = NodeTable(self._connection, mode=mode)
-		self.TreeTable = TreeTable(self._connection, mode=mode)
+class DatabaseWriter(Database):
+
+	_mode = "w"
 
 	def addSNP(self, nodeID, position, ancestral, derived, reference, date, genomeID):
 		self._connection.execute(f"INSERT (?,?,?,?,?,?,?) INTO {TABLE_NAME_SNP_ANNOTATION};", [nodeID, position, ancestral, derived, reference, date, genomeID])
@@ -77,3 +111,35 @@ class DatabaseWriter(DatabaseReader):
 
 	def addBranch(self, parentID, childID, rank):
 		self._connection.execute(f"INSERT (?,?,?) INTO {TABLE_NAME_TREE};", [parentID, childID, rank])
+
+	def addRank(self, rankID, rankName):
+		self._connection.execute(f"INSERT (?,?) INTO {TABLE_NAME_RANKS};", [rankID, rankName])
+
+	def addGenome(self, genomeID, genomeName):
+		self._connection.execute(f"INSERT (?,?) INTO {TABLE_NAME_GENOMES};", [genomeID, genomeName])
+	
+	def commit(self):
+		self._connection.commit()
+
+@overload
+def openDatabase(database : str, mode : Literal["r"]) -> DatabaseReader:
+	pass
+
+@final
+def openDatabase(database : str, mode : Literal["w"]) -> DatabaseWriter:
+	match mode:
+		case "r":
+			if not pExists(database):
+				raise FileNotFoundError(f"Database file {database} not found on the system.")
+			# Convert to URI acceptable filename
+			cDatabase = "/".join(filter(lambda s : s != "", database.replace('?', '%3f').replace('#', '%23').split(os.path.sep)))
+			if not cDatabase.startswith("/"): # Path has to be absolute already, and windows paths need a prepended '/'
+				cDatabase = "/"+cDatabase
+			try:
+				return DatabaseReader(sqlite3.connect(f"file:{cDatabase}?immutable=1", uri=True))
+			except Exception as e:
+				LOGGER.error("Failed to connect to database using URI: "+f"file:{cDatabase}?immutable=1")
+				raise e
+			
+		case "w":
+			return DatabaseWriter(sqlite3.connect(database))
