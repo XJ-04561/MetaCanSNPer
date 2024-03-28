@@ -13,11 +13,13 @@ from MetaCanSNPer.modules.Databases.Columns import ColumnFlag
 import MetaCanSNPer.modules.Databases.Columns as Columns
 
 install_import_hook("MetaCanSNPer.modules.Databases.Functions")
-from  MetaCanSNPer.modules.Databases.Functions import downloadDatabase
+from MetaCanSNPer.modules.Databases.Functions import downloadDatabase
 
 install_import_hook("MetaCanSNPer.modules.Databases.Tables")
-from  MetaCanSNPer.modules.Databases.Tables import SNPTable, ReferenceTable, NodeTable, TreeTable
+from MetaCanSNPer.modules.Databases.Tables import SNPTable, ReferenceTable, NodeTable, TreeTable
 
 install_import_hook("MetaCanSNPer.modules.Databases.Tree")
-from  MetaCanSNPer.modules.Databases.Tree import Branch
+from MetaCanSNPer.modules.Databases.Tree import Branch
 
+install_import_hook("MetaCanSNPer.modules.Databases.Test")
+import MetaCanSNPer.modules.Databases.Test as Test
