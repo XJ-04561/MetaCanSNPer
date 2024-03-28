@@ -17,6 +17,13 @@ class Table:
 		self._conn = conn
 		self._mode = mode
 
+	def __len__(self):
+		self._conn.execute(f"SELECT COUNT(*) FROM {self._tableName};").fetchone()[0]
+	
+	def __repr__(self):
+		string = object.__repr__(self)[:-1]
+		string += f" rows={len(self)} columns={self._columns}"
+
 	def create(self) -> bool:
 		queryString = [f"{name} {' '.join(colType)}" for name, colType in zip(self._columns, self._types)]
 		queryString += self._appendRows

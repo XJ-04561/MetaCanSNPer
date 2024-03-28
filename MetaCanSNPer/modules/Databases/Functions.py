@@ -1,6 +1,11 @@
 
 from MetaCanSNPer.modules.Databases.Globals import *
 from MetaCanSNPer.modules.Databases import *
+import inspect
+
+def private(func):
+	print("\n".join(map(repr, inspect.stack()[0])))
+	return func
 
 def downloadDatabase(databaseName : str, dst : str) -> str:
 	from urllib.request import urlretrieve
