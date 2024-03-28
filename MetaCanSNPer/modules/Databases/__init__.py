@@ -18,3 +18,6 @@ from  MetaCanSNPer.modules.Databases.Functions import downloadDatabase
 install_import_hook("MetaCanSNPer.modules.Databases.Tables")
 from  MetaCanSNPer.modules.Databases.Tables import SNPTable, ReferenceTable, NodeTable, TreeTable
 
+install_import_hook("MetaCanSNPer.modules.Databases.Tree")
+from  MetaCanSNPer.modules.Databases.Tree import Branch
+
