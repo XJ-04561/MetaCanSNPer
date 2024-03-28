@@ -35,7 +35,8 @@ classifiers = [
 dependencies = [
     "typeguard",
     "PseudoPathy @ git+https://github.com/XJ-04561/PseudoPathy.git",
-    "VariantCallFixer @ git+https://github.com/XJ-04561/VariantCallFixer.git"
+    "VariantCallFixer @ git+https://github.com/XJ-04561/VariantCallFixer.git",
+    "MetaCanSNPerDatabases @ git+https://github.com/XJ-04561/MetaCanSNPerDatabases.git"
 ]
 
 [project.urls]
