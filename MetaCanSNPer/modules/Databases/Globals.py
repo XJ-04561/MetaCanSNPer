@@ -11,5 +11,7 @@ from MetaCanSNPer.modules.LogKeeper import createLogger
 
 LOGGER = createLogger("Databases")
 
-DATABASE_VERSION_HASH : str = ""
+DATABASE_VERSIONS : dict[str,int] = {
+    
+}
 STRICT : bool = False

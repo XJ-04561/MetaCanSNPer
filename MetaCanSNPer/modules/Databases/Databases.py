@@ -56,12 +56,19 @@ class Database:
 		except:
 			pass
 		del self
+	
+	@property
+	def __version__(self):
+		return DATABASE_VERSIONS.get(self.schemaHash, "Unknown")
 
 	def __del__(self):
 		try:
 			self._connection.close()
 		except:
 			pass
+	
+	def __repr__(self):
+		return object.__repr__(self)[:-1] + f" version={self.__version__} schemaHash={self.schemaHash} tables={list(zip(TABLES,map(len, TABLES)))}>"
 	
 	@overload
 	def get(self, *columnsToGet : ColumnFlag, orderBy : ColumnFlag|tuple[ColumnFlag,Literal["DESC","ASC"]]|list[tuple[ColumnFlag,Literal["DESC","ASC"]]]=[], nodeID : int=None, snpID : str=None, genomeID : int=None, position : int=None, ancestral : Literal["A","T","C","G"]=None, derived : Literal["A","T","C","G"]=None, snpReference : str=None, date : str=None, genome : str=None, strain : str=None, genbankID : str=None, refseqID : str=None, assembly : str=None, chromosome : str=None) -> Generator[tuple[Any],None,None]:
