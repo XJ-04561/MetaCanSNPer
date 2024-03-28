@@ -7,7 +7,7 @@ from MetaCanSNPer.modules.Databases._Constants import *
 
 from MetaCanSNPer.modules.Databases.Tables import SNPTable, ReferenceTable, NodeTable, TreeTable, RankTable, GenomesTable
 from MetaCanSNPer.modules.Databases.Tree import Branch
-from MetaCanSNPer.modules.Databases.Functions import generateQuery
+from MetaCanSNPer.modules.Databases.Functions import generateQuery, whitespacePattern
 
 class Database:
 

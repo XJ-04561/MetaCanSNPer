@@ -11,6 +11,8 @@ def private(func):
 	print("\n".join(map(repr, inspect.stack()[0])))
 	return func
 
+whitespacePattern = re.compile(r"\s+")
+
 def downloadDatabase(databaseName : str, dst : str) -> str:
 	from urllib.request import urlretrieve
 	
