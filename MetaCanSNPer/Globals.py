@@ -73,10 +73,6 @@ after the '--snpCallerOptions' flag, only interrupted by the end of the
 command call or the corresponding flag for Mapper or Aligner options.
 """
 
-## Database Globals
-
-SOURCES = ["https://github.com/FOI-Bioinformatics/CanSNPer2-data/raw/master/database/{databaseName}"]
-
 ## DownloadReferences Globals
 
 DOWNLOAD_TIMEOUT = 300
