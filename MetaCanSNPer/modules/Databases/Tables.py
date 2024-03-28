@@ -1,6 +1,10 @@
 
 from MetaCanSNPer.modules.Databases.Globals import *
-from MetaCanSNPer.modules.Databases import *
+import MetaCanSNPer.modules.Databases.Globals as Globals
+import MetaCanSNPer.modules.Databases.Columns as Columns
+from MetaCanSNPer.modules.Databases.Columns import ColumnFlag
+from MetaCanSNPer.modules.Databases._Constants import *
+
 from MetaCanSNPer.modules.Databases.Functions import generateTableQuery
 
 class TableDefinitionMissmatch(Exception): pass

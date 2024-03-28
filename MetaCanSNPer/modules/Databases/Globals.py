@@ -7,7 +7,6 @@ from typing import Generator, Callable, Iterable, Self, overload, final, Literal
 whitespacePattern = re.compile("\s+")
 
 from MetaCanSNPer.Globals import *
-from MetaCanSNPer.modules.Databases._Constants import *
 from MetaCanSNPer.modules.LogKeeper import createLogger
 
 LOGGER = createLogger("Databases")

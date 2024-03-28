@@ -1,9 +1,13 @@
 
 from MetaCanSNPer.modules.Databases.Globals import *
 import MetaCanSNPer.modules.Databases.Globals as Globals
-from MetaCanSNPer.modules.Databases.Tables import SNPTable, ReferenceTable, NodeTable, TreeTable, RankTable, GenomesTable
 import MetaCanSNPer.modules.Databases.Columns as Columns
+from MetaCanSNPer.modules.Databases.Columns import ColumnFlag
+from MetaCanSNPer.modules.Databases._Constants import *
+
+from MetaCanSNPer.modules.Databases.Tables import SNPTable, ReferenceTable, NodeTable, TreeTable, RankTable, GenomesTable
 from MetaCanSNPer.modules.Databases.Tree import Branch
+from MetaCanSNPer.modules.Databases.Functions import generateQuery
 
 class Database:
 
@@ -58,6 +62,15 @@ class Database:
 			self._connection.close()
 		except:
 			pass
+	
+	@overload
+	def get(self, *columnsToGet : ColumnFlag, orderBy : ColumnFlag|tuple[ColumnFlag,Literal["DESC","ASC"]]|list[tuple[ColumnFlag,Literal["DESC","ASC"]]]=[], nodeID : int=None, snpID : str=None, genomeID : int=None, position : int=None, ancestral : Literal["A","T","C","G"]=None, derived : Literal["A","T","C","G"]=None, snpReference : str=None, date : str=None, genome : str=None, strain : str=None, genbankID : str=None, refseqID : str=None, assembly : str=None, chromosome : str=None) -> Generator[tuple[Any],None,None]:
+		pass
+
+	@final
+	def get(self, *select : ColumnFlag, orderBy : ColumnFlag|tuple[ColumnFlag,Literal["DESC","ASC"]]|list[tuple[ColumnFlag,Literal["DESC","ASC"]]]=[], **where : Any) -> Generator[tuple]:
+		for row in self._connection.execute(*generateQuery(*select, orderBy=orderBy, **where)):
+			yield row
 	
 	@property
 	def SNPs(self) -> Generator[tuple[str,int,str,str],None,None]:

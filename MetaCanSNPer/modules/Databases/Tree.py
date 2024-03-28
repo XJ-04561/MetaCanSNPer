@@ -1,6 +1,9 @@
 
-
 from MetaCanSNPer.modules.Databases.Globals import *
+import MetaCanSNPer.modules.Databases.Globals as Globals
+import MetaCanSNPer.modules.Databases.Columns as Columns
+from MetaCanSNPer.modules.Databases.Columns import ColumnFlag
+from MetaCanSNPer.modules.Databases._Constants import *
 
 class Branch:
 
