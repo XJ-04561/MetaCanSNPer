@@ -12,7 +12,8 @@ from PseudoPathy import Path
 from MetaCanSNPer.Globals import *
 import MetaCanSNPer.Globals as Globals
 import MetaCanSNPer.modules.LogKeeper as LogKeeper
-from MetaCanSNPer.modules.Databases import DatabaseReader, downloadDatabase, Branch
+from MetaCanSNPerDatabases import DatabaseReader, downloadDatabase, Branch, DatabaseWriter, openDatabase, IsLegacyCanSNPer2, updateFromLegacy
+from MetaCanSNPerDatabases import Columns as DB
 from MetaCanSNPer.modules.DirectoryLibrary import DirectoryLibrary
 from MetaCanSNPer.modules.Hooks import Hooks
 from MetaCanSNPer.modules.Wrappers import Aligner, Mapper, SNPCaller, IndexingWrapper
@@ -45,7 +46,7 @@ class MetaCanSNPer:
 	exceptions : list[Exception]
 
 	"""docstring for MetaCanSNPer"""
-	def __init__(self, lib : DirectoryLibrary=None, database=None, settings : dict={}, settingsFile : str=None, sessionName : str=None):
+	def __init__(self, lib : DirectoryLibrary=None, database : str=None, settings : dict={}, settingsFile : str=None, sessionName : str=None):
 
 		LOGGER.info("Initializing MetaCanSNPer object.")
 		self.startTime = time.localtime()
@@ -98,6 +99,17 @@ class MetaCanSNPer:
 			if not silent: print(f"Downloading database {self.databaseName} ... ", end="", flush=True)
 			if (path := downloadDatabase(self.databaseName, dst=self.Lib.databaseDir.forceFind("", "w") / database)) is not None:
 				LOGGER.info(f"Found database {database!r} online and downloaded to path {path!r}")
+				self.database = DatabaseReader(self.databasePath)
+				try:
+					self.database.validateDatabase(self.database.checkDatabase())
+				except IsLegacyCanSNPer2:
+					self.Lib.setReferences(self.database.ReferenceTable.get(DB.ALL))
+					refDir, _ = os.path.split(self.Lib.refDir.find(f"{self.database.ReferenceTable.first(DB.Assembly)}.fna", purpose="w"))
+					self.database.close()
+					self.database = DatabaseWriter(self.databasePath)
+					updateFromLegacy(self.database, refDir)
+					self.database.commit()
+					self.database.close()
 				if not silent: print("Done!", flush=True)
 			else:
 				if not silent: print("Failed!", flush=True)
@@ -115,6 +127,7 @@ class MetaCanSNPer:
 			raise NameError("Database not specified. Can't connect unless a valid database is set through MetaCanSNPer.setDatabase.")
 		
 		self.database = DatabaseReader(self.databasePath)
+
 		LOGGER.debug(f"Connected to database:{self.databasePath}")
 		return 0
 
@@ -237,16 +250,19 @@ class MetaCanSNPer:
 			raise FileNotFoundError("References not set. Can be set with MetaCanSNPer.setReferences")
 		
 		LOGGER.info("Loading SNPs from database.")
-		self.Lib.setTargetSNPs(self.database.SNPsByGenome)
-		LOGGER.info(f"Loaded a total of {sum(1 for SNPs in self.database.SNPsByGenome.values() for _ in SNPs)} SNPs.")
+		self.Lib.setTargetSNPs()
+		LOGGER.info(f"Loaded a total of {len(self.database.SNPTable)} SNPs.")
 		
 		self.runSoftware(SNPCallerType, outputDict=self.Lib.resultSNPs, flags=flags)
 
 		LOGGER.info(f"Result of SNPCalling in: {self.Lib.resultSNPs}")
 
 		for genome, filePath in self.Lib.resultSNPs:
-			for pos, (ref, *r) in getSNPdata(filePath):
-				self.SNPresults[self.database.SNPByPos(pos, genome=genome)] = (ref, *r)
+			for pos, (chromosome, ref) in getSNPdata(filePath, values=["CHROM", "REF"]):
+				(nodeID,) = self.database.SNPTable.first(DB.NodeID, Position=pos, Chromosome=chromosome)
+				if (pos, genome) not in self.SNPresults:
+					self.SNPresults[nodeID] = {}
+				self.SNPresults[nodeID][pos](ref, *r)
 	
 	def traverseTree(self):
 		'''Depth-first tree search.'''

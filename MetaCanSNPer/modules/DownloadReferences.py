@@ -188,6 +188,7 @@ class DownloadQueue(WorkerQueue):
 		link = NCBI_FTP_LINK.format(source=SOURCED[source], n1=n1, n2=n2, n3=n3, genome_id=genbank_id, assembly=assembly_name)
 		job = Job(target=DownloadQueue._download, kwargs={"filename":filename, "link":link, "force":force, "stdout":stdout})
 		id = self.push(job)
+		
 		return id
 
 	@staticmethod

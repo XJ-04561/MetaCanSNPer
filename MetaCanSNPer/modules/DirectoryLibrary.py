@@ -6,6 +6,8 @@ from PseudoPathy import MinimalPathLibrary, PathLibrary, PathGroup, Path, Direct
 from PseudoPathy.Functions import createTemp
 import PseudoPathy.Globals
 from VariantCallFixer import openVCF
+from MetaCanSNPerDatabases import DatabaseReader
+from MetaCanSNPerDatabases import Columns as DB
 
 import MetaCanSNPer.modules.LogKeeper as LogKeeper
 from MetaCanSNPer.modules.DownloadReferences import DownloadQueue, DownloadFailed
@@ -22,6 +24,8 @@ class DirectoryLibrary(PathLibrary):
 		This structure allows for defining file managing as well and making sure that directory and file path
 		information is simply passed around by handing around the same 'Library'.
 	'''
+
+	database : DatabaseReader
 
 	targetDir : PathGroup
 	refDir : PathGroup
@@ -256,19 +260,19 @@ class DirectoryLibrary(PathLibrary):
 				self.alignments[r] = path
 		LOGGER.debug(f"Setting alignments to:{self.alignments}")
 	
-	def setTargetSNPs(self, targetSNPs : dict[str,list[tuple[str,int,str,str]]], force : bool=False):
+	def setTargetSNPs(self, force : bool=False):
 		self.targetSNPs = MinimalPathLibrary()
-		for genome, SNPEntries, in targetSNPs.items():
+		for genomeID, genome, *_ in self.database.references:
 			refPath = self.references[genome]
 			if pExists(refPath):
 				if (filename := self.refDir.find(pName(refPath) + ".vcf")) is None or force:
-					accession = open(refPath, "r").readline()[1:].split()[0]
 					filename = f"{self.refDir.writable / pName(refPath)}.vcf.tmp"
 
 					with openVCF(filename, "w", referenceFile=refPath) as vcfFile:
-						for snpID, pos, ref, alt in SNPEntries:
-							# CHROM has to be the same as the accession id that is in the reference file.
-							vcfFile.add(CHROM=accession, POS=pos, ID=snpID, REF="N", ALT="A,T,C,G")
+						for chromID, chromosome, genomeID in self.database.ChromosomesTable.get(genomeID=genomeID):
+							for pos in self.database.SNPTable.get(DB.Position, chromID=chromID):
+								# CHROM has to be the same as the accession id that is in the reference file.
+								vcfFile.add(CHROM=chromosome, POS=pos, REF="N", ALT="A,T,C,G")
 					os.rename(filename, filename[:-4])
 				self.targetSNPs[genome] = filename
 			else:
