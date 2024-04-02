@@ -110,11 +110,11 @@ class DirectoryLibrary(PathLibrary):
 			self.refDir = DirectoryPath(organism, purpose="r")
 		else:
 			if refDir is None:
-				self.refDir = (self.commonGroups.shared / (SOFTWARE_NAME+"-Data")) / "References"
+				self.refDir = (self.commonGroups.shared / (SOFTWARE_NAME+"-Data")) / "References" / organism
 			elif pIsAbs(refDir):
 				self.refDir = DirectoryPath(refDir, organism, purpose="r")
 			else:
-				self.refDir = self.workDir / refDir
+				self.refDir = self.workDir / refDir / organism
 		LOGGER.debug(f"Set refDir to:\n{self.refDir}")
 	
 	def setDatabaseDir(self, databaseDir : str=None):

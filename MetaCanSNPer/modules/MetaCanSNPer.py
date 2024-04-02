@@ -111,9 +111,7 @@ class MetaCanSNPer:
 			LOGGER.info(f"Database {path!r} is not up to date/does not have correct schema.")
 			self.database.close()
 			if (path := self.Lib.databaseDir.find(self.databaseName, purpose="w")) is None:
-				if (CanSNPDB.Commands.download(databaseName=self.databaseName, outDir=self.Lib.databaseDir.create(purpose="w"))) is not None:
-					path = self.Lib.databaseDir.find(self.databaseName, purpose="w")
-				else:
+				if (path := downloadDatabase(self.databaseName, dst=self.Lib.databaseDir.create(purpose="w") / self.databaseName)) is None:
 					raise PermissionError(f"Can't find a valid database: {database!r} or find a writeable directory in which to create one.")
 			self.database : DatabaseWriter = openDatabase(path, "w")
 			code = self.database.checkDatabase()
@@ -123,7 +121,7 @@ class MetaCanSNPer:
 				self.Lib.setReferences(self.database.ReferenceTable.get(DB.ALL))
 			except:
 				pass
-			self.database.rectifyDatabase(code)
+			self.database.rectifyDatabase(code, refDir=self.Lib.refDir)
 			self.database.validateDatabase(code)
 			self.database.commit()
 			self.database.close()
