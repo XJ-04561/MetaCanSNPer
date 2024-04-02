@@ -23,11 +23,12 @@ RUNNING = True
 from PseudoPathy.PathShortHands import *
 import PseudoPathy.Globals as PPGlobals
 import VariantCallFixer.Globals as VCFGlobals
+from PseudoPathy import Path
 from PseudoPathy.Library import CommonGroups
 from MetaCanSNPerDatabases import DatabaseReader, downloadDatabase, Branch, DatabaseWriter, openDatabase, IsLegacyCanSNPer2, updateFromLegacy
 from MetaCanSNPerDatabases import Columns as DB
 import MetaCanSNPerDatabases as CanSNPDB
-import random, logging, re, time
+import random, logging, re, time, os, sys
 from typeguard import typechecked
 from typing import Iterable, Callable, Any, Generator, Literal, AnyStr
 class Number: pass
