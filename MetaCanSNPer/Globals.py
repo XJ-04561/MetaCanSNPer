@@ -29,7 +29,7 @@ from PseudoPathy.Library import CommonGroups
 from MetaCanSNPerDatabases import DatabaseReader, downloadDatabase, Branch, DatabaseWriter, openDatabase, IsLegacyCanSNPer2, updateFromLegacy
 from MetaCanSNPerDatabases import Columns as DB
 import MetaCanSNPerDatabases as CanSNPDB
-import MetaCanSNPerDatabases.Globals as DBGlobals
+from MetaCanSNPerDatabases import Globals as DBGlobals
 import random, logging, re, time, os, sys, shutil
 from typeguard import typechecked
 from typing import Iterable, Callable, Any, Generator, Literal, AnyStr, TextIO, BinaryIO

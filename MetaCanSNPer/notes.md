@@ -1,6 +1,7 @@
 
 ## CURRENT
 
+1. SNP naming scheme changed to 
 
 ## QOL
 
