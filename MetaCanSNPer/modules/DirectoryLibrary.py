@@ -210,7 +210,7 @@ class DirectoryLibrary(PathLibrary):
 		DQ = DownloadQueue()
 		jobs = {}
 		out = open(os.devnull, "w") if silent else sys.stdout
-		for genomeID, genome, genbank_id, refseq_id, assembly_name in references:
+		for genomeID, genome, strain, genbank_id, refseq_id, assembly_name in references:
 			filename = f"{assembly_name}.fna"
 			if self.refDir.find(filename) is None or force:
 				LOGGER.info(f"Queueing download for {genome=} as {filename=}")
