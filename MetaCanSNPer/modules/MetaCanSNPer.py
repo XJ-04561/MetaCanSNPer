@@ -3,17 +3,13 @@ MetaCanSNPer module: A toolkit for SNP-typing using NGS data.
 Copyright (C) 2024 Fredrik Sörensen @ Umeå University
 '''
 
-import os, time
 import tomllib as toml
 from VariantCallFixer.Functions import getSNPdata
-from PseudoPathy import Path
 
 ## import MetaCanSNPer specific modules
 from MetaCanSNPer.Globals import *
 import MetaCanSNPer.Globals as Globals
 import MetaCanSNPer.modules.LogKeeper as LogKeeper
-from MetaCanSNPerDatabases import DatabaseReader, downloadDatabase, Branch, DatabaseWriter, openDatabase, IsLegacyCanSNPer2, updateFromLegacy
-from MetaCanSNPerDatabases import Columns as DB
 from MetaCanSNPer.modules.DirectoryLibrary import DirectoryLibrary
 from MetaCanSNPer.modules.Hooks import Hooks
 from MetaCanSNPer.modules.Wrappers import Aligner, Mapper, SNPCaller, IndexingWrapper
@@ -97,25 +93,26 @@ class MetaCanSNPer:
 			LOGGER.info(f"Found database {database!r} in path {path!r}")
 		else:
 			if not silent: print(f"Downloading database {self.databaseName} ... ", end="", flush=True)
-			if (path := downloadDatabase(self.databaseName, dst=self.Lib.databaseDir.forceFind("", "w") / database)) is not None:
-				LOGGER.info(f"Found database {database!r} online and downloaded to path {path!r}")
-				self.database = DatabaseReader(self.databasePath)
-				try:
-					self.database.validateDatabase(self.database.checkDatabase())
-				except IsLegacyCanSNPer2:
-					self.Lib.setReferences(self.database.ReferenceTable.get(DB.ALL))
-					refDir, _ = os.path.split(self.Lib.refDir.find(f"{self.database.ReferenceTable.first(DB.Assembly)}.fna", purpose="w"))
-					self.database.close()
-					self.database = DatabaseWriter(self.databasePath)
-					updateFromLegacy(self.database, refDir)
-					self.database.commit()
-					self.database.close()
-				if not silent: print("Done!", flush=True)
-			else:
+			if (path := downloadDatabase(self.databaseName, dst=self.Lib.databaseDir.forceFind("", "w") / database)) is None:
 				if not silent: print("Failed!", flush=True)
 				LOGGER.error(f"Database not found locally or online: {database!r}\nLocal directories checked: {self.Lib.databaseDir}")
 				raise FileNotFoundError(f"Database not found: {database!r}")
-
+			else:
+				LOGGER.info(f"Found database {database!r} online and downloaded to path {path!r}")
+		database : DatabaseReader = DatabaseReader(path)
+		code = database.checkDatabase()
+		try:
+			database.validateDatabase(code)
+		except IsLegacyCanSNPer2:
+			self.Lib.setReferences(database.ReferenceTable.get(DB.ALL))
+			refDir, _ = os.path.split(self.Lib.refDir.find(f"{database.ReferenceTable.first(DB.Assembly)}.fna", purpose="w"))
+			database.close()
+			database : DatabaseWriter = DatabaseWriter(self.databasePath)
+			database.rectifyDatabase(code, refDir=refDir)
+			database.commit()
+			database.close()
+		if not silent: print("Done!", flush=True)
+		
 		self.databasePath = path
 		self.Lib.updateSettings({"organism":pName(self.databaseName)}) # TODO : Get organism name from safer source than filename
 		self.Lib.references = None
@@ -258,11 +255,11 @@ class MetaCanSNPer:
 		LOGGER.info(f"Result of SNPCalling in: {self.Lib.resultSNPs}")
 
 		for genome, filePath in self.Lib.resultSNPs:
-			for pos, (chromosome, ref) in getSNPdata(filePath, values=["CHROM", "REF"]):
-				(nodeID,) = self.database.SNPTable.first(DB.NodeID, Position=pos, Chromosome=chromosome)
+			for pos, (chromosome, called) in getSNPdata(filePath, values=["CHROM", "REF"]):
+				(nodeID,) = self.database.first(DB.NodeID, Position=pos, Chromosome=chromosome)
 				if (pos, genome) not in self.SNPresults:
 					self.SNPresults[nodeID] = {}
-				self.SNPresults[nodeID][pos](ref, *r)
+				self.SNPresults[nodeID][pos] = called
 	
 	def traverseTree(self):
 		'''Depth-first tree search.'''
