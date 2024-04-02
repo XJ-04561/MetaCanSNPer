@@ -27,6 +27,7 @@ from VariantCallFixer import openVCF
 from PseudoPathy import MinimalPathLibrary, PathLibrary, PathGroup, Path, DirectoryPath, FilePath, PathList
 from PseudoPathy.Library import CommonGroups
 from MetaCanSNPerDatabases import DatabaseReader, downloadDatabase, Branch, DatabaseWriter, openDatabase, IsLegacyCanSNPer2, updateFromLegacy
+from MetaCanSNPerDatabases import Commands
 from MetaCanSNPerDatabases import Columns as DB
 import MetaCanSNPerDatabases as CanSNPDB
 from MetaCanSNPerDatabases import Globals as DBGlobals

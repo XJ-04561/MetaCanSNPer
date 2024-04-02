@@ -95,7 +95,7 @@ class MetaCanSNPer:
 		else:
 			if not silent: print(f"Downloading database {self.databaseName} ... ", end="", flush=True)
 			LOGGER.info(f"Downloading database {self.databaseName}")
-			if (path := downloadDatabase(self.databaseName, dst=self.Lib.databaseDir.forceFind("", "w") / database)) is None:
+			if (path := downloadDatabase(self.databaseName, dst=self.Lib.databaseDir.create(purpose="w") / database)) is None:
 				if not silent: print("Failed!", flush=True)
 				LOGGER.error(f"Database not found locally or online: {database!r}\nLocal directories checked: {self.Lib.databaseDir}")
 				raise FileNotFoundError(f"Database not found: {database!r}")
@@ -110,7 +110,7 @@ class MetaCanSNPer:
 			LOGGER.info(f"Database {path!r} is not up to date/does not have correct schema.")
 			self.database.close()
 			if (path := self.Lib.databaseDir.find(self.databaseName, purpose="w")) is None:
-				if (path := self.Lib.databaseDir.find(purpose="w")) is not None:
+				if (path := self.Lib.databaseDir.create(purpose="w")) is not None:
 					CanSNPDB.Commands.download(databaseName=self.databaseName, outDir=path)
 				else:
 					raise PermissionError(f"Can't find a valid database: {database!r} or find a writeable directory in which to create one.")
