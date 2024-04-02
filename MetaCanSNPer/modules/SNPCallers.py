@@ -1,7 +1,6 @@
 
 from MetaCanSNPer.Globals import *
 import MetaCanSNPer.modules.LogKeeper as LogKeeper
-from subprocess import Popen
 
 LOGGER = LogKeeper.createLogger(__name__)
 

@@ -7,7 +7,7 @@ import MetaCanSNPer.modules.LogKeeper as LogKeeper
 import MetaCanSNPer.modules.ErrorFixes as ErrorFixes
 from MetaCanSNPer.modules.DirectoryLibrary import DirectoryLibrary
 from MetaCanSNPer.modules.Hooks import Hooks
-from MetaCanSNPer.modules.Databases import DatabaseReader
+from MetaCanSNPerDatabases import DatabaseReader
 from MetaCanSNPer.modules.Commands import Command
 from MetaCanSNPer.Globals import *
 import MetaCanSNPer.Globals as Globals

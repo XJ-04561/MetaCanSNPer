@@ -1,22 +1,17 @@
 
 
-import os, random, sys
-from typing import Iterable, Generator, Callable
-from PseudoPathy import MinimalPathLibrary, PathLibrary, PathGroup, Path, DirectoryPath, FilePath, PathList
 from PseudoPathy.Functions import createTemp
-import PseudoPathy.Globals
-from VariantCallFixer import openVCF
 from MetaCanSNPerDatabases import DatabaseReader
 from MetaCanSNPerDatabases import Columns as DB
 
-import MetaCanSNPer.modules.LogKeeper as LogKeeper
-from MetaCanSNPer.modules.DownloadReferences import DownloadQueue, DownloadFailed
-from MetaCanSNPer.modules.FileNameAlignment import align as fileNameAlign
 from MetaCanSNPer.Globals import *
 import MetaCanSNPer.Globals as Globals
+from MetaCanSNPer.modules.DownloadReferences import DownloadQueue, DownloadFailed
+from MetaCanSNPer.modules.FileNameAlignment import align as fileNameAlign
 
-LOGGER = LogKeeper.createLogger(__name__)
-PseudoPathy.Globals.LOGGER = LOGGER
+import MetaCanSNPer.modules.LogKeeper as LogKeeper
+import PseudoPathy.Globals
+PseudoPathy.Globals.LOGGER = LOGGER = LogKeeper.createLogger(__name__)
 
 '''Container and handler of directories and files'''
 class DirectoryLibrary(PathLibrary):

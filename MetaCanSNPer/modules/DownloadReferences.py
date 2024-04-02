@@ -1,12 +1,9 @@
 
-import os, textwrap, gzip, sys
+import textwrap, gzip
 from threading import Thread, Lock, ThreadError, Semaphore
 from urllib.request import urlretrieve
 from typing import Callable, Any
-from subprocess import Popen
-from time import sleep, time
-import random
-from PseudoPathy import DirectoryPath
+from time import sleep
 
 import MetaCanSNPer.modules.LogKeeper as LogKeeper
 from MetaCanSNPer.modules.Hooks import Hooks

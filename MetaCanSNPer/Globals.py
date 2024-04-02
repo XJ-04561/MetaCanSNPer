@@ -23,14 +23,16 @@ RUNNING = True
 from PseudoPathy.PathShortHands import *
 import PseudoPathy.Globals as PPGlobals
 import VariantCallFixer.Globals as VCFGlobals
-from PseudoPathy import Path
+from VariantCallFixer import openVCF
+from PseudoPathy import MinimalPathLibrary, PathLibrary, PathGroup, Path, DirectoryPath, FilePath, PathList
 from PseudoPathy.Library import CommonGroups
 from MetaCanSNPerDatabases import DatabaseReader, downloadDatabase, Branch, DatabaseWriter, openDatabase, IsLegacyCanSNPer2, updateFromLegacy
 from MetaCanSNPerDatabases import Columns as DB
 import MetaCanSNPerDatabases as CanSNPDB
-import random, logging, re, time, os, sys
+import MetaCanSNPerDatabases.Globals as DBGlobals
+import random, logging, re, time, os, sys, shutil
 from typeguard import typechecked
-from typing import Iterable, Callable, Any, Generator, Literal, AnyStr
+from typing import Iterable, Callable, Any, Generator, Literal, AnyStr, TextIO, BinaryIO
 class Number: pass
 Number = int|float
 random.seed()
@@ -58,6 +60,7 @@ LOGGER_FILEHANDLER.setFormatter(logging.Formatter("[%(name)s] %(asctime)s - %(le
 
 PPGlobals.LOGGER.addHandler(LOGGER_FILEHANDLER)
 VCFGlobals.LOGGER.addHandler(LOGGER_FILEHANDLER)
+DBGlobals.LOGGER.addHandler(LOGGER_FILEHANDLER)
 
 ## ArgParser Globals
 

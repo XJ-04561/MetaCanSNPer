@@ -1,10 +1,10 @@
-import os.path
-from copy import copy as copyObject
-from shutil import copy
 
 from MetaCanSNPer.Globals import *
 import MetaCanSNPer.modules.LogKeeper as LogKeeper
 from MetaCanSNPer.modules.Wrappers import *
+
+from copy import copy as copyObject
+from shutil import copy
 
 LOGGER = LogKeeper.createLogger(__name__)
 

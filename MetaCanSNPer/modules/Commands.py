@@ -1,19 +1,14 @@
 
 
 
-
-import re, shutil, sys, os
 from subprocess import Popen, PIPE, CompletedProcess
-from typing import TextIO, BinaryIO, Iterable, Any
 from threading import Thread
-from PseudoPathy import Path
 
 from MetaCanSNPer.modules.LogKeeper import createLogger
-
 LOGGER = createLogger(__name__)
 
 from MetaCanSNPer.modules.Hooks import Hooks
-from MetaCanSNPer.Globals import SOFTWARE_NAME
+from MetaCanSNPer.Globals import *
 
 def bPrint(*strings, sep=b" ", end=b"\n", file : BinaryIO=None, encoding : str="utf-8"):
 	file.write(sep.join(map(lambda s : s.encode("utf-8"), strings)) + end)
