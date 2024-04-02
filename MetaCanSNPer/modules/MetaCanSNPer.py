@@ -3,10 +3,8 @@ MetaCanSNPer module: A toolkit for SNP-typing using NGS data.
 Copyright (C) 2024 Fredrik Sörensen @ Umeå University
 '''
 
-import os, time
 import tomllib as toml
 from VariantCallFixer.Functions import getSNPdata
-from PseudoPathy import Path
 
 ## import MetaCanSNPer specific modules
 from MetaCanSNPer.Globals import *
@@ -99,36 +97,8 @@ class MetaCanSNPer:
 				if not silent: print("Failed!", flush=True)
 				LOGGER.error(f"Database not found locally or online: {database!r}\nLocal directories checked: {self.Lib.databaseDir}")
 				raise FileNotFoundError(f"Database not found: {database!r}")
-			else:
-				if not silent: print("Done!", flush=True)
-			LOGGER.info(f"Found database {database!r} online and downloaded to path {path!r}")
-		self.database : DatabaseReader = DatabaseReader(path)
-		try:
-			self.database.validateDatabase(self.database.checkDatabase())
-		except:
-			LOGGER.info(f"Database {path!r} is not up to date/does not have correct schema.")
-			self.database.close()
-			if (path := self.Lib.databaseDir.find(self.databaseName, purpose="w")) is None:
-				if (path := self.Lib.databaseDir.find(purpose="w")) is not None:
-					CanSNPDB.Commands.download(databaseName=self.databaseName, outDir=path)
-				else:
-					raise PermissionError(f"Can't find a valid database: {database!r} or find a writeable directory in which to create one.")
-			self.database : DatabaseWriter = DatabaseWriter(path / self.databaseName)
-			code = self.database.checkDatabase()
-			try:
-				self.database.validateDatabase(code)
-			except IsLegacyCanSNPer2:
-				self.Lib.setReferences(self.database.ReferenceTable.get(DB.ALL))
-			except:
-				pass
-			self.database.rectifyDatabase(code)
-			self.database.validateDatabase(code)
-			self.database.commit()
-			self.database.close()
-			self.database : DatabaseReader = DatabaseReader(path)
 
-
-		self.databasePath = path / self.databaseName
+		self.databasePath = path
 		self.Lib.updateSettings({"organism":pName(self.databaseName)}) # TODO : Get organism name from safer source than filename
 		self.Lib.references = None
 		self.connectDatabase()
@@ -270,11 +240,11 @@ class MetaCanSNPer:
 		LOGGER.info(f"Result of SNPCalling in: {self.Lib.resultSNPs}")
 
 		for genome, filePath in self.Lib.resultSNPs:
-			for pos, (chromosome, ref) in getSNPdata(filePath, values=["CHROM", "REF"]):
-				(nodeID,) = self.database.SNPTable.first(DB.NodeID, Position=pos, Chromosome=chromosome)
+			for pos, (chromosome, called) in getSNPdata(filePath, values=["CHROM", "REF"]):
+				(nodeID,) = self.database.first(DB.NodeID, Position=pos, Chromosome=chromosome)
 				if (pos, genome) not in self.SNPresults:
 					self.SNPresults[nodeID] = {}
-				self.SNPresults[nodeID][pos] = ref
+				self.SNPresults[nodeID][pos](ref, *r)
 	
 	def traverseTree(self):
 		'''Depth-first tree search.'''
