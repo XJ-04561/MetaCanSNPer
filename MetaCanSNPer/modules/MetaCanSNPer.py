@@ -90,6 +90,7 @@ class MetaCanSNPer:
 	def setDatabase(self, database : str, silent : bool=False):
 		LOGGER.debug(f"Setting database to:{database}")
 		self.databaseName = os.path.basename(database)
+		self.Lib.updateSettings({"organism":pName(self.databaseName)}) # TODO : Get organism name from safer source than filename
 		if (path := self.Lib.databaseDir.find(database, purpose="r")) is not None:
 			LOGGER.info(f"Found database {database!r} in path {path!r}")
 		else:
@@ -129,7 +130,6 @@ class MetaCanSNPer:
 
 
 		self.databasePath = path / self.databaseName
-		self.Lib.updateSettings({"organism":pName(self.databaseName)}) # TODO : Get organism name from safer source than filename
 		self.Lib.references = None
 
 	def connectDatabase(self):

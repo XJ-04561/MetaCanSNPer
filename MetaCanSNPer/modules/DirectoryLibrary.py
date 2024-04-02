@@ -181,7 +181,7 @@ class DirectoryLibrary(PathLibrary):
 		if "targetDir" in new:				self.setTargetDir(self.settings.get("targetDir"))
 		if "organism" in new:				self.setRefDir(self.settings.get("organism"), refDir=self.settings.get("refDir"))
 		elif "refDir" in new and \
-			"reference" in self.settings:	self.setRefDir(self.settings.get("reference"), refDir=self.settings.get("refDir"))
+			"organism" in self.settings:	self.setRefDir(self.settings.get("organism"), refDir=self.settings.get("refDir"))
 		if "databaseDir" in new:			self.setDatabaseDir(self.settings.get("databaseDir"))
 		if "outDir" in new:					self.setOutDir(self.settings.get("outDir"))
 		if "tmpDir" in new:					self.setTmpDir(self.settings.get("tmpDir"))
