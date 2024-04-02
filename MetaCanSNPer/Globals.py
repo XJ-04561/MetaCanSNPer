@@ -38,6 +38,7 @@ Number = int|float
 random.seed()
 from tempfile import NamedTemporaryFile
 
+
 LOG_DIR = None
 for root in CommonGroups().locals:
     path = os.path.join(root, f"{SOFTWARE_NAME}-Results", "Logs")

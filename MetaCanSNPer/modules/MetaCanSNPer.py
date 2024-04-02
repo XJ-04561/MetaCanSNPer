@@ -81,6 +81,7 @@ class MetaCanSNPer:
 
 		if database is not None:
 			self.setDatabase(database=database)
+			self.connectDatabase()
 		
 		self.SNPresults = {}
 
@@ -93,6 +94,7 @@ class MetaCanSNPer:
 			LOGGER.info(f"Found database {database!r} in path {path!r}")
 		else:
 			if not silent: print(f"Downloading database {self.databaseName} ... ", end="", flush=True)
+			LOGGER.info(f"Downloading database {self.databaseName}")
 			if (path := downloadDatabase(self.databaseName, dst=self.Lib.databaseDir.forceFind("", "w") / database)) is None:
 				if not silent: print("Failed!", flush=True)
 				LOGGER.error(f"Database not found locally or online: {database!r}\nLocal directories checked: {self.Lib.databaseDir}")
@@ -100,9 +102,10 @@ class MetaCanSNPer:
 			else:
 				if not silent: print("Done!", flush=True)
 			LOGGER.info(f"Found database {database!r} online and downloaded to path {path!r}")
-		self.database : DatabaseReader = DatabaseReader(path)
+		self.database : DatabaseReader = openDatabase(path, "r")
 		try:
 			self.database.validateDatabase(self.database.checkDatabase())
+			self.database.close()
 		except:
 			LOGGER.info(f"Database {path!r} is not up to date/does not have correct schema.")
 			self.database.close()
@@ -111,7 +114,7 @@ class MetaCanSNPer:
 					CanSNPDB.Commands.download(databaseName=self.databaseName, outDir=path)
 				else:
 					raise PermissionError(f"Can't find a valid database: {database!r} or find a writeable directory in which to create one.")
-			self.database : DatabaseWriter = DatabaseWriter(path / self.databaseName)
+			self.database : DatabaseWriter = openDatabase(path / self.databaseName, "w")
 			code = self.database.checkDatabase()
 			try:
 				self.database.validateDatabase(code)
@@ -123,20 +126,18 @@ class MetaCanSNPer:
 			self.database.validateDatabase(code)
 			self.database.commit()
 			self.database.close()
-			self.database : DatabaseReader = DatabaseReader(path)
 
 
 		self.databasePath = path / self.databaseName
 		self.Lib.updateSettings({"organism":pName(self.databaseName)}) # TODO : Get organism name from safer source than filename
 		self.Lib.references = None
-		self.connectDatabase()
 
 	def connectDatabase(self):
 		LOGGER.debug(f"Connecting to database:{self.databasePath}")
 		if self.databasePath is None:
 			raise NameError("Database not specified. Can't connect unless a valid database is set through MetaCanSNPer.setDatabase.")
 		
-		self.database = DatabaseReader(self.databasePath)
+		self.database = openDatabase(self.databasePath, "r")
 
 		LOGGER.debug(f"Connected to database:{self.databasePath}")
 		return 0
