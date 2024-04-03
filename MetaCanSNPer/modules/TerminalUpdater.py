@@ -296,6 +296,14 @@ class TerminalUpdater:
 		
 		self.running = True
 
+		"""
+		DownloadReferenceInitialized
+		DownloadReferenceSkipped
+		DownloadReferenceStarting
+		DownloadReferencePostProcess
+		DownloadReferenceFinished
+		DownloadReferencesFailed
+		"""
 		self.hooks.addHook(f"{self.category}Progress", self.updateProgress)
 		self.hooks.addHook(f"{self.category}Finished", self.stopLoadingbar)
 
