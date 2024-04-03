@@ -11,6 +11,19 @@ from MetaCanSNPer.modules.LogKeeper import createLogger
 
 LOGGER = createLogger(__name__)
 
+class HitchableDict(dict):
+
+	onSet : Callable = None
+
+	def __new__(cls, *args, **kwargs):
+		obj = super().__init__(cls, *args, **kwargs)
+		return obj
+
+	def __setitem__(self, key, value):
+		dict.__setitem__(key, value)
+		if self.onSet is not None:
+			self.onSet()
+
 # Taken from django @ https://github.com/django/django/blob/main/django/core/management/color.py
 @cache
 def supportsColor():
@@ -91,22 +104,23 @@ class Indicator:
 	innerLength : int
 	
 	@property
-	def threads(self) -> dict[str,float]:
+	def threads(self) -> HitchableDict[str,float]:
 		return self._threads
 	
 	@threads.setter
-	def threads(self, threads : dict[str,float]):
+	def threads(self, threads : HitchableDict[str,float]):
 		self._threads = threads
 		self.keys = sorted(threads.keys())
 		self.N = len(self.keys)
 		self.createRowTemplate()
 
-	def __init__(self, threads : dict, symbols : list[str], message="", sep=" ", borders=("[", "]"), crashSymbol=None, finishSymbol="\u2588", out=stdout, time: bool=True, innerLength : int=None, preColor : str=None, partition : str=None, crashColor : str=None, finishColor : str=None, postColor : str=None, progColor : str=None):
+	def __init__(self, threads : HitchableDict, symbols : list[str], message="", sep=" ", borders=("[", "]"), crashSymbol=None, finishSymbol="\u2588", out=stdout, time: bool=True, preColor : str=None, partition : str=None, crashColor : str=None, skippedColor : str=None, finishColor : str=None, postColor : str=None, progColor : str=None):
 		
 		self.preColor		= preColor or ("\u001b[33;40m" if supportsColor() else "")
 		self.progColor		= progColor or ("\u001b[35;40m" if supportsColor() else "")
 		self.partition		= partition or ("\u001b[37;40m" if supportsColor() else "")
-		self.crashColor 	= crashColor or ("\u001b[31;40m" if supportsColor() else "")
+		self.crashColor		= crashColor or ("\u001b[31;40m" if supportsColor() else "")
+		self.skippedColor	= skippedColor or ("\u001b[31;44m" if supportsColor() else "")
 		self.finishColor	= finishColor or ("\u001b[32;40m" if supportsColor() else "")
 		self.postColor		= postColor or ("\u001b[36;40m" if supportsColor() else "")
 
@@ -116,7 +130,7 @@ class Indicator:
 		self.out = out
 
 		self.symbols		= symbols
-		self.innerLength 	= innerLength or len(self.symbols[0])
+		self.innerLength 	= len(self.symbols[0])
 		self.sep			= sep
 		self.borders		= borders
 		self.crashSymbol	= crashSymbol
@@ -140,6 +154,7 @@ class Indicator:
 	def rowGenerator(self) -> Generator[tuple[int,str],None,None]:
 		"""Progress special cases:
 		None	-	Service crashed
+		1 : int	-	Never ran/skipped
 		1.0		-	Completed
 		0<->1	-	Running
 		<0		-	Not started
@@ -153,8 +168,8 @@ class Indicator:
 		self.running = True
 		N = self.N
 		
-		print((msg := f"{self.message}"), end=self.whitespaces, flush=True, file=self.out)
-		self.printedLength = len(msg)
+		print(self.message, end=self.whitespaces, flush=True, file=self.out)
+		self.printedLength = len(self.message)
 		
 		generator = self.rowGenerator()
 		while self.running:
@@ -165,33 +180,28 @@ class Indicator:
 					pass
 			print(self.backspaces, end=self.rowTemplate.format(seconds=timer()-startTime, targets=self.entries), flush=True, file=self.out)
 			self.condition.acquire(timeout=0.2)
-
-		print(self.backspaces, end=self.whitespaces, flush=True, file=self.out)
-		if all(v is not None and v >= 1.0 for v in self.threads.values()):
-			print(self.backspaces, end="Done! ", flush=True, file=self.out)
-			self.printedLength += 6
-		else:
-			print(self.backspaces, end="Failed! ", flush=True, file=self.out)
-			self.printedLength += 8
 	
+	def checkDone(self):
+		if all(v is not None or v >= 1.0 for v in self.threads.values()):
+			self.running = False
+
 	def kill(self):
 		self.running*=0
 		self.condition.release()
 
 	def cleanup(self):
-		print("\b"*self.printedLength, end="", flush=True, file=self.out)
+		print(self.backspaces, end="\b"*self.printedLength, flush=True, file=self.out)
 
 class LoadingBar(Indicator):
 
 	def __init__(self, threads, length=10, fill="\u2588", halfFill="\u258C", background=" ", **kwargs):
-		super().__init__(threads, **kwargs)
-		
-		self.symbols		= [fill, halfFill, background]
+		super().__init__(threads, [fill, halfFill, background], **kwargs)
 		self.innerLength = length - self.borderLength
 
 	def rowGenerator(self) -> Generator[str,None,None]:
 		"""Progress special cases:
 		None	-	Service crashed
+		1 : int	-	Never ran/skipped
 		1.0		-	Completed
 		0<->1	-	Running
 		<0		-	Not started
@@ -199,11 +209,14 @@ class LoadingBar(Indicator):
 		"""
 		crashString = self.crashColor+self.crashSymbol*self.innerLength
 		finishString = self.finishColor+self.symbols[0]*self.innerLength
+		skippedString = self.skippedColor+self.symbols[0]*self.innerLength
 		n = 0
 		while self.running:
 			for prog in map(self.threads.get, self.keys):
 				if prog is None:
 					yield crashString
+				elif isinstance(prog, int) and prog == 1:
+					yield skippedString
 				elif prog == 1.0:
 					yield finishString
 				elif 0 <= prog < 1.0:
@@ -217,7 +230,7 @@ class LoadingBar(Indicator):
 					yield self.postColor+self.symbols[0]*n + self.symbols[2] + self.symbols[0]*(self.innerLength - n - 1)
 				else:
 					yield crashString
-			n = n+1 % self.innerLength
+			n = (n+1) % self.innerLength
 
 class Spinner(Indicator):
 
@@ -226,6 +239,7 @@ class Spinner(Indicator):
 	def rowGenerator(self) -> Generator[tuple[int,str],None,None]:
 		"""Progress special cases:
 		None	-	Service crashed
+		1 : int	-	Never ran/skipped
 		1.0		-	Completed
 		0<->1	-	Running
 		<0		-	Not started
@@ -234,11 +248,14 @@ class Spinner(Indicator):
 		NSymbols = len(self.symbols)
 		crashString = self.crashColor + self.crashSymbol
 		finishString = self.finishColor + self.finishSymbol
+		skippedString = self.skippedColor + self.finishSymbol
 		n = 0
 		while self.running:
 			for prog in map(self.threads.get, self.keys):
 				if prog is None:
-					yield crashString 
+					yield crashString
+				elif isinstance(prog, int) and prog == 1:
+					yield skippedString
 				elif prog == 1.0:
 					yield finishString
 				elif 0 <= prog < 1:
@@ -253,15 +270,25 @@ class Spinner(Indicator):
 
 class TextProgress(Indicator):
 	def rowGenerator(self) -> Generator[tuple[int,str],None,None]:
-		""""""
+		"""Progress special cases:
+		None	-	Service crashed
+		1 : int	-	Never ran/skipped
+		1.0		-	Completed
+		0<->1	-	Running
+		<0		-	Not started
+		>1		-	Postprocessing
+		"""
 		NSymbols = len(self.symbols)
 		crashString = self.crashColor + self.crashSymbol
 		finishString = self.finishColor + self.finishSymbol
+		skippedString = self.skippedColor + self.finishSymbol
 		n = 0
 		while self.running:
 			for prog in map(self.threads.get, self.keys):
 				if prog is None:
-					yield crashString 
+					yield crashString
+				elif isinstance(prog, int) and prog == 1:
+					yield skippedString
 				elif prog == 1.0:
 					yield finishString
 				elif 0 <= prog < 1:
@@ -276,7 +303,7 @@ class TextProgress(Indicator):
 
 class TerminalUpdater:
 	
-	threads : dict
+	threads : HitchableDict
 	thread : Thread
 	hooks : Hooks
 	out : TextIO
@@ -290,25 +317,58 @@ class TerminalUpdater:
 		self.category = category
 		self.hooks = hooks
 		self.threadNames = threadNames
-		self.threads = {name:0.0 for name in threadNames}
+		self.threads = HitchableDict(map(lambda name : (name,0.0), threadNames))
+		self.threads.onSet
 		self.out = out
 		self.finishedThreads = set()
 		
 		self.running = True
 
+		"""Progress special cases:
+		None	-	Service crashed
+		1.0		-	Completed
+		0<->1	-	Running
+		<0		-	Not started
+		>1		-	Postprocessing
 		"""
-		DownloadReferenceInitialized
-		DownloadReferenceSkipped
-		DownloadReferenceStarting
-		DownloadReferencePostProcess
-		DownloadReferenceFinished
-		DownloadReferencesFailed
-		"""
-		self.hooks.addHook(f"{self.category}Progress", self.updateProgress)
-		self.hooks.addHook(f"{self.category}Finished", self.stopLoadingbar)
+		self.hooks.addHook(f"{self.category}Initialized", self.initializedCallback)
+		self.hooks.addHook(f"{self.category}Skipped", self.skippedCallback)
+		self.hooks.addHook(f"{self.category}Starting", self.startingCallback)
+		self.hooks.addHook(f"{self.category}Progress", self.progressCallback)
+		self.hooks.addHook(f"{self.category}PostProcess", self.postProcessCallback)
+		self.hooks.addHook(f"{self.category}Finished", self.finishedCallback)
+		self.hooks.addHook(f"{self.category}Failed", self.failedCallback)
 
 		if printer is not None:
 			self.setPrinter(printer)
+
+	def initializedCallback(self, eventInfo : dict[str,Any]):
+		if eventInfo["thread"] in self.threads:
+			self.threads[eventInfo["thread"]] = -1.0
+
+	def skippedCallback(self, eventInfo : dict[str,Any]):
+		if eventInfo["thread"] in self.threads:
+			self.threads[eventInfo["thread"]] = 1
+
+	def startingCallback(self, eventInfo : dict[str,Any]):
+		if eventInfo["thread"] in self.threads:
+			self.threads[eventInfo["thread"]] = 0.0
+
+	def progressCallback(self, eventInfo : dict[str,Any]):
+		if eventInfo["thread"] in self.threads:
+			self.threads[eventInfo["thread"]] = eventInfo["progress"]
+
+	def postProcessCallback(self, eventInfo : dict[str,Any]):
+		if eventInfo["thread"] in self.threads:
+			self.threads[eventInfo["thread"]] = 1.1
+
+	def finishedCallback(self, eventInfo : dict[str,Any]):
+		if eventInfo["thread"] in self.threads:
+			self.threads[eventInfo["thread"]] = 1.0
+
+	def failedCallback(self, eventInfo : dict[str,Any]):
+		if eventInfo["thread"] in self.threads:
+			self.threads[eventInfo["thread"]] = None
 	
 	def setPrinter(self, printer : Indicator=Spinner, *args, **kwargs):
 		self.printer = printer(self.threads, *args, **({"out":self.out, "message":self.message} | kwargs))
@@ -330,14 +390,6 @@ class TerminalUpdater:
 		self.running *= False
 		self.printer.condition.release()
 		self.thread.join()
-	
-	def updateProgress(self, eventInfo : dict):
-		self.threads[eventInfo["threadN"]] = eventInfo["progress"]
-		
-	def stopLoadingbar(self, eventInfo : dict):
-		self.finishedThreads.add(eventInfo["threadN"])
-		if self.finishedThreads.issuperset(self.threads):
-			self.running *= False
 	
 	def cleanup(self):
 		self.printer.cleanup()
