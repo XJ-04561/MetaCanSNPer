@@ -11,11 +11,12 @@ from MetaCanSNPer.Globals import *
 import MetaCanSNPer.Globals as Globals
 import MetaCanSNPer.modules.LogKeeper as LogKeeper
 from MetaCanSNPer.modules.DirectoryLibrary import DirectoryLibrary
-from MetaCanSNPer.modules.Hooks import Hooks
+from MetaCanSNPer.modules.Hooks import Hooks, urlretrieveReportHook, DummyHooks
 from MetaCanSNPer.modules.Wrappers import Aligner, Mapper, SNPCaller, IndexingWrapper
 import MetaCanSNPer.modules.Aligners as Aligners
 import MetaCanSNPer.modules.Mappers as Mappers
 import MetaCanSNPer.modules.SNPCallers as SNPCallers
+from MetaCanSNPer.modules.TerminalUpdater import TerminalUpdater
 
 LOGGER = LogKeeper.createLogger(__name__)
 
@@ -52,7 +53,7 @@ class MetaCanSNPer:
 		self.hooks.addHook("ReportError", target=lambda eventInfo : self.exceptions.append(eventInfo["exception"]))
 		
 		if lib is None:
-			self.Lib = DirectoryLibrary(settings={k:(v if type(v) is not list else tuple(v)) for k,v in settings.items()})
+			self.Lib = DirectoryLibrary(settings={k:(v if type(v) is not list else tuple(v)) for k,v in settings.items()}, hooks=self.hooks)
 		else:
 			self.Lib = lib
 		
@@ -87,48 +88,61 @@ class MetaCanSNPer:
 
 	'''Database functions'''
 
-	def setDatabase(self, database : str, silent : bool=False):
-		LOGGER.debug(f"Setting database to:{database}")
-		self.databaseName = os.path.basename(database)
+	def setDatabase(self, databaseName : str, silent : bool=False):
+		LOGGER.debug(f"Setting database to:{databaseName}")
+		self.databaseName = os.path.basename(databaseName)
 		self.Lib.updateSettings({"organism":pName(self.databaseName)}) # TODO : Get organism name from safer source than filename
-		if (path := self.Lib.databaseDir.find(database, purpose="r")) is not None:
-			LOGGER.info(f"Found database {database!r} in path {path!r}")
-		else:
-			if not silent: print(f"Downloading database {self.databaseName} ... ", end="", flush=True)
-			LOGGER.info(f"Downloading database {self.databaseName}")
-			if (path := downloadDatabase(self.databaseName, dst=self.Lib.databaseDir.create(purpose="w") / database)) is None:
-				if not silent: print("Failed!", flush=True)
-				LOGGER.error(f"Database not found locally or online: {database!r}\nLocal directories checked: {self.Lib.databaseDir}")
-				raise FileNotFoundError(f"Database not found: {database!r}")
-			else:
-				if not silent: print("Done!", flush=True)
-			LOGGER.info(f"Found database {database!r} online and downloaded to path {path!r}")
-		self.database : DatabaseReader = openDatabase(path, "r")
+		self.Lib.references = None
+		
+		path = self.Lib.databaseDir.find(databaseName, purpose="r")
 		try:
-			self.database.validateDatabase(self.database.checkDatabase())
-			self.database.close()
+			database = openDatabase(path, "r")
+			database.validateDatabase(database.checkDatabase())
+		except TypeError:
+			pass # path is None
 		except:
-			LOGGER.info(f"Database {path!r} is not up to date/does not have correct schema.")
-			self.database.close()
-			if (path := self.Lib.databaseDir.find(self.databaseName, purpose="w")) is None:
-				if (path := downloadDatabase(self.databaseName, dst=self.Lib.databaseDir.create(purpose="w") / self.databaseName)) is None:
-					raise PermissionError(f"Can't find a valid database: {database!r} or find a writeable directory in which to create one.")
-			self.database : DatabaseWriter = openDatabase(path, "w")
-			code = self.database.checkDatabase()
+			database.close() # Database is not valid
+		else:
+			LOGGER.info(f"Found database {database!r} in path {path!r}")
+			database.close()
+			self.databasePath = path
+			return
+		
+		if (path := self.Lib.databaseDir.find(databaseName, purpose="w")) is None:
+			LOGGER.info(f"Downloading database {self.databaseName}")
 			try:
-				self.database.validateDatabase(code)
+				if not silent:
+					updater = TerminalUpdater(f"Downloading {self.databaseName} ... ", category="DownloadDatabase", hooks=self.hooks, threadNames=[self.databaseName])
+					updater.start()
+				reportHook = urlretrieveReportHook(self.hooks, self.databaseName)
+				path = downloadDatabase(self.databaseName, dst=self.Lib.databaseDir.create(purpose="w") / self.databaseName, reportHook=reportHook)
+				if not silent:
+					updater.stop()
+					updater.cleanup()
+				
+			except Exception as e:
+				LOGGER.exception(e)
+				LOGGER.error(f"Database not found locally or online: {self.databaseName!r}\nLocal directories checked: {self.Lib.databaseDir}")
+				raise FileNotFoundError(f"Database not found locally or online: {databaseName!r}")
+		
+		database : DatabaseWriter = openDatabase(path, "w")
+		last = -1
+		code = database.checkDatabase()
+		for _ in filter(lambda _ : code != last, range(100)):
+			try:
+				database.validateDatabase(code)
 			except IsLegacyCanSNPer2:
 				self.Lib.setReferences(self.database.ReferenceTable.get(DB.ALL))
 			except:
 				pass
-			self.database.rectifyDatabase(code, refDir=self.Lib.refDir)
-			self.database.validateDatabase(code)
-			self.database.commit()
-			self.database.close()
-
-
-		self.databasePath = path / self.databaseName
-		self.Lib.references = None
+			finally:
+				database.rectifyDatabase(code, refDir=self.Lib.refDir)
+			last = code
+			code = database.checkDatabase()
+		
+		database.validateDatabase(code)
+		database.commit()
+		database.close()
 
 	def connectDatabase(self):
 		LOGGER.debug(f"Connecting to database:{self.databasePath}")
@@ -136,7 +150,8 @@ class MetaCanSNPer:
 			raise NameError("Database not specified. Can't connect unless a valid database is set through MetaCanSNPer.setDatabase.")
 		
 		self.database = openDatabase(self.databasePath, "r")
-
+		if self.Lib.references is None:
+			self.Lib.setReferences(self.database.ReferenceTable.get(DB.ALL))
 		LOGGER.debug(f"Connected to database:{self.databasePath}")
 		return 0
 

@@ -169,11 +169,8 @@ def main():
 		print(f"Checking query {args.query}")
 		mObj.setQuery(flags["query"])
 
-		print(f"Checking database {args.database}")
-		mObj.setDatabase(flags["database"])
-
-		print(f"Checking references specified in database at {mObj.database.filename}")
-		mObj.setReferenceFiles()
+		print(f"Checking database {args.database}: ")
+		mObj.setDatabase(flags["database"], silent=flags["mute"])
 		
 		if flags["sessionName"] is not None: mObj.setSessionName(flags["sessionName"])
 
@@ -185,7 +182,7 @@ def main():
 
 			mObj.createMap(softwareName=flags["mapper"], flags=argsDict.get("--mapperOptions", {}))
 
-			TU.deadmans()
+			TU.stop()
 
 		if flags.get("aligner") is not None:
 			TU = TerminalUpdater("Creating Alignments", "Aligners", mObj.hooks, genomes)
@@ -193,14 +190,14 @@ def main():
 
 			mObj.createAlignment(softwareName=flags["aligner"], flags=argsDict.get("--alignerOptions", {}))
 			
-			TU.deadmans()
+			TU.stop()
 		
 		TU = TerminalUpdater("Calling SNPs", "SNPCallers", mObj.hooks, genomes)
 		TU.start()
 
 		mObj.callSNPs(softwareName=flags["snpCaller"], flags=argsDict.get("--snpCallerOptions", {}))
 		
-		TU.deadmans()
+		TU.stop()
 
 		print("Saving results...", end="", flush=True)
 		mObj.saveSNPdata()

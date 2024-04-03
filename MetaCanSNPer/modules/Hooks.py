@@ -6,6 +6,8 @@ from MetaCanSNPer.modules.LogKeeper import createLogger
 
 LOGGER = createLogger(__name__)
 
+
+
 class Hook:
 
     target : Callable
@@ -19,6 +21,22 @@ class Hook:
     
     def __call__(self, eventInfo : dict):
         self.target(eventInfo, *self.args, **self.kwargs)
+
+class DummyHooks:
+
+    _eventQueue : list[tuple[str,dict]]
+    _hooks : dict[str, list[Hook]]
+    _worker : Thread
+    RUNNING : bool
+
+    def addHook(self, *args, **kwargs) -> Hook:
+        return Hook(lambda *args, **kwargs : None)
+    
+    def removeHook(self, eventType : str, hook : Hook) -> bool:
+        return True
+
+    def trigger(self, eventType : str, eventInfo : dict):
+        pass
 
 class Hooks:
 
@@ -48,7 +66,7 @@ class Hooks:
 
         return hook
     
-    def removeHook(self, eventType : str, hook : Hook):
+    def removeHook(self, eventType : str, hook : Hook) -> bool:
         """Removes all occurances of the hook in the list of hooks associated with the eventType"""
         # Essentially a while True: but limited to at least iterations as long as the hooks list.
         ret = False
@@ -76,3 +94,17 @@ class Hooks:
                 if eventType not in self._hooks or self._hooks.get(eventType) == []: LOGGER.warning(f"{eventType=} triggered, but no hooks registered in {self!r}")
                 for hook in self._hooks.get(eventType, []):
                     if self.RUNNING: hook(eventInfo)
+
+def urlretrieveReportHook(category, hooks : Hooks, filename : str, steps : int=-1):
+
+    if steps > 0:
+        # info : (blocks, blockSize, totalSize)
+        while (info := (yield)) and info[0] * info[1] < info[2]:
+            hooks.trigger(f"Progress{category}", {"filename" : filename, "progress" : min(1.0, info[0] * info[1] / info[2])})
+    else:
+        # info : (blocks, blockSize, totalSize)
+        pos = 1
+        while (info := (yield)) and info[0] * info[1] < info[2]:
+            if pos <= info[0] * info[1] / info[2]:
+                hooks.trigger(f"Progress{category}", {"filename" : filename, "progress" : min(1.0, info[0] * info[1] / info[2])})
+                pos += 1

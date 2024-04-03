@@ -8,6 +8,7 @@ from MetaCanSNPer.Globals import *
 import MetaCanSNPer.Globals as Globals
 from MetaCanSNPer.modules.DownloadReferences import DownloadQueue, DownloadFailed
 from MetaCanSNPer.modules.FileNameAlignment import align as fileNameAlign
+from MetaCanSNPer.modules.Hooks import Hooks
 
 import MetaCanSNPer.modules.LogKeeper as LogKeeper
 import PseudoPathy.Globals
@@ -51,10 +52,11 @@ class DirectoryLibrary(PathLibrary):
 	settings : dict
 	query : PathList[FilePath]
 	sessionName : str
+	hooks : Hooks
 	queryName : str
 	chromosomes : list[str]
 	
-	def __init__(self, settings : dict, sessionName="Unnamed-Session", **kwargs):
+	def __init__(self, settings : dict, sessionName="Unnamed-Session", hooks=Hooks(), **kwargs):
 		"""Directories that can be passed as kwargs:
 		workDir, targetDir, tmpDir, refDir, databaseDir, outDir
 
@@ -68,6 +70,7 @@ class DirectoryLibrary(PathLibrary):
 		
 		object.__setattr__(self, "settings", {})
 		object.__setattr__(self, "sessionName", sessionName)
+		object.__setattr__(self, "hooks", hooks)
 		
 		self.updateSettings(settings | kwargs)
 		
@@ -206,29 +209,32 @@ class DirectoryLibrary(PathLibrary):
 		LOGGER.debug(f"Setting queryName to: {self.queryName!r}")
 	
 	def setReferences(self, references : Iterable[tuple[int,str,str,str,str]], force : bool=False, silent : bool=False):
+		
 		self.references = MinimalPathLibrary()
 		DQ = DownloadQueue()
 		jobs = {}
 		out = open(os.devnull, "w") if silent else sys.stdout
 		for genomeID, genome, strain, genbank_id, refseq_id, assembly_name in references:
 			filename = f"{assembly_name}.fna"
+			self.hooks.trigger("DownloadReferenceInitialized", {"filename" : filename})
 			if self.refDir.find(filename) is None or force:
 				LOGGER.info(f"Queueing download for {genome=} as {filename=}")
-				jobID = DQ.download(genbank_id, refseq_id, assembly_name, dst=self.refDir.writable, filename=filename, force=force, stdout=out)
+				jobID = DQ.download(genbank_id, refseq_id, assembly_name, dst=self.refDir.writable, filename=filename, force=force, hooks=self.hooks)
 				assert jobID != -1
 				jobs[jobID] = (genome, self.refDir.writable / filename)
 			else:
+				self.hooks.trigger("DownloadReferenceSkipped", {"filename" : filename})
 				LOGGER.debug(f"self.references[{genome!r}] = {self.refDir.find(filename)=}")
-				print(f"{pName(filename):<20} -- Exists!", flush=True, file=out)
 				self.references[genome] = self.refDir.find(filename)
 				
 		DQ.wait(timeout=3)
 
 		if len(DQ.created) > 0: # Did not download all.
+			self.hooks.trigger("DownloadReferencesFailed", {"genomes" : [job[0] for job in jobs]})
 			genome, filename = jobs[DQ.created[0]]
 			raise DownloadFailed(f"Download failed before {genome!r} could be downloaded to path: {filename!r}.\nThe download that crashed the DownloadQueue was {DQ.jobs[DQ.active].kwargs}")
 		else: # Downloaded all.
-			for genome, filename, in jobs.values():
+			for genome, filename in jobs.values():
 				if pExists(filename):
 					self.references[genome] = filename
 				else:

@@ -32,10 +32,32 @@ from MetaCanSNPerDatabases import Columns as DB
 import MetaCanSNPerDatabases as CanSNPDB
 from MetaCanSNPerDatabases import Globals as DBGlobals
 import random, logging, re, time, os, sys, shutil
-from typeguard import typechecked
-from typing import Iterable, Callable, Any, Generator, Literal, AnyStr, TextIO, BinaryIO
+from functools import cache, cached_property
+from typing import Iterable, Callable, Any, Generator, Literal, AnyStr, TextIO, BinaryIO, Self
 class Number: pass
 Number = int|float
+# class Comparisons:
+#     def __init__(self, left, right=None, orAnd=None):
+#         self.left, self.right, self.orAnd = left, right, orAnd
+#     def __eq__(self, other):
+#         if self.orAnd:
+#             return other == self.left or other == self.right
+#         else:
+#             return other == self.left and other == self.right
+#     def __or__(self, other):
+#         return Comparisons(self, other, orAnd=True)
+#     def __and__(self, other):
+#         return Comparisons(self, other, orAnd=False)
+
+# class Below(Comparisons):
+#     def __eq__(self, other):
+#         return other < self.left
+
+# class Above(Comparisons):
+#     def __eq__(self, other):
+#         return other > self.left
+    
+
 random.seed()
 from tempfile import NamedTemporaryFile
 
@@ -88,6 +110,7 @@ command call or the corresponding flag for Mapper or Aligner options.
 
 DOWNLOAD_TIMEOUT = 300
 SOURCED = {"refseq":"F", "genbank": "A"}
+"""```{"refseq":"F", "genbank": "A"}```"""
 NCBI_FTP_LINK = "ftp://ftp.ncbi.nlm.nih.gov/genomes/all/GC{source}/{n1}/{n2}/{n3}/{genome_id}_{assembly}/{genome_id}_{assembly}_genomic.fna.gz"
 class MissingDependancy(Exception): pass
 

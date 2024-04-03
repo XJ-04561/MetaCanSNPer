@@ -6,7 +6,7 @@ from typing import Callable, Any
 from time import sleep
 
 import MetaCanSNPer.modules.LogKeeper as LogKeeper
-from MetaCanSNPer.modules.Hooks import Hooks
+from MetaCanSNPer.modules.Hooks import Hooks, DummyHooks, urlretrieveReportHook
 from MetaCanSNPer.Globals import *
 import MetaCanSNPer.Globals as Globals
 
@@ -170,7 +170,7 @@ class DownloadQueue(WorkerQueue):
 		if eventInfo["job"].id in self.created:
 			self.semaphore.release()
 
-	def download(self, genbank_id : str, refseq_id : str, assembly_name : str, dst : DirectoryPath, filename : str=None, source : str="genbank", force=False, stdout=sys.stdout):
+	def download(self, genbank_id : str, refseq_id : str, assembly_name : str, dst : DirectoryPath, filename : str=None, source : str="genbank", force=False, hooks : Hooks=DummyHooks()):
 		"""Returns ID of job. Returns -1 if the file to be downloaded already exists and force==False."""
 		filename = dst / (filename or f"{assembly_name}.fna")
 		if pExists(filename) and not force:
@@ -183,37 +183,35 @@ class DownloadQueue(WorkerQueue):
 			return
 		
 		link = NCBI_FTP_LINK.format(source=SOURCED[source], n1=n1, n2=n2, n3=n3, genome_id=genbank_id, assembly=assembly_name)
-		job = Job(target=DownloadQueue._download, kwargs={"filename":filename, "link":link, "force":force, "stdout":stdout})
+		job = Job(target=DownloadQueue._download, kwargs={"filename":filename, "link":link, "force":force, "hooks":hooks})
 		id = self.push(job)
 		
 		return id
 
 	@staticmethod
-	def _download(link : str=None, filename : DirectoryPath=None, force=False, stdout=sys.stdout) -> str | None:
+	def _download(link : str=None, filename : DirectoryPath=None, force=False, hooks : Hooks=DummyHooks()) -> str | None:
 		'''Download genomes from refseq or genbank on request. Default kwarg of force=False makes the download not take place if file already exists.
 			ftp://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/00x/xxx/GCF_00000xxxx.x_ASMxxxv1/GCF_00000xxxx.x_ASMxxxv1_genomic.fna.gz
 		'''
-		print(f"{pName(filename):<20} -- ", end="", flush=True, file=stdout)
-
-		if os.path.exists(f"{filename}.gz") and not force:
+		
+		if force or not os.path.exists(filename) and not os.path.exists(f"{filename}.gz"):
+			LOGGER.debug(f"Downloading: {link} <-> {filename}")
+			hooks.trigger("DownloadReferenceStarting", {"filename" : os.path.basename(filename)})
+			reportHook = urlretrieveReportHook(hooks, filename)
+			urlretrieve(link, f"{filename}.gz", reporthook=lambda *args : reportHook.send(args))
+			reportHook.close()
+		
+		if os.path.exists(f"{filename}.gz") or force:
+			hooks.trigger("DownloadReferencePostProcess", {"filename" : os.path.basename(filename)})
 			LOGGER.debug("Unzipping Reference file for {f}.".format(f=os.path.basename(filename).strip("_genomic.fna.gz")))
 			DownloadQueue.gunzip(f"{filename}.gz")
-			print(f"Unpacked!", flush=True, file=stdout)
-
-		elif os.path.exists(filename) and not force:
-			LOGGER.debug("Reference file for {f} already exists!".format(f=filename.split("/")[-1].strip("_genomic.fna.gz")))
-			print(f"Exists!", flush=True, file=stdout)
-
-		elif not os.path.exists(filename) or force:
-			LOGGER.debug(f"Downloading: {link} <-> {filename}")
-			print("Downloading...", end="", flush=True, file=stdout)
-			urlretrieve(link, f"{filename}.gz")
-			print("\b"*len("Downloading...")+f"Downloaded. Unpacking...", end="", flush=True, file=stdout)
-
-			LOGGER.debug("Unzipping Reference file: '{f}'".format(f=os.path.basename(filename).strip("_genomic.fna.gz")))
-			DownloadQueue.gunzip(f"{filename}.gz")
-			print("\b"*len(". Unpacking...")+f" & Unpacked!  ", flush=True, file=stdout)
-
+			try:
+				os.remove(f"{filename}.gz")
+			except:
+				pass
+		hooks.trigger("DownloadReferenceFinished", {"filename" : os.path.basename(filename)})
+		LOGGER.debug("Reference file for {f} already exists!".format(f=filename.split("/")[-1].strip("_genomic.fna.gz")))
+		
 	@staticmethod
 	def gunzip(filename : str, dst : str=None, wait=True):
 		'''gunzip's given file. Only necessary for software that requires non-zipped data.'''
