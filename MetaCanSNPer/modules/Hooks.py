@@ -7,7 +7,6 @@ from MetaCanSNPer.modules.LogKeeper import createLogger
 LOGGER = createLogger(__name__)
 
 
-
 class Hook:
 
     target : Callable
@@ -95,16 +94,22 @@ class Hooks:
                 for hook in self._hooks.get(eventType, []):
                     if self.RUNNING: hook(eventInfo)
 
-def urlretrieveReportHook(category, hooks : Hooks, filename : str, steps : int=-1):
+def urlretrieveReportHook(category, hooks : Hooks, name : str, steps : int=-1):
 
     if steps > 0:
         # info : (blocks, blockSize, totalSize)
         while (info := (yield)) and info[0] * info[1] < info[2]:
-            hooks.trigger(f"Progress{category}", {"filename" : filename, "progress" : min(1.0, info[0] * info[1] / info[2])})
+            hooks.trigger(f"{category}Progress", {"name" : name, "progress" : min(1.0, info[0] * info[1] / info[2])})
+        else:
+            hooks.trigger(f"{category}Progress", {"name" : name, "progress" : 1.0})
     else:
         # info : (blocks, blockSize, totalSize)
         pos = 1
         while (info := (yield)) and info[0] * info[1] < info[2]:
             if pos <= info[0] * info[1] / info[2]:
-                hooks.trigger(f"Progress{category}", {"filename" : filename, "progress" : min(1.0, info[0] * info[1] / info[2])})
+                hooks.trigger(f"{category}", {"name" : name, "progress" : min(1.0, info[0] * info[1] / info[2])})
+                pos += 1
+        else:
+            if pos <= info[0] * info[1] / info[2]:
+                hooks.trigger(f"{category}", {"name" : name, "progress" : 1.0})
                 pos += 1

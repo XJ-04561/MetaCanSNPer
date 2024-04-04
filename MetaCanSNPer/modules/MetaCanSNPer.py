@@ -93,7 +93,10 @@ class MetaCanSNPer:
 		self.databaseName = os.path.basename(databaseName)
 		self.Lib.updateSettings({"organism":pName(self.databaseName)}) # TODO : Get organism name from safer source than filename
 		self.Lib.references = None
-		
+
+		if not silent:
+			updater = TerminalUpdater(f"Downloading {self.databaseName}:", category="DownloadDatabase", hooks=self.hooks, threadNames=[self.databaseName])
+			updater.start()
 		path = self.Lib.databaseDir.find(databaseName, purpose="r")
 		try:
 			database = openDatabase(path, "r")
@@ -106,21 +109,18 @@ class MetaCanSNPer:
 			LOGGER.info(f"Found database {database!r} in path {path!r}")
 			database.close()
 			self.databasePath = path
+			self.hooks.trigger("DownloadDatabaseSkipped", {"name" : self.databaseName})
 			return
 		
 		if (path := self.Lib.databaseDir.find(databaseName, purpose="w")) is None:
 			LOGGER.info(f"Downloading database {self.databaseName}")
 			try:
-				if not silent:
-					updater = TerminalUpdater(f"Downloading {self.databaseName} ... ", category="DownloadDatabase", hooks=self.hooks, threadNames=[self.databaseName])
-					updater.start()
+				self.hooks.trigger("DownloadDatabaseStarted", {"name" : self.databaseName})
 				reportHook = urlretrieveReportHook(self.hooks, self.databaseName)
 				path = downloadDatabase(self.databaseName, dst=self.Lib.databaseDir.create(purpose="w") / self.databaseName, reportHook=reportHook)
-				if not silent:
-					updater.stop()
-					updater.cleanup()
 				
 			except Exception as e:
+				self.hooks.trigger("DownloadDatabaseFailed", {"name" : self.databaseName})
 				LOGGER.exception(e)
 				LOGGER.error(f"Database not found locally or online: {self.databaseName!r}\nLocal directories checked: {self.Lib.databaseDir}")
 				raise FileNotFoundError(f"Database not found locally or online: {databaseName!r}")
@@ -132,6 +132,10 @@ class MetaCanSNPer:
 			try:
 				database.validateDatabase(code)
 			except IsLegacyCanSNPer2:
+				if not silent:
+					updater.stop()
+				# datasets summary genome accession GENBANK_ID -> [JSON]
+				# 'reports' -> list -> 'assembly_info' -> 'biosample' -> 'sample_ids' -> list -> 'value'
 				self.Lib.setReferences(self.database.ReferenceTable.get(DB.ALL))
 			except:
 				pass
