@@ -219,7 +219,7 @@ def main():
 			print(f"{type(exc).__name__}: {exc}", file=sys.stderr)
 
 		if not args.silent: print(f"{SOFTWARE_NAME} ended before completing query. ", end="")
-		print("Exception occured: \n", file=sys.stderr)
+		print("Exception occurred: \n", file=sys.stderr)
 
 		if args.debug:
 			pattern = re.compile(r"(\[[\w.]+\] \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3} - ERROR: .*?)(?:\[[\w.]+\] \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3} - \w+?:|\$)", flags=re.DOTALL+re.MULTILINE)

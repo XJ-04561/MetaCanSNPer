@@ -160,7 +160,7 @@ class Indicator:
 		self.createRowTemplate(os.get_terminal_size()[0])
 		self.finishedThreads.intersection_update(self._threads)
 
-	def __init__(self, threads : HitchableDict, symbols : tuple[str], length : int=1, message : str="", sep : str=" ", borders : tuple[str,str]=("[", "]"), crashSymbol=None, finishSymbol="\u2588", out=stdout, time: bool=True, preColor : str=None, partition : str=None, crashColor : str=None, skippedColor : str=None, finishColor : str=None, postColor : str=None, progColor : str=None):
+	def __init__(self, threads : HitchableDict, symbols : tuple[str], length : int=1, message : str="", sep : str=" ", borders : tuple[str,str]=("[", "]"), crashSymbol=None, finishSymbol="\u2588", out=stdout, preColor : str=None, partition : str=None, crashColor : str=None, skippedColor : str=None, finishColor : str=None, postColor : str=None, progColor : str=None):
 		
 		self.preColor		= preColor or ("\u001b[33;40m" if supportsColor() else "")
 		self.progColor		= progColor or ("\u001b[35;40m" if supportsColor() else "")
@@ -172,7 +172,6 @@ class Indicator:
 
 		self.message = message
 		self.condition = Condition()
-		self.time = self.time
 		self.out = out
 
 		self.symbols		= symbols
@@ -220,10 +219,7 @@ class Indicator:
 	def createRowTemplate(self, width : int) -> tuple[str, str, str]:
 		"""createRowTemplate(self, width : int) -> backspaces, whitespaces, rowTemplate
 		"""
-		if self.time is True:
-			firstRow = self.message+" {time:<"+str(width-1-len(self.message))+"}"
-		else:
-			firstRow = self.message.ljust(width)
+		firstRow = self.message+" {time:<"+str(width-1-len(self.message))+"}"
 		entriesPerRow = max(width-self.sepLength, self.length) // (self.length+self.sepLength)
 		spacerRow = " " * width
 		whiteSep : str = " " * self.sepLength
