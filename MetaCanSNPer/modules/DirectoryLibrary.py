@@ -211,34 +211,26 @@ class DirectoryLibrary(PathLibrary):
 	def setReferences(self, references : Iterable[tuple[int,str,str,str,str]], force : bool=False, silent : bool=False):
 		
 		self.references = MinimalPathLibrary()
-		DQ = DownloadQueue()
-		jobs = {}
-		out = open(os.devnull, "w") if silent else sys.stdout
-		for genomeID, genome, strain, genbank_id, refseq_id, assembly_name in references:
-			filename = f"{assembly_name}.fna"
-			self.hooks.trigger("DownloadReferenceInitialized", {"filename" : filename})
-			if self.refDir.find(filename) is None or force:
+		with DownloadQueue(hooks=self.hooks) as DQ:
+			jobs = {}
+			for genomeID, genome, strain, genbank_id, refseq_id, assembly_name in references:
+				filename = f"{assembly_name}.fna"
 				LOGGER.info(f"Queueing download for {genome=} as {filename=}")
 				jobID = DQ.download(genbank_id, refseq_id, assembly_name, dst=self.refDir.writable, filename=filename, force=force, hooks=self.hooks)
-				assert jobID != -1
-				jobs[jobID] = (genome, self.refDir.writable / filename)
-			else:
-				self.hooks.trigger("DownloadReferenceSkipped", {"filename" : filename})
-				LOGGER.debug(f"self.references[{genome!r}] = {self.refDir.find(filename)=}")
-				self.references[genome] = self.refDir.find(filename)
-				
-		DQ.wait(timeout=3)
-
-		if len(DQ.created) > 0: # Did not download all.
-			self.hooks.trigger("DownloadReferencesFailed", {"genomes" : [job[0] for job in jobs]})
-			genome, filename = jobs[DQ.created[0]]
-			raise DownloadFailed(f"Download failed before {genome!r} could be downloaded to path: {filename!r}.\nThe download that crashed the DownloadQueue was {DQ.jobs[DQ.active].kwargs}")
-		else: # Downloaded all.
-			for genome, filename in jobs.values():
-				if pExists(filename):
-					self.references[genome] = filename
+				if jobID != -1:
+					jobs[jobID] = genome
+					
 				else:
-					raise DownloadFailed(f"Could not download genome {genome!r} to path: {filename!r}")
+					LOGGER.debug(f"self.references[{genome!r}] = {self.refDir.find(filename)=}")
+					self.references[genome] = self.refDir.find(filename)
+			failed = []
+			for jobID in DQ:
+				self.references[jobs[jobID]] = self.refDir.find(DQ.jobs[jobID].kwargs["filename"])
+				if self.references[jobs[jobID]] is None:
+					failed.append(self.references[jobs[jobID]])
+			if len(failed) > 0:
+				raise DownloadFailed(f"Some or all of the reference genomes failed to download. [{', '.join(map(repr, failed))}]")
+
 		LOGGER.info(f"Finished downloading {len(jobs)} reference genomes!")
 
 	def setMaps(self, maps : dict[str,str]):

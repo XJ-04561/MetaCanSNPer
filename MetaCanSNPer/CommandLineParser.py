@@ -13,7 +13,7 @@ from MetaCanSNPer.Globals import *
 from MetaCanSNPer.Globals import __version__
 import MetaCanSNPer.modules.LogKeeper as LogKeeper
 from MetaCanSNPer.modules.MetaCanSNPer import MetaCanSNPer
-from MetaCanSNPer.modules.TerminalUpdater import TerminalUpdater
+from MetaCanSNPer.modules.TerminalUpdater import TerminalUpdater, Spinner, LoadingBar, TextProgress
 import MetaCanSNPer.Globals as Globals
 
 LOGGER = LogKeeper.createLogger(__name__)
@@ -105,28 +105,13 @@ MetaCanSNPer --query SEQUENCE_ASSEMBLY.fna --database DATABASE_FILE.db \\
 		debugOptions.add_argument("--verbose",	action="store_true",	help="Verbose output")
 		debugOptions.add_argument("--debug",	action="store_true",	help="Debug output")
 		debugOptions.add_argument("--suppress",	action="store_true",	help="Suppress warnings")
-		debugOptions.add_argument("--mute",		action="store_true",	help="Disables printing progress to terminal. But will print errors to stderr")
-		debugOptions.add_argument("--silent",	action="store_true",	help="Disables printing to terminal completely.")
+		debugOptions.add_argument("--silent",	action="store_true",	help="Disables printing to terminal except for any error messages which might appear.")
 		debugOptions.add_argument("--dry-run",	action="store_true",	help="Don't run the processes of the mapper/aligner/snpCaller, just run a randomised (1 - 5 sec) `sleep` call.")
 	
 
 	return parser
 
-def main():
-	
-	argsDict = separateCommands(sys.argv)
-	
-	parser = createParser()
-
-	if len(sys.argv)<2:
-		parser.print_help()
-		parser.exit()
-
-	args : argparse.Namespace = parser.parse_args(argsDict["args"])
-
-	if args.silent: sys.stderr = open(os.devnull, "w")
-	if args.silent or args.mute: sys.stdout = open(os.devnull, "w")
-
+def handleOptions(args : argparse.Namespace):
 	if args.version:
 		print(f"MetaCanSNPer - version {__version__}")
 		exit()
@@ -161,78 +146,88 @@ def main():
 		import PseudoPathy.Globals
 		PseudoPathy.Globals.PROGRAM_DIRECTORY = args.installDir
 
-	flags = dict(args._get_kwargs())
+def initializeMainObject(args):
+	if args.silent:
+		TerminalUpdater = lambda *args, **kwargs: open(os.devnull, "r")
+
+	mObj = MetaCanSNPer(settings=vars(args), settingsFile=args.settingsFile)
+	
+	if not args.silent: print(f"Checking query {args.query}")
+	mObj.setQuery(args.query)
+
+	with TerminalUpdater(f"Checking database {args.database}:", category="DownloadDatabase", hooks=mObj.hooks, threadNames=[os.path.basename(args.database)], printer=LoadingBar):
+		mObj.setDatabase(args.database)
+
+
+	if args.sessionName is not None: mObj.setSessionName(args.sessionName)
+
+	with TerminalUpdater(f"Checking Reference Genomes:", category="DownloadReferences", hooks=mObj.hooks, threadNames=[mObj.database.ReferenceTable.get(DB.Assembly)], printer=LoadingBar):
+		mObj.setReferenceFiles()
+	
+	return mObj
+
+def runJob(mObj : MetaCanSNPer, args : argparse.Namespace, argsDict : dict):
+	if args.silent:
+		TerminalUpdater : TerminalUpdater = lambda *args, **kwargs: open(os.devnull, "r")
+	
+	genomes = mObj.database.ReferenceTable.all(DB.Genome)
+	
+	if args.mapper is not None:
+		with TerminalUpdater(f"Creating Mappings:", category="Mappers", hooks=mObj.hooks, threadNames=[genomes], printer=Spinner):
+			mObj.createMap(softwareName=args.mapper, flags=argsDict.get("--mapperOptions", {}))
+
+	if args.aligner is not None:
+		with TerminalUpdater(f"Creating Alignments:", category="Aligners", hooks=mObj.hooks, threadNames=[genomes], printer=Spinner):
+			mObj.createAlignment(softwareName=args.aligner, flags=argsDict.get("--alignerOptions", {}))
+	
+	with TerminalUpdater(f"Creating Alignments:", category="Aligners", hooks=mObj.hooks, threadNames=[genomes], printer=Spinner):
+		mObj.callSNPs(softwareName=args.snpCaller, flags=argsDict.get("--snpCallerOptions", {}))
+
+def saveResults(mObj : MetaCanSNPer, args : argparse.Namespace):
+	if not args.silent:
+		print("Saving results...", end="", flush=True)
+
+	mObj.saveSNPdata()
+	mObj.saveResults()
+
+	if not args.silent:
+		print(" Done!", flush=True)
+
+def main():
+	
+	argsDict = separateCommands(sys.argv)
+	
+	parser = createParser()
+
+	if len(sys.argv)<2:
+		parser.print_help()
+		parser.exit()
+
+	args : argparse.Namespace = parser.parse_args(argsDict["args"])
+
+
+	handleOptions(args)
 	
 	try:
-		mObj = MetaCanSNPer(settings=flags, settingsFile=args.settingsFile)
-		
-		print(f"Checking query {args.query}")
-		mObj.setQuery(flags["query"])
+		mObj = initializeMainObject(args)
 
-		print(f"Checking database {args.database}: ")
-		mObj.setDatabase(flags["database"], silent=flags["mute"])
-		
-		if flags["sessionName"] is not None: mObj.setSessionName(flags["sessionName"])
+		runJob(mObj, args, argsDict)
 
-		genomes = list(map(lambda tupe: tupe[1], mObj.database.references))
-		
-		if flags.get("mapper") is not None:
-			TU = TerminalUpdater("Creating Maps", "Mappers", mObj.hooks, genomes)
-			TU.start()
-
-			mObj.createMap(softwareName=flags["mapper"], flags=argsDict.get("--mapperOptions", {}))
-
-			TU.stop()
-
-		if flags.get("aligner") is not None:
-			TU = TerminalUpdater("Creating Alignments", "Aligners", mObj.hooks, genomes)
-			TU.start()
-
-			mObj.createAlignment(softwareName=flags["aligner"], flags=argsDict.get("--alignerOptions", {}))
-			
-			TU.stop()
-		
-		TU = TerminalUpdater("Calling SNPs", "SNPCallers", mObj.hooks, genomes)
-		TU.start()
-
-		mObj.callSNPs(softwareName=flags["snpCaller"], flags=argsDict.get("--snpCallerOptions", {}))
-		
-		TU.stop()
-
-		print("Saving results...", end="", flush=True)
-		mObj.saveSNPdata()
-		mObj.saveResults()
-		print(" Done!", flush=True)
+		saveResults(mObj, args)
 
 		print(f"{SOFTWARE_NAME} finished in {timer() - startTime:.3f} seconds! Results exported to: {mObj.Lib.resultDir}")
 	except Exception as e:
-		try:
-			TU.stop()
-		except:
-			pass
 		LOGGER.exception(e)
-		try:
-			for exc in mObj.exceptions:
-				print(f"{type(exc).__name__}: "+str(exc), file=sys.stderr)
-		except:
-			pass
+		for exc in mObj.exceptions:
+			print(f"{type(exc).__name__}: {exc}", file=sys.stderr)
 
-		print(f"{SOFTWARE_NAME} ended before completing query. ", end="")
-		print("Exception that caused it: ", file=sys.stderr)
-		print("")
+		if not args.silent: print(f"{SOFTWARE_NAME} ended before completing query. ", end="")
+		print("Exception occured: \n", file=sys.stderr)
 
 		if args.debug:
 			pattern = re.compile(r"(\[[\w.]+\] \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3} - ERROR: .*?)(?:\[[\w.]+\] \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3} - \w+?:|\$)", flags=re.DOTALL+re.MULTILINE)
-			for err in pattern.finditer(open(LOGGER_FILEHANDLER.baseFilename, "r").read()):
-				print(err.group(1), file=sys.stderr)
-				print(file=sys.stderr)
-
-			print(traceback.format_exc(), file=sys.stderr)
+			for i, err in enumerate(pattern.finditer(open(LOGGER_FILEHANDLER.baseFilename, "r").read())):
+				print(f"Exception [{i}]\n{err.group(1)}", file=sys.stderr)
 		else:
 			print(f"{type(e).__name__}: "+str(e), file=sys.stderr)
 		exit(1)
-
-
-if oname=="__main__":
-	main()
-	

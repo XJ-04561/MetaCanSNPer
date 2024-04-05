@@ -8,7 +8,7 @@ from typing import TextIO, Iterable
 from functools import cached_property
 from MetaCanSNPer.Globals import *
 from MetaCanSNPer.modules.LogKeeper import createLogger
-from textwrap import shorten
+import textwrap
 
 LOGGER = createLogger(__name__)
 _NOT_FOUND = object()
@@ -50,10 +50,13 @@ class HitchableDict(dict):
 
 	onSet : Callable = None
 
-	def __new__(cls, *args, onSet=None, **kwargs):
+	def __new__(cls, *args, **kwargs):
 		obj = super().__new__(cls, *args, **kwargs)
-		obj.onSet = onSet
 		return obj
+
+	def __init__(self, data, onSet=None, **kwargs):
+		super().__init__(data, **kwargs)
+		self.onSet = onSet
 
 	def __setitem__(self, key, value):
 		dict.__setitem__(key, value)
@@ -131,6 +134,8 @@ class Indicator:
 	finishSymbol : str
 	_threads : dict[str,float]
 	condition : Condition
+	finishedThreads : set
+	names : list[str]
 
 	backspaces : str
 	whitespaces : str
@@ -147,10 +152,12 @@ class Indicator:
 	@threads.setter
 	def threads(self, threads : HitchableDict[str,float]):
 		self._threads = threads
-		self.keys = sorted(threads.keys())
-		self.N = len(self.keys)
+		self.names = sorted(threads.keys())
+		self.shortKeys = [textwrap.shorten(name, self.length, placeholder="..") for name in self.names]
+		self.N = len(self.names)
 		self.entries = list(map(lambda _:" "*self.innerLength, range(self.N)))
 		self.createRowTemplate(os.get_terminal_size()[0])
+		self.finishedThreads.intersection_update(self._threads)
 
 	def __init__(self, threads : HitchableDict, symbols : tuple[str], length : int=1, message : str="", sep : str=" ", borders : tuple[str,str]=("[", "]"), crashSymbol=None, finishSymbol="\u2588", out=stdout, time: bool=True, preColor : str=None, partition : str=None, crashColor : str=None, skippedColor : str=None, finishColor : str=None, postColor : str=None, progColor : str=None):
 		
@@ -176,6 +183,7 @@ class Indicator:
 		self.length = length
 
 		self.threads = threads
+		self.finishedThreads = set()
 	
 	@property
 	def symbols(self) -> tuple[str]:
@@ -218,21 +226,19 @@ class Indicator:
 		entriesPerRow = max(width-self.sepLength, self.length) // (self.length+self.sepLength)
 		spacerRow = " " * width
 		whiteSep : str = " " * self.sepLength
-		rowTemplate = []
+		sepReplace = f"{self.borders[0]}{whiteSep}{self.borders[1]}", f"{self.borders[0]}{self.sep}{self.borders[1]}"
 		emptyEntry = " "*self.length
-		for i in range(self.N // entriesPerRow):
-			rowTemplate.append([map(lambda j:f"{'{'}names[{j}]{'}'}".center(self.length) if j < self.N else emptyEntry, range(i*entriesPerRow, (i+1)*entriesPerRow)),
-					   map(lambda j:f"{self.borders[0]}{'{'}targets[{j}]{'}'}{self.borders[1]}" if j < self.N else emptyEntry, range(i*entriesPerRow, (i+1)*entriesPerRow))])
-		if self.N % entriesPerRow:
-			rowTemplate.append([map(lambda j:f"{'{'}names[{j}]{'}'}".center(self.length) if j < self.N else emptyEntry, range(i*entriesPerRow, (i+1)*entriesPerRow)),
-					   map(lambda j:f"{self.borders[0]}{'{'}targets[{j}]{'}'}{self.borders[1]}" if j < self.N else emptyEntry, range(i*entriesPerRow, (i+1)*entriesPerRow))])
-			for j in range(i*entriesPerRow, min((i+1)*entriesPerRow, self.N)):
-				rowTemplate[i][0].append()
-				rowTemplate[i][1].append()
-			for j in range(min((i+1)*entriesPerRow, self.N), (i+1)*entriesPerRow):
-				rowTemplate[i][0].append(emptyEntry)
-				rowTemplate[i][1].append(emptyEntry)
-		rowTemplate = firstRow + spacerRow.join(map(lambda names, indicators, gaps: whiteSep.join(names)+self.sep.join(indicators), rowTemplate))
+
+		rowTemplate = []
+		
+		namesList = textwrap.wrap(whiteSep.join(map(lambda i: f"{'{'}names[{i}]{'}'}", range(self.N))), width)
+		barsList = textwrap.wrap(whiteSep.join(map(lambda i: f"{self.borders[0]}{'{'}bars[{i}]{'}'}{self.borders[1]}", range(self.N))), width)
+		
+		for namesRow, barsRow in zip(namesList, barsList):
+			rowTemplate.append(namesRow.center(width))
+			rowTemplate.append(barsRow.center(width).replace(*sepReplace))
+			rowTemplate.append(spacerRow)
+		rowTemplate = firstRow + "".join(rowTemplate)
 		
 		backspaces = "\b" * len(rowTemplate)
 		whitespaces = " " * len(self.backspaces)
@@ -258,22 +264,25 @@ class Indicator:
 		generator = self.rowGenerator()
 		while self.running:
 			self.backspaces, self.whitespaces, self.rowTemplate = self.createRowTemplate(os.get_terminal_size()[0])
-			for i in range(len(self.keys)):
+			for i in range(len(self.names)):
 				try:
 					self.entries[i] = next(generator)
 				except IndexError:
 					pass
-			if self.time is True:
-				s = timer()-startTime
-				h, m, s, ms = s // 3600, (s % 3600) // 60, s % 60, s % 1
-				print(self.backspaces, end=self.rowTemplate.format(time=f"{h:0>2d}:{m:0>2d}:{s:0>2d},{ms:0<3d}", names=self.keys, targets=self.entries), flush=True, file=self.out)
-			else:
-				print(self.backspaces, end=self.rowTemplate.format(names=self.keys, targets=self.entries), flush=True, file=self.out)
+			
+			s = timer()-startTime
+			h, m, s, ms = s // 3600, (s % 3600) // 60, s % 60, s % 1
+			if all(p is None or p == 1 for p in self.threads.values()):
+				break
+			print(self.backspaces, end=self.rowTemplate.format(time=f"{h:0>2d}:{m:0>2d}:{s:0>2d},{ms:0<3d}", names=self.names, bars=self.entries), flush=True, file=self.out)
 			self.condition.acquire(timeout=0.2)
+		
 		if None in self.threads.values():
-			print(self.backspaces, end=self.rowTemplate.format(time=f"{h:0>2d}:{m:0>2d}:{s:0>2d},{ms:0<3d} Failed!", names=self.keys, targets=self.entries), flush=True, file=self.out)
+			print(self.backspaces, end=self.rowTemplate.format(time=f"{h:0>2d}:{m:0>2d}:{s:0>2d},{ms:0<3d} Failed!", names=self.names, bars=self.entries), flush=True, file=self.out)
+		elif all(map((1).__eq__, self.threads.values())):
+			print(self.backspaces, end=self.rowTemplate.format(time=f"{h:0>2d}:{m:0>2d}:{s:0>2d},{ms:0<3d} Done!", names=self.names, bars=self.entries), flush=True, file=self.out)
 		else:
-			print(self.backspaces, end=self.rowTemplate.format(time=f"{h:0>2d}:{m:0>2d}:{s:0>2d},{ms:0<3d} Done!", names=self.keys, targets=self.entries), flush=True, file=self.out)
+			print(self.backspaces, end=self.rowTemplate.format(time=f"{h:0>2d}:{m:0>2d}:{s:0>2d},{ms:0<3d} Interrupted!", names=self.names, bars=self.entries), flush=True, file=self.out)
 		print(flush=True, file=self.out)
 	
 	def checkDone(self):
@@ -304,14 +313,14 @@ class LoadingBar(Indicator):
 		skippedString = self.skippedColor+self.symbols[0]*self.innerLength
 		n = 0
 		while self.running:
-			for prog in map(self.threads.get, self.keys):
+			for name, prog in zip(self.names, map(self.threads.get, self.names)):
 				if prog is None:
 					yield crashString
 				elif isinstance(prog, int) and prog == 1:
 					yield skippedString
-				elif prog == 1.0:
+				elif name in self.finishedThreads:
 					yield finishString
-				elif 0 <= prog < 1.0:
+				elif 0 <= prog <= 1.0:
 					fillLength = int(self.innerLength*2*prog)
 					fillLength, halfBlock = fillLength//2, fillLength%2
 					
@@ -343,14 +352,14 @@ class Spinner(Indicator):
 		skippedString = self.skippedColor + self.finishSymbol
 		n = 0
 		while self.running:
-			for prog in map(self.threads.get, self.keys):
+			for name, prog in zip(self.names, map(self.threads.get, self.names)):
 				if prog is None:
 					yield crashString
 				elif isinstance(prog, int) and prog == 1:
 					yield skippedString
-				elif prog == 1.0:
+				elif name in self.finishedThreads:
 					yield finishString
-				elif 0 <= prog < 1:
+				elif 0 <= prog <= 1:
 					yield self.progColor + self.symbols[n]
 				elif prog < 0:
 					yield self.preColor + "." if n%2 else ":"
@@ -376,14 +385,14 @@ class TextProgress(Indicator):
 		skippedString = self.skippedColor + self.finishSymbol
 		n = 0
 		while self.running:
-			for prog in map(self.threads.get, self.keys):
+			for name, prog in zip(self.names, map(self.threads.get, self.names)):
 				if prog is None:
 					yield crashString
 				elif isinstance(prog, int) and prog == 1:
 					yield skippedString
-				elif prog == 1.0:
+				elif name in self.finishedThreads:
 					yield finishString
-				elif 0 <= prog < 1:
+				elif 0 <= prog <= 1:
 					yield self.progColor + self.symbols[int(NSymbols*prog)]
 				elif prog < 0:
 					yield self.preColor + "."*n + ":"*(n<self.innerLength) + "."*(self.innerLength-n)
@@ -409,10 +418,8 @@ class TerminalUpdater:
 		self.category = category
 		self.hooks = hooks
 		self.threadNames = threadNames
-		self.threads = HitchableDict(map(lambda name : (name,-1.0), threadNames))
-		self.threads.onSet
+		self.threads = HitchableDict(map(lambda name : (name,-1.0), threadNames), onSet=self.updatePrinter)
 		self.out = out
-		self.finishedThreads = set()
 		
 		self.running = True
 
@@ -436,6 +443,13 @@ class TerminalUpdater:
 		if printer is not None:
 			self.setPrinter(printer)
 
+	def __enter__(self):
+		self.start()
+		return self
+
+	def __exit__(self, *args):
+		self.stop()
+
 	def initializedCallback(self, eventInfo : dict[str,Any]):
 		if eventInfo["name"] in self.threads:
 			self.threads[eventInfo["name"]] = -1.0
@@ -443,6 +457,7 @@ class TerminalUpdater:
 	def skippedCallback(self, eventInfo : dict[str,Any]):
 		if eventInfo["name"] in self.threads:
 			self.threads[eventInfo["name"]] = 1
+			self.printer.finishedThreads.add(eventInfo["name"])
 
 	def startingCallback(self, eventInfo : dict[str,Any]):
 		if eventInfo["name"] in self.threads:
@@ -458,7 +473,7 @@ class TerminalUpdater:
 
 	def finishedCallback(self, eventInfo : dict[str,Any]):
 		if eventInfo["name"] in self.threads:
-			self.threads[eventInfo["name"]] = 1.0
+			self.printer.finishedThreads.add(eventInfo["name"])
 
 	def failedCallback(self, eventInfo : dict[str,Any]):
 		if eventInfo["name"] in self.threads:
@@ -491,3 +506,12 @@ class TerminalUpdater:
 		except Exception as e:
 			LOGGER.exception(e)
 			print("Exception occured in print-loop", flush=True, file=self.out)
+
+	def updatePrinter(self):
+		try:
+			self.printer.threads = self.threads
+			for name, value in self.threads.items():
+				if name in self.printer.finishedThreads and value != 1:
+					self.printer.finishedThreads.remove(name)
+		except:
+			pass

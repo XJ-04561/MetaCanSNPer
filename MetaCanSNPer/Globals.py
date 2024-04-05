@@ -29,6 +29,7 @@ from PseudoPathy.Library import CommonGroups
 from MetaCanSNPerDatabases import DatabaseReader, downloadDatabase, Branch, DatabaseWriter, openDatabase, IsLegacyCanSNPer2, updateFromLegacy
 from MetaCanSNPerDatabases import Commands
 from MetaCanSNPerDatabases import Columns as DB
+from MetaCanSNPerDatabases.Exceptions import *
 import MetaCanSNPerDatabases as CanSNPDB
 from MetaCanSNPerDatabases import Globals as DBGlobals
 import random, logging, re, time, os, sys, shutil

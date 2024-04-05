@@ -94,9 +94,6 @@ class MetaCanSNPer:
 		self.Lib.updateSettings({"organism":pName(self.databaseName)}) # TODO : Get organism name from safer source than filename
 		self.Lib.references = None
 
-		if not silent:
-			updater = TerminalUpdater(f"Downloading {self.databaseName}:", category="DownloadDatabase", hooks=self.hooks, threadNames=[self.databaseName])
-			updater.start()
 		path = self.Lib.databaseDir.find(databaseName, purpose="r")
 		try:
 			database = openDatabase(path, "r")
@@ -118,6 +115,7 @@ class MetaCanSNPer:
 				self.hooks.trigger("DownloadDatabaseStarted", {"name" : self.databaseName})
 				reportHook = urlretrieveReportHook(self.hooks, self.databaseName)
 				path = downloadDatabase(self.databaseName, dst=self.Lib.databaseDir.create(purpose="w") / self.databaseName, reportHook=reportHook)
+				self.hooks.trigger("DownloadDatabasePostProcess", {"name" : self.databaseName})
 				
 			except Exception as e:
 				self.hooks.trigger("DownloadDatabaseFailed", {"name" : self.databaseName})
@@ -126,27 +124,28 @@ class MetaCanSNPer:
 				raise FileNotFoundError(f"Database not found locally or online: {databaseName!r}")
 		
 		database : DatabaseWriter = openDatabase(path, "w")
-		last = -1
 		code = database.checkDatabase()
-		for _ in filter(lambda _ : code != last, range(100)):
+		for _ in range(100):
 			try:
 				database.validateDatabase(code)
-			except IsLegacyCanSNPer2:
-				if not silent:
-					updater.stop()
-				# datasets summary genome accession GENBANK_ID -> [JSON]
-				# 'reports' -> list -> 'assembly_info' -> 'biosample' -> 'sample_ids' -> list -> 'value'
-				self.Lib.setReferences(self.database.ReferenceTable.get(DB.ALL))
 			except:
-				pass
-			finally:
 				database.rectifyDatabase(code, refDir=self.Lib.refDir)
-			last = code
-			code = database.checkDatabase()
-		
-		database.validateDatabase(code)
+			if code == 0:
+				break
+			elif code == (code := database.checkDatabase()):
+				try:
+					database.validateDatabase(code)
+				except Exception as e:
+					self.hooks.trigger("DownloadDatabaseFailed", {"name" : self.databaseName})
+					raise RuntimeError(f"Could not rectify faulty database at {path} returned the same Error twice: {e.__name__}: {e}")
+		else:
+			database.validateDatabase(code)
 		database.commit()
 		database.close()
+		
+		self.databasePath = path
+		self.hooks.trigger("DownloadDatabaseFinished", {"name" : self.databaseName})
+		LOGGER.info(f"Finished downloading {self.databaseName} to {self.databasePath}!")
 
 	def connectDatabase(self):
 		LOGGER.debug(f"Connecting to database:{self.databasePath}")
@@ -154,10 +153,19 @@ class MetaCanSNPer:
 			raise NameError("Database not specified. Can't connect unless a valid database is set through MetaCanSNPer.setDatabase.")
 		
 		self.database = openDatabase(self.databasePath, "r")
-		if self.Lib.references is None:
-			self.Lib.setReferences(self.database.ReferenceTable.get(DB.ALL))
+		self.Lib.references = None
 		LOGGER.debug(f"Connected to database:{self.databasePath}")
 		return 0
+	
+	def setReferenceFiles(self):
+		try:
+			assert self.database is not None
+			references = self.database.ReferenceTable.get(DB.ALL)
+		except Exception as e:
+			LOGGER.exception(e)
+			raise DatabaseNotConnected(f"Can't set reference genomes when no valid database is connected ({self.databaseName=}, {self.databasePath=})")
+		else:
+			self.Lib.setReferences(references=references)
 
 	'''MetaCanSNPer set directories'''
 	
