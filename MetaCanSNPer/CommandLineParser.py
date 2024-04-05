@@ -146,9 +146,11 @@ def handleOptions(args : argparse.Namespace):
 		import PseudoPathy.Globals
 		PseudoPathy.Globals.PROGRAM_DIRECTORY = args.installDir
 
-def initializeMainObject(args):
 	if args.silent:
+		global TerminalUpdater
 		TerminalUpdater = lambda *args, **kwargs: open(os.devnull, "r")
+
+def initializeMainObject(args):
 
 	mObj = MetaCanSNPer(settings=vars(args), settingsFile=args.settingsFile)
 	
@@ -158,7 +160,6 @@ def initializeMainObject(args):
 	with TerminalUpdater(f"Checking database {args.database}:", category="DownloadDatabase", hooks=mObj.hooks, threadNames=[os.path.basename(args.database)], printer=LoadingBar):
 		mObj.setDatabase(args.database)
 
-
 	if args.sessionName is not None: mObj.setSessionName(args.sessionName)
 
 	with TerminalUpdater(f"Checking Reference Genomes:", category="DownloadReferences", hooks=mObj.hooks, threadNames=[mObj.database.ReferenceTable.get(DB.Assembly)], printer=LoadingBar):
@@ -167,31 +168,27 @@ def initializeMainObject(args):
 	return mObj
 
 def runJob(mObj : MetaCanSNPer, args : argparse.Namespace, argsDict : dict):
-	if args.silent:
-		TerminalUpdater : TerminalUpdater = lambda *args, **kwargs: open(os.devnull, "r")
 	
 	genomes = mObj.database.ReferenceTable.all(DB.Genome)
 	
 	if args.mapper is not None:
-		with TerminalUpdater(f"Creating Mappings:", category="Mappers", hooks=mObj.hooks, threadNames=[genomes], printer=Spinner):
+		with TerminalUpdater(f"Creating Mappings:", category="Mappers", hooks=mObj.hooks, threadNames=genomes, printer=Spinner):
 			mObj.createMap(softwareName=args.mapper, flags=argsDict.get("--mapperOptions", {}))
 
 	if args.aligner is not None:
-		with TerminalUpdater(f"Creating Alignments:", category="Aligners", hooks=mObj.hooks, threadNames=[genomes], printer=Spinner):
+		with TerminalUpdater(f"Creating Alignments:", category="Aligners", hooks=mObj.hooks, threadNames=genomes, printer=Spinner):
 			mObj.createAlignment(softwareName=args.aligner, flags=argsDict.get("--alignerOptions", {}))
 	
-	with TerminalUpdater(f"Creating Alignments:", category="Aligners", hooks=mObj.hooks, threadNames=[genomes], printer=Spinner):
+	with TerminalUpdater(f"Creating Alignments:", category="Aligners", hooks=mObj.hooks, threadNames=genomes, printer=Spinner):
 		mObj.callSNPs(softwareName=args.snpCaller, flags=argsDict.get("--snpCallerOptions", {}))
 
 def saveResults(mObj : MetaCanSNPer, args : argparse.Namespace):
-	if not args.silent:
-		print("Saving results...", end="", flush=True)
 
-	mObj.saveSNPdata()
-	mObj.saveResults()
+	with TerminalUpdater(f"Saving Results:", category="SavingResults", hooks=mObj.hooks, threadNames=[mObj.queryName], printer=Spinner):
+		mObj.saveSNPdata()
+		mObj.saveResults()
+		mObj.hooks.trigger("SavingResultsFinished", {"name" : mObj.queryName})
 
-	if not args.silent:
-		print(" Done!", flush=True)
 
 def main():
 	
@@ -205,7 +202,6 @@ def main():
 
 	args : argparse.Namespace = parser.parse_args(argsDict["args"])
 
-
 	handleOptions(args)
 	
 	try:
@@ -215,7 +211,8 @@ def main():
 
 		saveResults(mObj, args)
 
-		print(f"{SOFTWARE_NAME} finished in {timer() - startTime:.3f} seconds! Results exported to: {mObj.Lib.resultDir}")
+		if not args.silent:
+			print(f"{SOFTWARE_NAME} finished in {timer() - startTime:.3f} seconds! Results exported to: {mObj.Lib.resultDir}")
 	except Exception as e:
 		LOGGER.exception(e)
 		for exc in mObj.exceptions:
