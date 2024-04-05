@@ -203,16 +203,16 @@ def main():
 	args : argparse.Namespace = parser.parse_args(argsDict["args"])
 
 	handleOptions(args)
-	
+
+	mObj = lambda : None
+	mObj.exceptions = []
+
 	try:
 		mObj = initializeMainObject(args)
 
 		runJob(mObj, args, argsDict)
 
 		saveResults(mObj, args)
-
-		if not args.silent:
-			print(f"{SOFTWARE_NAME} finished in {timer() - startTime:.3f} seconds! Results exported to: {mObj.Lib.resultDir}")
 	except Exception as e:
 		LOGGER.exception(e)
 		for exc in mObj.exceptions:
@@ -228,3 +228,6 @@ def main():
 		else:
 			print(f"{type(e).__name__}: "+str(e), file=sys.stderr)
 		exit(1)
+	else:
+		if not args.silent:
+			print(f"{SOFTWARE_NAME} finished in {timer() - startTime:.3f} seconds! Results exported to: {mObj.Lib.resultDir}")
