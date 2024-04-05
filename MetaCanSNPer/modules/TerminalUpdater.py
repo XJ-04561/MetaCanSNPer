@@ -15,6 +15,7 @@ _NOT_FOUND = object()
 
 class HashCachedProperty:
 	__cache : dict
+	attrname : str = None
 	def __init__(self, *watch):
 		self.__cache = {}
 		self.watch = watch
@@ -37,7 +38,7 @@ class HashCachedProperty:
 			if (key := tuple(map(instance.__getattribute__, self.watch))) in self._cache:
 				return self._cache[key]
 			else:
-				self._cache[key] = out = self.func(instance)
+				self.__cache[key] = out = self.func(instance)
 				return out
 		except TypeError: # Unhashable
 			LOGGER.error("Attempted to fetch cached value for property with \
