@@ -1,7 +1,7 @@
 
 from MetaCanSNPer.Globals import *
-import MetaCanSNPer.modules.LogKeeper as LogKeeper
-from MetaCanSNPer.modules.Wrappers import *
+import MetaCanSNPer.core.LogKeeper as LogKeeper
+from MetaCanSNPer.core.Wrappers import *
 
 from copy import copy as copyObject
 from shutil import copy

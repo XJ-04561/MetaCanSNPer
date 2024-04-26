@@ -9,14 +9,14 @@ from VariantCallFixer.Functions import getSNPdata
 ## import MetaCanSNPer specific modules
 from MetaCanSNPer.Globals import *
 import MetaCanSNPer.Globals as Globals
-import MetaCanSNPer.modules.LogKeeper as LogKeeper
-from MetaCanSNPer.modules.DirectoryLibrary import DirectoryLibrary
-from MetaCanSNPer.modules.Hooks import Hooks, urlretrieveReportHook, DummyHooks
-from MetaCanSNPer.modules.Wrappers import Aligner, Mapper, SNPCaller, IndexingWrapper
-import MetaCanSNPer.modules.Aligners as Aligners
-import MetaCanSNPer.modules.Mappers as Mappers
-import MetaCanSNPer.modules.SNPCallers as SNPCallers
-from MetaCanSNPer.modules.TerminalUpdater import TerminalUpdater
+import MetaCanSNPer.core.LogKeeper as LogKeeper
+from MetaCanSNPer.core.DirectoryLibrary import DirectoryLibrary
+from MetaCanSNPer.core.Hooks import Hooks, urlretrieveReportHook, DummyHooks
+from MetaCanSNPer.core.Wrappers import Aligner, Mapper, SNPCaller, IndexingWrapper
+import MetaCanSNPer.core.Aligners as Aligners
+import MetaCanSNPer.core.Mappers as Mappers
+import MetaCanSNPer.core.SNPCallers as SNPCallers
+from MetaCanSNPer.core.TerminalUpdater import TerminalUpdater
 
 LOGGER = LogKeeper.createLogger(__name__)
 

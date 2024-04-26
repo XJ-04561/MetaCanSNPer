@@ -3,12 +3,12 @@ import os, shutil, re
 from typing import Any, Iterable, Callable
 from threading import Semaphore, ThreadError
 
-import MetaCanSNPer.modules.LogKeeper as LogKeeper
-import MetaCanSNPer.modules.ErrorFixes as ErrorFixes
-from MetaCanSNPer.modules.DirectoryLibrary import DirectoryLibrary
-from MetaCanSNPer.modules.Hooks import Hooks
+import MetaCanSNPer.core.LogKeeper as LogKeeper
+import MetaCanSNPer.core.ErrorFixes as ErrorFixes
+from MetaCanSNPer.core.DirectoryLibrary import DirectoryLibrary
+from MetaCanSNPer.core.Hooks import Hooks
 from MetaCanSNPerDatabases import DatabaseReader
-from MetaCanSNPer.modules.Commands import Command
+from MetaCanSNPer.core.Commands import Command
 from MetaCanSNPer.Globals import *
 import MetaCanSNPer.Globals as Globals
 

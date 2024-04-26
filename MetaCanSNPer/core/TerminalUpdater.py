@@ -1,5 +1,5 @@
 
-from MetaCanSNPer.modules.Hooks import Hooks
+from MetaCanSNPer.core.Hooks import Hooks
 from threading import Thread, Condition
 from time import sleep
 from timeit import default_timer as timer
@@ -7,7 +7,7 @@ from sys import stdout
 from typing import TextIO, Iterable
 from functools import cached_property
 from MetaCanSNPer.Globals import *
-from MetaCanSNPer.modules.LogKeeper import createLogger
+from MetaCanSNPer.core.LogKeeper import createLogger
 import textwrap
 
 LOGGER = createLogger(__name__)

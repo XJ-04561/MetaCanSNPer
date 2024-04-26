@@ -4,11 +4,11 @@
 '''
 
 from MetaCanSNPer.Globals import *
-import MetaCanSNPer.modules.LogKeeper as LogKeeper
+import MetaCanSNPer.core.LogKeeper as LogKeeper
 
 LOGGER = LogKeeper.createLogger(__name__)
 
-from MetaCanSNPer.modules.Wrappers import Mapper
+from MetaCanSNPer.core.Wrappers import Mapper
 
 class Minimap2(Mapper):
 	softwareName = "minimap2"

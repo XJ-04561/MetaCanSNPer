@@ -1,16 +1,14 @@
 
 
 from PseudoPathy.Functions import createTemp
-from MetaCanSNPerDatabases import DatabaseReader
-from MetaCanSNPerDatabases import Columns as DB
 
 from MetaCanSNPer.Globals import *
 import MetaCanSNPer.Globals as Globals
-from MetaCanSNPer.modules.DownloadReferences import DownloadQueue, DownloadFailed
-from MetaCanSNPer.modules.FileNameAlignment import align as fileNameAlign
-from MetaCanSNPer.modules.Hooks import Hooks
+from MetaCanSNPer.core.DownloadReferences import DownloadQueue, DownloadFailed
+from MetaCanSNPer.core.FileNameAlignment import align as fileNameAlign
+from MetaCanSNPer.core.Hooks import Hooks
 
-import MetaCanSNPer.modules.LogKeeper as LogKeeper
+import MetaCanSNPer.core.LogKeeper as LogKeeper
 import PseudoPathy.Globals
 PseudoPathy.Globals.LOGGER = LOGGER = LogKeeper.createLogger(__name__)
 

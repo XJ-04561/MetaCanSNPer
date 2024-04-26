@@ -2,7 +2,7 @@
 from typing import Callable
 from threading import Thread, Condition
 
-from MetaCanSNPer.modules.LogKeeper import createLogger
+from MetaCanSNPer.core.LogKeeper import createLogger
 
 LOGGER = createLogger(__name__)
 

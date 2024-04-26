@@ -5,8 +5,8 @@ from urllib.request import urlretrieve
 from typing import Callable, Any
 from time import sleep
 
-import MetaCanSNPer.modules.LogKeeper as LogKeeper
-from MetaCanSNPer.modules.Hooks import Hooks, DummyHooks, urlretrieveReportHook
+import MetaCanSNPer.core.LogKeeper as LogKeeper
+from MetaCanSNPer.core.Hooks import Hooks, DummyHooks, urlretrieveReportHook
 from MetaCanSNPer.Globals import *
 import MetaCanSNPer.Globals as Globals
 

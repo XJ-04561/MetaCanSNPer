@@ -4,10 +4,10 @@
 from subprocess import Popen, PIPE, CompletedProcess
 from threading import Thread
 
-from MetaCanSNPer.modules.LogKeeper import createLogger
+from MetaCanSNPer.core.LogKeeper import createLogger
 LOGGER = createLogger(__name__)
 
-from MetaCanSNPer.modules.Hooks import Hooks
+from MetaCanSNPer.core.Hooks import Hooks
 from MetaCanSNPer.Globals import *
 
 def bPrint(*strings, sep=b" ", end=b"\n", file : BinaryIO=None, encoding : str="utf-8"):

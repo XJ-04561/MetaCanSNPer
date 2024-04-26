@@ -11,10 +11,11 @@ import re
 ## import MetaCanSNPer specific modules
 from MetaCanSNPer.Globals import *
 from MetaCanSNPer.Globals import __version__
-import MetaCanSNPer.modules.LogKeeper as LogKeeper
-from MetaCanSNPer.modules.MetaCanSNPer import MetaCanSNPer
-from MetaCanSNPer.modules.TerminalUpdater import TerminalUpdater, Spinner, LoadingBar, TextProgress
+import MetaCanSNPer.core.LogKeeper as LogKeeper
+from MetaCanSNPer.core.MetaCanSNPer import MetaCanSNPer
+from MetaCanSNPer.core.TerminalUpdater import TerminalUpdater, Spinner, LoadingBar, TextProgress
 import MetaCanSNPer.Globals as Globals
+import MetaCanSNPer as package
 
 LOGGER = LogKeeper.createLogger(__name__)
 
@@ -46,7 +47,7 @@ def separateCommands(argv : list[str]) -> dict[str,list[str]]:
 
 def createParser():
 	"""Initiate MetaCanSNPer command line argument parser"""
-	parser = argparse.ArgumentParser(description="MetaCanSNPer", usage="""MetaCanSNPer --query RAW_SEQUENCE_DATAFILE.* [RAW_SEQUENCE_DATAFILE_2.*] \\
+	parser = argparse.ArgumentParser(prog=__package__, description=package.__doc__, usage="""MetaCanSNPer --query RAW_SEQUENCE_DATAFILE.* [RAW_SEQUENCE_DATAFILE_2.*] \\
 --database DATABASE_FILE.db --mapper MAPPER_COMMAND --snpCaller SNPCALLER_COMMAND \\
 \t--mapperOptions [Flags as they would be passed to the mapper] \\
 \t--snpCallerOptions [Flags as they would be passed to the snpCaller]
@@ -117,7 +118,7 @@ def handleOptions(args : argparse.Namespace):
 		exit()
 
 	elif args.list:
-		from MetaCanSNPer.modules.Wrappers import Mapper, Aligner, SNPCaller
+		from MetaCanSNPer.core.Wrappers import Mapper, Aligner, SNPCaller
 		print("\nMappers:")
 		for mapper in Mapper.__subclasses__():			print(f"\t{mapper.softwareName}")
 		print("\nAligners:")
@@ -192,6 +193,10 @@ def saveResults(mObj : MetaCanSNPer, args : argparse.Namespace):
 
 def main():
 	
+	mainParser = argparse.ArgumentParser(prog=__package__, description=package.__doc__)
+	mainParser.add_argument("Mode", choices=["mainParser"], type=str.capitalize)
+	sys.argv
+
 	argsDict = separateCommands(sys.argv)
 	
 	parser = createParser()
