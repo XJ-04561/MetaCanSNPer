@@ -1,5 +1,5 @@
 
-from typing import Callable
+from typing import Callable, Any, overload
 from threading import Thread, Condition
 
 from MetaCanSNPer.core.LogKeeper import createLogger
@@ -79,9 +79,14 @@ class Hooks:
                 return ret
         return ret
 
-    def trigger(self, eventType : str, eventInfo : dict):
-        LOGGER.debug(f"Event triggered: {eventType=}, {eventInfo=}")
-        self._eventQueue.append((eventType, eventInfo))
+    def trigger(self, eventType : str|tuple, eventInfo : dict):
+        if isinstance(eventType, str):
+            LOGGER.debug(f"Event triggered: {eventType=}, {eventInfo=}")
+            self._eventQueue.append((eventType, eventInfo))
+        else:
+            for name in eventType:
+                LOGGER.debug(f"Event triggered: {name=}, {eventInfo=}")
+                self._eventQueue.append((name, eventInfo))
     
     def mainLoop(self):
         cond = Condition()
@@ -93,6 +98,40 @@ class Hooks:
                 if eventType not in self._hooks or self._hooks.get(eventType) == []: LOGGER.warning(f"{eventType=} triggered, but no hooks registered in {self!r}")
                 for hook in self._hooks.get(eventType, []):
                     if self.RUNNING: hook(eventInfo)
+
+class Trigger:
+
+    __module__ : str
+    __owner__ : str
+    __name__ : str
+    __qualname__ : str
+    eventNames : tuple[str]
+    extra : dict
+    values : Any
+    def __init__(self, *eventNames : str, **kwargs : Any):
+        self.eventNames = eventNames
+        self.values = {}
+        self.extra = kwargs
+    
+    def __get__(self, instance, owner=None):
+        return self.values[instance]
+
+    def __set__(self, instance, value):
+        self.values[instance] = value
+        getattr(instance, "hooks").trigger(self.eventTypes, self.extra | {"value" : value, "__name__" : self.__name__})
+    
+    def __set_name__(self, owner, name):
+        self.__module__ = owner.__module__
+        self.__owner__ = owner.__name__
+        self.__name__ = name
+        self.__qualname__ = f"{self.__module__}.{self.__owner__}.{self.__name__}"
+        if len(self.eventNames) == 0:
+            self.eventNames = (self.__qualname__,)
+        if owner.__annotations__.get("hooks", None) is not Hooks:
+            raise TypeError(f"{owner!r} has no properly annotated attribute 'hooks'")
+
+    def __repr__(self):
+        return f"<Trigger-Property {self.__name__!r} on {self.eventTypes!r}>"
 
 def urlretrieveReportHook(category, hooks : Hooks, name : str, steps : int=-1):
 
