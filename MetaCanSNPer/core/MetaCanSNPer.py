@@ -90,6 +90,8 @@ class MetaCanSNPer:
 
 	def setDatabase(self, databaseName : str, silent : bool=False):
 		LOGGER.debug(f"Setting database to:{databaseName}")
+		from MetaCanSNPer.modules.Database import downloadDatabase
+
 		self.databaseName = os.path.basename(databaseName)
 		self.Lib.updateSettings({"organism":pName(self.databaseName)}) # TODO : Get organism name from safer source than filename
 		self.Lib.references = None
