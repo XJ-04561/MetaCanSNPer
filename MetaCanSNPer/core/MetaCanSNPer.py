@@ -11,12 +11,15 @@ from MetaCanSNPer.Globals import *
 import MetaCanSNPer.Globals as Globals
 import MetaCanSNPer.core.LogKeeper as LogKeeper
 from MetaCanSNPer.core.DirectoryLibrary import DirectoryLibrary
-from MetaCanSNPer.core.Hooks import Hooks, urlretrieveReportHook, DummyHooks
+from MetaCanSNPer.core.Hooks import Hooks, DummyHooks
 from MetaCanSNPer.core.Wrappers import Aligner, Mapper, SNPCaller, IndexingWrapper
 import MetaCanSNPer.core.Aligners as Aligners
 import MetaCanSNPer.core.Mappers as Mappers
 import MetaCanSNPer.core.SNPCallers as SNPCallers
 from MetaCanSNPer.core.TerminalUpdater import TerminalUpdater
+
+from MetaCanSNPer.modules.Database import MetaCanSNPerDatabase, DatabaseError
+from MetaCanSNPer.modules.Downloader import DatabaseDownloader, DownloaderReportHook, ReferenceDownloader
 
 LOGGER = LogKeeper.createLogger(__name__)
 
@@ -33,9 +36,10 @@ def loadFlattenedTOML(filename):
 
 class MetaCanSNPer:
 	outputTemplate = "{refName}_{queryName}.{outFormat}"
+	organism : str = Globals._NOT_SET
 	databasePath : Path
 	databaseName : str
-	database : DatabaseReader
+	database : MetaCanSNPerDatabase = Globals._NOT_SET
 	Lib : DirectoryLibrary
 	settings : dict
 	sessionName : str
@@ -88,86 +92,57 @@ class MetaCanSNPer:
 
 	'''Database functions'''
 
-	def setDatabase(self, databaseName : str, silent : bool=False):
+	def setOrganism(self, organism : str):
+		self.Lib.updateSettings({"organism" : organism})
+		
+
+	def setDatabase(self, databaseName : str=organism + ".db"):
+
+		self.Lib.references = None
+		if databaseName is Globals._NOT_SET:
+			databaseName = f"{self.organism}.db"
 		LOGGER.debug(f"Setting database to:{databaseName}")
-		from MetaCanSNPer.modules.Database import downloadDatabase
-
-		self.databaseName = os.path.basename(databaseName)
-		self.Lib.updateSettings({"organism":pName(self.databaseName)}) # TODO : Get organism name from safer source than filename
-		self.Lib.references = None
-
-		path = self.Lib.databaseDir.find(databaseName, purpose="r")
-		try:
-			database = openDatabase(path, "r")
-			database.validateDatabase(database.checkDatabase())
-		except TypeError:
-			pass # path is None
-		except:
-			database.close() # Database is not valid
-		else:
-			LOGGER.info(f"Found database {database!r} in path {path!r}")
-			database.close()
-			self.databasePath = path
-			self.hooks.trigger("DownloadDatabaseSkipped", {"name" : self.databaseName})
-			return
+		self.databaseName = databaseName
 		
-		if (path := self.Lib.databaseDir.find(databaseName, purpose="w")) is None:
-			LOGGER.info(f"Downloading database {self.databaseName}")
-			try:
-				self.hooks.trigger("DownloadDatabaseStarted", {"name" : self.databaseName})
-				reportHook = urlretrieveReportHook(self.hooks, self.databaseName)
-				path = downloadDatabase(self.databaseName, dst=self.Lib.databaseDir.create(purpose="w") / self.databaseName, reportHook=reportHook)
-				self.hooks.trigger("DownloadDatabasePostProcess", {"name" : self.databaseName})
-				
-			except Exception as e:
-				self.hooks.trigger("DownloadDatabaseFailed", {"name" : self.databaseName})
-				LOGGER.exception(e)
-				LOGGER.error(f"Database not found locally or online: {self.databaseName!r}\nLocal directories checked: {self.Lib.databaseDir}")
-				raise FileNotFoundError(f"Database not found locally or online: {databaseName!r}")
-		
-		database : DatabaseWriter = openDatabase(path, "w")
-		code = database.checkDatabase()
-		for _ in range(100):
-			try:
-				database.validateDatabase(code)
-			except:
-				database.rectifyDatabase(code, refDir=self.Lib.refDir)
-			if code == 0:
-				break
-			elif code == (code := database.checkDatabase()):
+		for directory in self.Lib.databaseDir:
+			if databaseName in directory:
 				try:
-					database.validateDatabase(code)
-				except Exception as e:
-					self.hooks.trigger("DownloadDatabaseFailed", {"name" : self.databaseName})
-					raise RuntimeError(f"Could not rectify faulty database at {path} returned the same Error twice: {e.__name__}: {e}")
+					MetaCanSNPerDatabase(directory / databaseName, "r").checkDatabase()
+					self.hooks.trigger("DatabaseDownloaderProgress", {"name" : databaseName, "progress" : int(1)})
+					self.databasePath = directory / databaseName
+					break
+				except DatabaseError:
+					pass
 		else:
-			database.validateDatabase(code)
-		database.commit()
-		database.close()
-		
-		self.databasePath = path
-		self.hooks.trigger("DownloadDatabaseFinished", {"name" : self.databaseName})
-		LOGGER.info(f"Finished downloading {self.databaseName} to {self.databasePath}!")
+			LOGGER.info(f"No valid database={databaseName} found. Looking for writeable versions or directories that can be updated or downloaded to, respectively.")
+			RH = DownloaderReportHook("DatabaseDownloader", self.hooks, databaseName)
+			
+			self.databasePath = self.Lib.databaseDir.writable / databaseName
+			DD = DatabaseDownloader(self.Lib.databaseDir.writable)
 
-	def connectDatabase(self):
-		LOGGER.debug(f"Connecting to database:{self.databasePath}")
-		if self.databasePath is None:
-			raise NameError("Database not specified. Can't connect unless a valid database is set through MetaCanSNPer.setDatabase.")
+			DD.postProcess = MetaCanSNPerDatabase.checkDatabase
+			DD.download(databaseName, databaseName, reportHook=RH)
+			
+			DD.wait()
 		
-		self.database = openDatabase(self.databasePath, "r")
-		self.Lib.references = None
-		LOGGER.debug(f"Connected to database:{self.databasePath}")
-		return 0
+		self.database = MetaCanSNPerDatabase(self.databasePath, "r")
+		LOGGER.info(f"Database {self.databaseName} loaded from: {self.databasePath}!")
 	
-	def setReferenceFiles(self):
-		try:
-			assert self.database is not None
-			references = self.database.ReferenceTable.get(DB.ALL)
-		except Exception as e:
-			LOGGER.exception(e)
-			raise DatabaseNotConnected(f"Can't set reference genomes when no valid database is connected ({self.databaseName=}, {self.databasePath=})")
-		else:
-			self.Lib.setReferences(references=references)
+	def setReferenceFiles(self, queries : list=database.references):
+
+		if queries is Globals._NOT_SET:
+			assert self.database is not None, "Database not yet set"
+			queries = self.database.references
+
+		directory = self.Lib.refDir.writable
+		DD = ReferenceDownloader(directory)
+		files = []
+		for genomeID, genome, strain, genbankID, refseqID, assemblyName in queries:
+			DD.download((genbankID, assemblyName), f"{assemblyName}.fna", reportHook=DownloaderReportHook("ReferenceDownloader", self.hooks, genome))
+			
+			self.Lib.references[genome] = directory / f"{assemblyName}.fna"
+			self.Lib.references[assemblyName] = directory / f"{assemblyName}.fna"
+		DD.wait()
 
 	'''MetaCanSNPer set directories'''
 	
@@ -176,9 +151,7 @@ class MetaCanSNPer:
 	def setDatabaseDir(self, path : str):					self.Lib.setDatabaseDir(path)
 	def setTmpDir(self, path : str):						self.Lib.setTmpDir(path)
 	def setOutDir(self, path : str):						self.Lib.setOutDir(path)
-
-	# Setting the same docstring for each 'set*Dir' function
-	setTargetDir.__doc__ = setRefDir.__doc__ = setDatabaseDir.__doc__ = setTmpDir.__doc__ = setOutDir.__doc__ = """
+	"""
 	`path` can be relative or absolute. Check the docstring for the DirectoryLibrary to see where the relative
 	path will start from.
 	"""
@@ -195,9 +168,6 @@ class MetaCanSNPer:
 	def setSessionName(self, name):
 		self.sessionName = name
 		self.Lib.setSessionName(name)
-
-	def setReferenceFiles(self, references : list[str,str,str,str,str]=None, silent : bool=False):
-		self.Lib.setReferences(references=references or self.database.references, silent=silent)
 
 	'''MetaCanSNPer get functions'''
 

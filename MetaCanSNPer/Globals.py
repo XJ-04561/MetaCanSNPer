@@ -20,21 +20,21 @@ __status__ 		= "Prototype"
 SOFTWARE_NAME = "MetaCanSNPer"
 DRY_RUN = False
 RUNNING = True
+from This import this
 from PseudoPathy.PathShortHands import *
 import PseudoPathy.Globals as PPGlobals
 import VariantCallFixer.Globals as VCFGlobals
 from VariantCallFixer import openVCF
 from PseudoPathy import MinimalPathLibrary, PathLibrary, PathGroup, Path, DirectoryPath, FilePath, PathList
 from PseudoPathy.Library import CommonGroups
-from MetaCanSNPerDatabases import DatabaseReader, downloadDatabase, Branch, DatabaseWriter, openDatabase, IsLegacyCanSNPer2, updateFromLegacy
-from MetaCanSNPerDatabases import Commands
-from MetaCanSNPerDatabases import Columns as DB
-from MetaCanSNPerDatabases.Exceptions import *
-import MetaCanSNPerDatabases as CanSNPDB
-from MetaCanSNPerDatabases import Globals as DBGlobals
-import random, logging, re, time, os, sys, shutil
+
+
+from types import FunctionType, MethodType
+import random, logging, re, time, os, sys, shutil, itertools
 from functools import cache, cached_property
 from typing import Iterable, Callable, Any, Generator, Literal, AnyStr, TextIO, BinaryIO, Self
+from time import sleep
+
 class Number: pass
 Number = int|float
 # class Comparisons:
@@ -57,7 +57,9 @@ Number = int|float
 # class Above(Comparisons):
 #     def __eq__(self, other):
 #         return other > self.left
-    
+
+def printCall(func, args, kwargs):
+    return f"{getattr(func, '__qualname__', getattr(func, '__name__', func))}({', '.join(itertools.chain(map(str, args), map(lambda keyval : str(keyval[0])+"="+str(keyval[1]), kwargs.items())))})"
 
 random.seed()
 from tempfile import NamedTemporaryFile
@@ -85,7 +87,6 @@ LOGGER_FILEHANDLER.setFormatter(logging.Formatter("[%(name)s] %(asctime)s - %(le
 
 PPGlobals.LOGGER.addHandler(LOGGER_FILEHANDLER)
 VCFGlobals.LOGGER.addHandler(LOGGER_FILEHANDLER)
-DBGlobals.LOGGER.addHandler(LOGGER_FILEHANDLER)
 
 ## ArgParser Globals
 
@@ -107,19 +108,18 @@ after the '--snpCallerOptions' flag, only interrupted by the end of the
 command call or the corresponding flag for Mapper or Aligner options.
 """
 
-## DownloadReferences Globals
-
-DOWNLOAD_TIMEOUT = 300
-SOURCED = {"refseq":"F", "genbank": "A"}
-"""```{"refseq":"F", "genbank": "A"}```"""
-NCBI_FTP_LINK = "ftp://ftp.ncbi.nlm.nih.gov/genomes/all/GC{source}/{n1}/{n2}/{n3}/{genome_id}_{assembly}/{genome_id}_{assembly}_genomic.fna.gz"
 class MissingDependancy(Exception): pass
 
 ## ErrorFixes Globals
 class Aligner: pass
 class Mapper: pass
 class SNPCaller: pass
-
+class NoneStr:
+    def __mult__(self, other): return self
+    def __add__(self, other): return self
+    def __getattribute__(self, name): return self
+    def __str__(self): return self
+_NOT_SET = NoneStr()
 
 ## Default .toml
 

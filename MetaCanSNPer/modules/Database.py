@@ -4,7 +4,7 @@ import SQLOOP.Globals as Globals
 from SQLOOP import Database, Assertion, DatabaseError
 from SQLOOP.core import *
 import argparse, sys
-from MetaCanSNPer.modules.Downloader import Downloader
+from MetaCanSNPer.modules.Downloader import DatabaseDownloader, Downloader, URL, gunzip
 from MetaCanSNPer.core.Hooks import DownloaderReportHook
 from MetaCanSNPer.core.LogKeeper import createLogger
 
@@ -24,9 +24,6 @@ Globals.DATABASE_VERSIONS = {
 Globals.CURRENT_VERSION = 2
 Globals.CURRENT_TABLES_HASH = ""
 Globals.CURRENT_INDEXES_HASH = ""
-
-SOURCED = {"refseq":"F", "genbank": "A"}
-NCBI_FTP_LINK = "ftp://ftp.ncbi.nlm.nih.gov/genomes/all/GC{source}/{n1}/{n2}/{n3}/{genome_id}_{assembly}/{genome_id}_{assembly}_genomic.fna.gz"
 
 
 TABLE_NAME_SNP_ANNOTATION	= "snp_annotation"
@@ -254,19 +251,6 @@ class MetaCanSNPerDatabase(Database):
 		except StopIteration:
 			raise NoTreeConnectedToRoot(f"In database {self.filename!r}")
 
-class DatabaseDownloader(Downloader):
-	SOURCES = [
-		"https://github.com/XJ-04561/MetaCanSNPer-data/raw/master/database/{databaseName}", # MetaCanSNPer
-		"https://github.com/FOI-Bioinformatics/CanSNPer2-data/raw/master/database/{databaseName}" # Legacy CanSNPer
-	]
-	LOGGER = LOGGER
-class DatabaseDownloader(Downloader):
-	SOURCES = [
-		"https://github.com/XJ-04561/MetaCanSNPer-data/raw/master/database/{databaseName}", # MetaCanSNPer
-		"https://github.com/FOI-Bioinformatics/CanSNPer2-data/raw/master/database/{databaseName}" # Legacy CanSNPer
-	]
-	LOGGER = LOGGER
-
 def loadFromReferenceFile(database : Database, file : TextIO, refDir : str="."):
 	file.seek(0)
 	if "genome	strain	genbank_id	refseq_id	assembly_name" == file.readline():
@@ -338,19 +322,23 @@ def main():
 
 			database.close()
 
-	def download(databaseNames : list[str]=[], outDir : str=".", **kwargs):
-
+	def download(databaseNames : list[str]=[], outDir : str=Path("."), **kwargs):
+		
+		from MetaCanSNPer.modules.Downloader import DatabaseDownloader
+		from MetaCanSNPer.core.TerminalUpdater import TerminalUpdater
+		from MetaCanSNPer.core.Hooks import DownloaderReportHook
 		LOGGER.debug(f"{databaseNames=}")
 		out = []
+		TU = TerminalUpdater("Downloading databases")
+		DD = DatabaseDownloader(outDir)
 		for databaseName in databaseNames:
-			try:
-				if downloadDatabase(databaseName, os.path.join(outDir, databaseName)) is None:
-					raise DownloadFailed(f"Failed to download {databaseName} to {os.path.join(outDir, databaseName)}.")
-				out.append(os.path.join(outDir, databaseName))
-				print(f"Finished downloading {databaseName!r}")
-			except Exception as e:
-				LOGGER.exception(e)
-				print(f"Failed in downloading {databaseName!r}")
+			RH = DownloaderReportHook("DatabaseDownloader", TU.hooks, databaseName)
+			DD.download(databaseName, outDir / databaseName, reportHook=RH)
+				
+			#raise DownloadFailed(f"Failed to download {databaseName} to {os.path.join(outDir, databaseName)}.")
+			out.append(outDir / databaseName)
+		DD.wait()
+		TU.stop()
 		return out
 
 	def test(database : list[Path]= [], refDir : Path=".", outDir : Path=".", noCopy : bool=False, **kwargs):

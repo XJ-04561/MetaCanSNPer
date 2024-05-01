@@ -4,9 +4,11 @@ from PseudoPathy.Functions import createTemp
 
 from MetaCanSNPer.Globals import *
 import MetaCanSNPer.Globals as Globals
-from MetaCanSNPer.core.DownloadReferences import DownloadQueue, DownloadFailed
 from MetaCanSNPer.core.FileNameAlignment import align as fileNameAlign
 from MetaCanSNPer.core.Hooks import Hooks
+
+from MetaCanSNPer.modules.Database import MetaCanSNPerDatabase
+from MetaCanSNPer.modules.Downloader import ReferenceDownloader, DatabaseDownloader
 
 import MetaCanSNPer.core.LogKeeper as LogKeeper
 import PseudoPathy.Globals
@@ -19,7 +21,7 @@ class DirectoryLibrary(PathLibrary):
 		information is simply passed around by handing around the same 'Library'.
 	'''
 
-	database : DatabaseReader
+	database : MetaCanSNPerDatabase
 
 	targetDir : PathGroup
 	refDir : PathGroup
@@ -206,6 +208,8 @@ class DirectoryLibrary(PathLibrary):
 		self.queryName = fileNameAlign(*[pName(q) for q in self.query])
 		LOGGER.debug(f"Setting queryName to: {self.queryName!r}")
 	
+	
+
 	def setReferences(self, references : Iterable[tuple[int,str,str,str,str]], force : bool=False, silent : bool=False):
 		
 		self.references = MinimalPathLibrary()

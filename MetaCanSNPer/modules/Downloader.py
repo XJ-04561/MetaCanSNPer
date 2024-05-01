@@ -1,16 +1,35 @@
 
-import sqlite3, logging
-from types import FunctionType, MethodType
+from MetaCanSNPer.Globals import *
+import MetaCanSNPer.Globals as Globals
+import MetaCanSNPer.core.Hooks as Hooks
+from MetaCanSNPer.core.LogKeeper import createLogger
 from collections import defaultdict
 from threading import Thread, _DummyThread
-from typing import Callable
-from time import sleep
+import sqlite3
 
-from This import this
-from PseudoPathy import Path, DirectoryPath
-from PseudoPathy.PathShortHands import *
+LOGGER = createLogger(__name__)
 
 NULL_LOGGER = logging.Logger("NULL_LOGGER", 100)
+
+def gunzip(filepath : str):
+	'''gunzip's given file. Only necessary for software that requires non-zipped data.'''
+	import gzip
+	outFile = open(filepath.rstrip(".gz"), "wb")
+
+	outFile.write(gzip.decompress(open(filepath, "rb").read()))
+	outFile.close()
+
+class URL:
+	string : str
+	patterns : tuple[re.Pattern]
+	@classmethod
+	def format(self, query : str|tuple[str]=None):
+		if isinstance(query, tuple):
+			query = {name:value for pat, q in zip(self.patterns, query) for name, value in pat.match(q).groupdict().items()}
+		else:
+			{"query" : query}
+
+		return self.string.format(**query)
 
 class ThreadDescriptor:
 
@@ -23,13 +42,21 @@ class ThreadDescriptor:
 		self.threads = defaultdict(list)
 	
 	def __call__(self, *args, **kwargs):
-		self.thread = Thread(target=self.func, args=args, kwargs=kwargs, daemon=True)
+		self.thread = Thread(target=self._funcWrapper, args=args, kwargs=kwargs, daemon=True)
 		self.threads[id(getattr(self.func, "__self__", self))].append(self.thread)
 		self.thread.start()
 		return self
 	def __repr__(self):
 		return f"<{self.__class__.__name__}({self.func}) at {hex(id(self))}>"
 	
+	def _funcWrapper(self, *args, **kwargs):
+		try:
+			self.func(*args, **kwargs)
+		except Exception as e:
+			e.add_note(f"This exception occured in a thread running the following function call: {printCall(self.func, args, kwargs)}")
+			LOGGER.exception(e)
+			self.func.__self__
+
 	def wait(self):
 		self.thread.join()
 	
@@ -65,12 +92,14 @@ class ReportHook:
 
 class Job:
 
+	query : Any|Iterable
 	filename : str
 	out : Path
 	reportHook : Callable = lambda prog : None
 	_queueConnection : sqlite3.Connection
 	LOGGER : logging.Logger = NULL_LOGGER
-	def __init__(self, filename, reportHook=None, out=Path("."), conn=None, *, logger=LOGGER):
+	def __init__(self, query, filename, reportHook=None, out=Path("."), conn=None, *, logger=LOGGER):
+		self.query = query
 		self.filename = filename
 		self.reportHook = reportHook or self.reportHook
 		self.out = out
@@ -119,21 +148,27 @@ class Job:
 		else:
 			self.reportHook(1.0)
 	
-	def run(self, sources):
+	def run(self, sources, postProcess : Callable=None):
 
-		from urllib.request import urlretrieve
-		reportHook = ReportHook(self.reportHook)
-		outFile = self.out / self.filename
-		for sourceName, sourceLink in sources:
-			try:
-				(outFile, msg) = urlretrieve(sourceLink.format(filename=self.filename), filename=outFile, reporthook=reportHook) # Throws error if 404
-				return outFile, sourceName
-			except Exception as e:
-				self.LOGGER.info(f"Couldn't download from source={sourceName}, url: {sourceLink.format(filename=self.filename)!r}")
-				self.LOGGER.exception(e, stacklevel=logging.DEBUG)
-		self.reportHook(None)
-		self.LOGGER.error(f"No database named {self.filename!r} found online. Sources tried: {', '.join(map(*this[0] + ': ' + this[1], sources))}")
-		return None, None
+		try:
+			from urllib.request import urlretrieve
+			reportHook = ReportHook(self.reportHook)
+			for sourceName, sourceLink in sources:
+				try:
+					(outFile, msg) = urlretrieve(sourceLink.format(query=self.query), filename=self.out / self.filename, reporthook=reportHook) # Throws error if 404
+					if postProcess is not None:
+						self.reportHook(2.0)
+						postProcess(outFile)
+					return outFile, sourceName
+				except Exception as e:
+					self.LOGGER.info(f"Couldn't download from source={sourceName}, url: {sourceLink.format(filename=self.filename)!r}")
+					self.LOGGER.exception(e, stacklevel=logging.DEBUG)
+			self.reportHook(None)
+			self.LOGGER.error(f"No database named {self.filename!r} found online. Sources tried: {', '.join(map(*this[0] + ': ' + this[1], sources))}")
+			return None, None
+		except Exception as e:
+			self.reportHook(None)
+			raise e
 
 
 class Downloader:
@@ -141,16 +176,18 @@ class Downloader:
 	directory : DirectoryPath = DirectoryPath(".")
 	SOURCES : tuple[tuple[str]] = ()
 	reportHook : Callable = lambda prog : None
+	postProcess : Callable=None
 	"""Function that takes arguments: block, blockSize, totalSize"""
 	timeStep : float = 0.2
 	database : Path
 	jobs : list
+	
 
 	_queueConnection : sqlite3.Connection
 	_threads : list[Thread]= []
 	LOGGER : logging.Logger = NULL_LOGGER
 
-	def __init__(self, directory=directory, *, logger=None, reportHook=None):
+	def __init__(self, directory=directory, *, reportHook=None, logger=None):
 
 		if pAccess(directory, "rw"):
 			self.directory = directory
@@ -182,9 +219,9 @@ class Downloader:
 				pass
 	
 	@threadDescriptor
-	def download(self, filename : str, reportHook=reportHook, *, logger=None) -> None:
+	def download(self, query, filename : str, reportHook=reportHook) -> None:
 		
-		job = Job(filename, reportHook=reportHook, out=self.directory, conn=self._queueConnection, logger=logger or self.LOGGER)
+		job = Job(query, filename, reportHook=reportHook, out=self.directory, conn=self._queueConnection, logger=self.LOGGER)
 		self.jobs.append(job)
 		if job.reserveQueue():
 			job.run()
@@ -196,4 +233,41 @@ class Downloader:
 				if job.reserveQueue():
 					break
 			else:
-				job.run(self.SOURCES)
+				job.run(self.SOURCES, postProcess=self.postProcess)
+
+
+# Implementations
+
+class DownloaderReportHook:
+
+	category : str
+	hooks : Hooks
+	name : str
+	def __init__(self, category : str, hooks : Hooks, name : str):
+		self.category = category
+		self.hooks = hooks
+		self.name = name
+
+	def __call__(self, prog):
+		self.hooks.trigger(self.category+"Progress", {"progress" : prog, "name" : self.name})
+
+class NCBI_URL(URL):
+	string = "ftp://ftp.ncbi.nlm.nih.gov/genomes/all/{idHead}/{id1_3}/{id4_6}/{id7_9}/{genome_id}_{assembly}/{genome_id}_{assembly}_genomic.fna.gz"
+	patterns = [
+		re.compile(r"(?P<idHead>\w{3})_(?P<id1_3>\d{3})(?P<id4_6>\d{3})(?P<id7_9>\d{3})"),
+		re.compile(".*")
+	]
+
+class DatabaseDownloader(Downloader):
+	SOURCES = [
+		("MetaCanSNPer-data", "https://github.com/XJ-04561/MetaCanSNPer-data/raw/master/database/{query}"), # MetaCanSNPer
+		("CanSNPer2-data", "https://github.com/FOI-Bioinformatics/CanSNPer2-data/raw/master/database/{query}") # Legacy CanSNPer
+	]
+	LOGGER = LOGGER
+
+class ReferenceDownloader(Downloader):
+	SOURCES = [
+		("NCBI", NCBI_URL)
+	]
+	LOGGER = LOGGER
+	postProcess = gunzip

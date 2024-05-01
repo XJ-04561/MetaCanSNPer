@@ -131,15 +131,6 @@ class Trigger:
     def __repr__(self):
         return f"<Trigger-Property {self.owner}.{self.name!r} on {self.eventType!r}>"
 
-class DownloaderReportHook:
-    def __init__(self, category, hooks : Hooks, name : str):
-        self.category = category
-        self.hooks = hooks
-        self.name = name
-
-    def __call__(self, prog):
-        self.hooks.trigger(self.category+"Progress", {"progress" : prog, "name" : self.name})
-
 def urlretrieveReportHook(category, hooks : Hooks, name : str, steps : int=-1):
 
     if steps > 0:
