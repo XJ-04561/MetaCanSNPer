@@ -4,14 +4,14 @@ import SQLOOP.Globals as Globals
 from SQLOOP import Database, Assertion, DatabaseError
 from SQLOOP.core import *
 import argparse, sys
+from MetaCanSNPer.modules.Downloader import Downloader
+from MetaCanSNPer.core.Hooks import DownloaderReportHook
+from MetaCanSNPer.core.LogKeeper import createLogger
 
 SOFTWARE_NAME = "MetaCanSNPer"
 
 import logging, os
-Globals.LOGGER = logging.Logger(f"{SOFTWARE_NAME}-Database", level=logging.WARNING)
-LOGGER_FILEHANDLER = logging.FileHandler(f"{SOFTWARE_NAME}-Database.log")
-LOGGER_FILEHANDLER.setFormatter(logging.Formatter("[%(name)s] %(asctime)s - %(levelname)s: %(message)s"))
-Globals.LOGGER.addHandler(LOGGER_FILEHANDLER)
+Globals.LOGGER = LOGGER = createLogger(__name__)
 
 LEGACY_HASH = "7630f33662e27489b7bb7b3b121ca4ff"
 LEGACY_VERSION = 0
@@ -24,11 +24,6 @@ Globals.DATABASE_VERSIONS = {
 Globals.CURRENT_VERSION = 2
 Globals.CURRENT_TABLES_HASH = ""
 Globals.CURRENT_INDEXES_HASH = ""
-
-Globals.SOURCES = [
-	"https://github.com/XJ-04561/MetaCanSNPer-data/raw/master/database/{databaseName}", # MetaCanSNPer
-	"https://github.com/FOI-Bioinformatics/CanSNPer2-data/raw/master/database/{databaseName}" # Legacy CanSNPer
-]
 
 SOURCED = {"refseq":"F", "genbank": "A"}
 NCBI_FTP_LINK = "ftp://ftp.ncbi.nlm.nih.gov/genomes/all/GC{source}/{n1}/{n2}/{n3}/{genome_id}_{assembly}/{genome_id}_{assembly}_genomic.fna.gz"
@@ -259,6 +254,18 @@ class MetaCanSNPerDatabase(Database):
 		except StopIteration:
 			raise NoTreeConnectedToRoot(f"In database {self.filename!r}")
 
+class DatabaseDownloader(Downloader):
+	SOURCES = [
+		"https://github.com/XJ-04561/MetaCanSNPer-data/raw/master/database/{databaseName}", # MetaCanSNPer
+		"https://github.com/FOI-Bioinformatics/CanSNPer2-data/raw/master/database/{databaseName}" # Legacy CanSNPer
+	]
+	LOGGER = LOGGER
+class DatabaseDownloader(Downloader):
+	SOURCES = [
+		"https://github.com/XJ-04561/MetaCanSNPer-data/raw/master/database/{databaseName}", # MetaCanSNPer
+		"https://github.com/FOI-Bioinformatics/CanSNPer2-data/raw/master/database/{databaseName}" # Legacy CanSNPer
+	]
+	LOGGER = LOGGER
 
 def loadFromReferenceFile(database : Database, file : TextIO, refDir : str="."):
 	file.seek(0)
@@ -300,17 +307,6 @@ def loadFromSNPFile(database : Database, file : TextIO):
 		ValueError("File is not of accepted format.")
 
 def main():
-	def read(databasePath : str=None, **kwargs):
-
-		LOGGER.debug(f"{databasePath=}")
-		database : MetaCanSNPerDatabase = MetaCanSNPerDatabase(databasePath, "r")
-		
-		database.checkDatabase()
-		
-		print(database)
-
-		database.close()
-
 	def write(databasePath : str=None, SNPFile : str=None, treeFile : str=None, referenceFile : str=None, **kwargs):
 
 		LOGGER.debug(f"{databasePath=}")
@@ -366,8 +362,6 @@ def main():
 		print("Testing Update:")
 		update(databasePaths=databasePaths, refDir=refDir, noCopy=noCopy)
 
-		from SQLOOP.MetaCanSNPerDatabase import Position, Ancestral, Derived, ChromID, Chromosome, Genome, ChromosomesTable, ReferencesTable, MetaCanSNPerDatabase
-
 		print("Testing Read:")
 		for databasePath in databasePaths:
 			print(f"  {databasePath.replace(os.path.realpath('.'), '.').replace(os.path.expanduser('~'), '~')}")
@@ -411,14 +405,6 @@ def main():
 	parser = argparse.ArgumentParser(prog="MetaCanSNPer")
 
 	modeGroup : argparse._SubParsersAction = parser.add_subparsers(title="Mode", dest="mode", description="Mode with which to open the database.", metavar="MODES")
-
-	readParser : argparse.ArgumentParser = modeGroup.add_parser("read", help="Print out data from tables in database.")
-	readParser.add_argument("databasePath",	type=os.path.realpath)
-	readParser.add_argument("--TreeTable",			action="store_true")
-	readParser.add_argument("--SNPsTable",			action="store_true")
-	readParser.add_argument("--ChromosomesTable",	action="store_true")
-	readParser.add_argument("--ReferencesTable",		action="store_true")
-	readParser.set_defaults(func=read)
 
 	writeParser : argparse.ArgumentParser = modeGroup.add_parser("write",	help="Create a database with or without data. Data for database is given through the appropriate File flags.")
 	writeParser.add_argument("databasePath", type=os.path.realpath)
@@ -464,7 +450,7 @@ def main():
 	elif "--version" in sys.argv:
 		print(f"MetaCanSNPerDatabases v. {CURRENT_VERSION}")
 		exit(0)
-	elif all(mode not in sys.argv for mode in ["read", "write", "update", "download", "test"]):
+	elif all(mode not in sys.argv for mode in ["write", "update", "download", "test"]):
 		print("No mode chosen check usage to see which mode is appropriate for your intended use.", file=sys.stderr)
 		parser.print_help()
 		exit(1)

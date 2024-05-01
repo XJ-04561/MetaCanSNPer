@@ -1,11 +1,11 @@
 
 from typing import Callable, Any, overload
 from threading import Thread, Condition
+from types import GenericAlias
 
 from MetaCanSNPer.core.LogKeeper import createLogger
 
 LOGGER = createLogger(__name__)
-
 
 class Hook:
 
@@ -101,37 +101,44 @@ class Hooks:
 
 class Trigger:
 
-    __module__ : str
-    __owner__ : str
-    __name__ : str
-    __qualname__ : str
-    eventNames : tuple[str]
-    extra : dict
-    values : Any
-    def __init__(self, *eventNames : str, **kwargs : Any):
-        self.eventNames = eventNames
+    owner : type
+    instance : int
+    name : str
+    eventType : str
+    eventInfo : dict
+    nameAttr : str = ""
+    values : dict[int,Any]
+    def __init__(self, eventType : str=None, nameAttr : str=None, eventInfo : dict={}):
+        self.eventType = eventType
+        self.eventInfo = eventInfo
+        self.nameAttr = nameAttr or self.nameAttr
         self.values = {}
-        self.extra = kwargs
     
     def __get__(self, instance, owner=None):
-        return self.values[instance]
+        return self.values[id(instance)]
 
     def __set__(self, instance, value):
-        self.values[instance] = value
-        getattr(instance, "hooks").trigger(self.eventTypes, self.extra | {"value" : value, "__name__" : self.__name__})
+        self.values[id(instance)] = value
+        instance.hooks.trigger(self.eventType, self.eventInfo | {self.name : value, "instance" : instance, "name" : getattr(instance, self.self.nameAttr, None)})
     
-    def __set_name__(self, owner, name):
-        self.__module__ = owner.__module__
-        self.__owner__ = owner.__name__
-        self.__name__ = name
-        self.__qualname__ = f"{self.__module__}.{self.__owner__}.{self.__name__}"
-        if len(self.eventNames) == 0:
-            self.eventNames = (self.__qualname__,)
-        if owner.__annotations__.get("hooks", None) is not Hooks:
+    def __set_name__(self, owner : type, name : str):
+        self.eventType = self.eventType or f"{owner.__name__}{name.capitalize()}"
+        self.owner = owner.__name__
+        self.name = name
+        if owner.__annotations__.get("hooks") is not Hooks:
             raise TypeError(f"{owner!r} has no properly annotated attribute 'hooks'")
 
     def __repr__(self):
-        return f"<Trigger-Property {self.__name__!r} on {self.eventTypes!r}>"
+        return f"<Trigger-Property {self.owner}.{self.name!r} on {self.eventType!r}>"
+
+class DownloaderReportHook:
+    def __init__(self, category, hooks : Hooks, name : str):
+        self.category = category
+        self.hooks = hooks
+        self.name = name
+
+    def __call__(self, prog):
+        self.hooks.trigger(self.category+"Progress", {"progress" : prog, "name" : self.name})
 
 def urlretrieveReportHook(category, hooks : Hooks, name : str, steps : int=-1):
 

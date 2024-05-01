@@ -428,7 +428,7 @@ class TerminalUpdater:
 		<0		-	Not started
 		>1		-	Postprocessing
 		"""
-
+		
 		# self.hooks.addHook(f"{self.category}Initialized", self.initializedCallback) # Not needed, is already initialized by default.
 		self.hooks.addHook(f"{self.category}Skipped", self.skippedCallback)
 		self.hooks.addHook(f"{self.category}Starting", self.startingCallback)
@@ -461,7 +461,7 @@ class TerminalUpdater:
 			self.threads[eventInfo["name"]] = 0.0
 
 	def progressCallback(self, eventInfo : dict[str,Any]):
-		if eventInfo["name"] in self.threads:
+		if eventInfo["name"] in self.threads and "progress" in eventInfo:
 			self.threads[eventInfo["name"]] = eventInfo["progress"]
 
 	def postProcessCallback(self, eventInfo : dict[str,Any]):
