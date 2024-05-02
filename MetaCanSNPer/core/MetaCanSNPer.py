@@ -40,7 +40,7 @@ def loadFlattenedTOML(filename):
 			settings[flag] = value
 	return settings
 
-class MetaCanSNPer:
+class MetaCanSNPer():
 	outputTemplate = "{refName}_{queryName}.{outFormat}"
 	organism : str = Globals._NOT_SET
 	databasePath : Path
@@ -51,6 +51,8 @@ class MetaCanSNPer:
 	sessionName : str
 	SNPresults : dict
 	exceptions : list[Exception]
+
+	queryName : str = Globals._NOT_SET
 
 	"""docstring for MetaCanSNPer"""
 	def __init__(self, lib : DirectoryLibrary=None, database : str=None, settings : dict={}, settingsFile : str=None, sessionName : str=None):
@@ -169,9 +171,13 @@ class MetaCanSNPer:
 		if self.sessionName is None:
 			self.setSessionName("Sample-{queryName}-{dateYYYYMMDD}".format(queryName=self.queryName, dateYYYYMMDD="{:0>4}-{:0>2}-{:0>2}-{:0>2}.{:0>2}.{:0<3}".format(*(self.startTime[:6]))))
 
-	def setSessionName(self, name=):
+	def setSessionName(self, name="Sample-" + queryName + "{dateYYYYMMDD}"):
 		self.sessionName = name
 		self.Lib.setSessionName(name)
+
+	@property
+	def queryName(self):
+		return self.Lib.queryName
 
 	'''MetaCanSNPer get functions'''
 

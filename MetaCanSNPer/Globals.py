@@ -64,13 +64,23 @@ def printCall(func, args, kwargs):
 random.seed()
 from tempfile import NamedTemporaryFile
 
+class DescribeAnnotations(type):
+
 class UninitializedError(AttributeError):
+    
     def __init__(self, obj=None, name=None):
         if obj is not None:
-            objName = type(obj).__name__
+            objName = repr(type(obj).__name__)
         else:
-            objName = 
-        self.args = (f"{ !r}",)
+            objName = "Object"
+        if name is not None:
+            name = repr(name) + " "
+        else:
+            name = ""
+        self.args = (f"Attribute {name}of {objName} was accessed, but has yet to be set.",)
+        
+    def __get__(self, instance, owner=None):
+        self
 
 LOG_DIR = None
 for root in CommonGroups().locals:
