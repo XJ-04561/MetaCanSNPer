@@ -64,6 +64,13 @@ def printCall(func, args, kwargs):
 random.seed()
 from tempfile import NamedTemporaryFile
 
+class UninitializedError(AttributeError):
+    def __init__(self, obj=None, name=None):
+        if obj is not None:
+            objName = type(obj).__name__
+        else:
+            objName = 
+        self.args = (f"{ !r}",)
 
 LOG_DIR = None
 for root in CommonGroups().locals:

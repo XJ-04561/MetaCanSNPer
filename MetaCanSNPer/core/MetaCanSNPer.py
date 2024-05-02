@@ -44,7 +44,7 @@ class MetaCanSNPer:
 	outputTemplate = "{refName}_{queryName}.{outFormat}"
 	organism : str = Globals._NOT_SET
 	databasePath : Path
-	databaseName : str
+	databaseName : str = Globals._NOT_SET
 	database : MetaCanSNPerDatabase = Globals._NOT_SET
 	Lib : DirectoryLibrary
 	settings : dict
@@ -100,6 +100,7 @@ class MetaCanSNPer:
 
 	def setOrganism(self, organism : str):
 		self.Lib.updateSettings({"organism" : organism})
+		self.databaseName = organism + ".db"
 		
 	def setDatabase(self, databaseName : str=organism + ".db"):
 
@@ -168,7 +169,7 @@ class MetaCanSNPer:
 		if self.sessionName is None:
 			self.setSessionName("Sample-{queryName}-{dateYYYYMMDD}".format(queryName=self.queryName, dateYYYYMMDD="{:0>4}-{:0>2}-{:0>2}-{:0>2}.{:0>2}.{:0<3}".format(*(self.startTime[:6]))))
 
-	def setSessionName(self, name):
+	def setSessionName(self, name=):
 		self.sessionName = name
 		self.Lib.setSessionName(name)
 

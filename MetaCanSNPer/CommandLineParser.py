@@ -69,8 +69,8 @@ MetaCanSNPer --query SEQUENCE_ASSEMBLY.fna --database DATABASE_FILE.db \\
 	# The 'if True:' structures are used to minimize and expand sections in an IDE.
 	requiredArguments = parser.add_argument_group("Required arguments")
 	if True:
-		requiredArguments.add_argument("--query", nargs="+",	metavar="query",		help="Raw sequence data file supported by the intended Aligner/Mapper.")
-		requiredArguments.add_argument("-d", "--database",		metavar="database",		help="Filename of CanSNP database to be used.")
+		requiredArguments.add_argument("--query", nargs="+",	metavar="query",		required=True, help="Raw sequence data file supported by the intended Aligner/Mapper.")
+		requiredArguments.add_argument("--organism",			metavar="organism",		required=True, help="Name of organism queried. (Use \"_\" in place of spaces)")
 		
 		mapOrAlign = requiredArguments.add_mutually_exclusive_group(required=True)
 		if True:
@@ -80,10 +80,10 @@ MetaCanSNPer --query SEQUENCE_ASSEMBLY.fna --database DATABASE_FILE.db \\
 
 	optionalArguments = parser.add_argument_group("Optional arguments")
 	if True:
-		optionalArguments.add_argument("--saveTemp",			action="store_true",					help="Don't dispose of temporary directories/files.")
-		optionalArguments.add_argument("--settingsFile",		metavar="settingsFile",					help="Path to .TOML file containing settings for MetaCanSNPer. Check the 'defaultConfig.toml' to see what can be included in a settings file.")
-		optionalArguments.add_argument("--downloadTimeout",		metavar="downloadTimeout", default=300,	help="Maximum time to take when downloading a reference genome file. If exceeded by the program it will throw an error and stop the current run. A value of -1 means no maximum time.")
-		
+		optionalArguments.add_argument("-d", "--database",	metavar="database", default=Globals._NOT_SET,	help="Filename of CanSNP database to be used.")
+		optionalArguments.add_argument("--saveTemp",		action="store_true",							help="Don't dispose of temporary directories/files.")
+		optionalArguments.add_argument("--settingsFile",	metavar="settingsFile",							help="Path to .TOML file containing settings for MetaCanSNPer. Check the 'defaultConfig.toml' to see what can be included in a settings file.")
+
 		# Not used by the argparser, but is used for the help-page and for splitting the argv
 		mapperOptions = optionalArguments.add_argument("--mapperOptions",		metavar="Mapper options",		help=MAPPER_OPTIONS_EXPLAINER)
 		alignerOptions = optionalArguments.add_argument("--alignerOptions",		metavar="Aligner options",		help=ALIGNER_OPTIONS_EXPLAINER)
@@ -140,8 +140,6 @@ def handleOptions(args : argparse.Namespace):
 		Globals.LOGGER_FILEHANDLER.setLevel(logging.ERROR)
 	else:
 		pass # The default logging level for the logging package is logging.WARNING
-	
-	Globals.DOWNLOAD_TIMEOUT = args.downloadTimeout
 
 	if args.installDir is not None:
 		import PseudoPathy.Globals
@@ -153,24 +151,28 @@ def handleOptions(args : argparse.Namespace):
 
 def initializeMainObject(args):
 
+	from MetaCanSNPer.modules.Database import Genome
 	mObj = MetaCanSNPer(settings=vars(args), settingsFile=args.settingsFile)
 	
 	if not args.silent: print(f"Checking query {args.query}")
 	mObj.setQuery(args.query)
+
+	mObj.setOrganism(args.organism)
 
 	with TerminalUpdater(f"Checking database {args.database}:", category="DownloadDatabase", hooks=mObj.hooks, threadNames=[os.path.basename(args.database)], printer=LoadingBar):
 		mObj.setDatabase(args.database)
 
 	if args.sessionName is not None: mObj.setSessionName(args.sessionName)
 
-	with TerminalUpdater(f"Checking Reference Genomes:", category="DownloadReferences", hooks=mObj.hooks, threadNames=[mObj.database.ReferenceTable.get(DB.Assembly)], printer=LoadingBar):
+	with TerminalUpdater(f"Checking Reference Genomes:", category="DownloadReferences", hooks=mObj.hooks, threadNames=list(mObj.database[Genome]), printer=LoadingBar):
 		mObj.setReferenceFiles()
 	
 	return mObj
 
 def runJob(mObj : MetaCanSNPer, args : argparse.Namespace, argsDict : dict):
 	
-	genomes = mObj.database.ReferenceTable.all(DB.Genome)
+	from MetaCanSNPer.modules.Database import Genome
+	genomes = list(mObj.database[Genome])
 	
 	if args.mapper is not None:
 		with TerminalUpdater(f"Creating Mappings:", category="Mappers", hooks=mObj.hooks, threadNames=genomes, printer=Spinner):
