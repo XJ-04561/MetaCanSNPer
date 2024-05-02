@@ -1,7 +1,7 @@
 
 
 import SQLOOP.Globals as Globals
-from SQLOOP import Database, Assertion, DatabaseError
+from SQLOOP import Database, Assertion, DatabaseError, verifyDatabase, correctDatabase
 from SQLOOP.core import *
 import argparse, sys
 from MetaCanSNPer.modules.Downloader import DatabaseDownloader, Downloader, URL, gunzip
@@ -11,19 +11,11 @@ from MetaCanSNPer.core.LogKeeper import createLogger
 SOFTWARE_NAME = "MetaCanSNPer"
 
 import logging, os
-Globals.LOGGER = LOGGER = createLogger(__name__)
 
 LEGACY_HASH = "7630f33662e27489b7bb7b3b121ca4ff"
 LEGACY_VERSION = 0
 
-Globals.DATABASE_VERSIONS = {
-	LEGACY_HASH							: LEGACY_VERSION, # Legacy CanSNPer
-	"175c47f1ad61ec81a7d11d8a8e1887ff"	: 2  # MetaCanSNPer Alpha version
-}
-
-Globals.CURRENT_VERSION = 2
-Globals.CURRENT_TABLES_HASH = ""
-Globals.CURRENT_INDEXES_HASH = ""
+LOGGER = createLogger(__name__)
 
 
 TABLE_NAME_SNP_ANNOTATION	= "snp_annotation"
@@ -240,6 +232,17 @@ class CanSNPNode(Branch):
 class MetaCanSNPerDatabase(Database):
 	assertions = [NotLegacyCanSNPer2] + Globals.ASSERTIONS
 	refDir : str
+
+	LOGGER = LOGGER = createLogger(__name__)
+	DATABASE_VERSIONS = {
+		LEGACY_HASH							: LEGACY_VERSION, # Legacy CanSNPer
+		"175c47f1ad61ec81a7d11d8a8e1887ff"	: 2  # MetaCanSNPer Alpha version
+	}
+
+	# CURRENT_VERSION = 2
+	# CURRENT_TABLES_HASH = 
+	# CURRENT_INDEXES_HASH = 
+
 	def __init__(self, *args, refDir : str=None, **kwargs):
 		self.refDir = refDir or os.path.realpath(".")
 		super().__init__(*args, **kwargs)
@@ -250,6 +253,31 @@ class MetaCanSNPerDatabase(Database):
 			return CanSNPNode(self, next(self()))
 		except StopIteration:
 			raise NoTreeConnectedToRoot(f"In database {self.filename!r}")
+	
+	@cached_property
+	def references(self):
+		return tuple(self(*SELECT (ALL) - FROM (ReferencesTable)))
+	
+	@property
+	def SNPs(self):
+		return self(*SELECT (ALL) - FROM (SNPsTable))
+	
+	@cached_property
+	def chromosomes(self):
+		return self(*SELECT (ALL) - FROM (SNPsTable))
+	
+	@cached_property
+	def SNPsByReference(self):
+		return {genome:list(self[ALL][SNPsTable][GenomeID == genomeID]) for genomeID, genome in self[GenomeID, Genome]}
+	
+	@cached_property
+	def SNPsByNode(self):
+		return {nodeID:list(self[ALL][SNPsTable][NodeID == nodeID]) for nodeID in self[Child]}
+
+verifyDatabase	= verifyDatabase.__get__(MetaCanSNPerDatabase)
+correctDatabase	= correctDatabase.__get__(MetaCanSNPerDatabase)
+
+DatabaseDownloader.postProcess = correctDatabase
 
 def loadFromReferenceFile(database : Database, file : TextIO, refDir : str="."):
 	file.seek(0)
@@ -315,10 +343,13 @@ def main():
 		for databasePath in databasePaths:
 			database : MetaCanSNPerDatabase = MetaCanSNPerDatabase(databasePath, "w")
 
-			database.checkDatabase()
+			database.fix()
 			
-			print(f"Updated {databasePath} succesfully!")
-			print(database)
+			if database.valid:
+				print(f"Updated {databasePath} succesfully!")
+				print(database)
+			else:
+				raise database.exception
 
 			database.close()
 

@@ -92,6 +92,7 @@ class DirectoryLibrary(PathLibrary):
 		self.alignments = MinimalPathLibrary()
 		self.targetSNPs = MinimalPathLibrary()
 		self.resultSNPs = MinimalPathLibrary()
+		self.references = MinimalPathLibrary()
 
 	'''Set-Pathing'''
 
@@ -207,33 +208,6 @@ class DirectoryLibrary(PathLibrary):
 		LOGGER.debug(f"Setting query to: '{self.query}'")
 		self.queryName = fileNameAlign(*[pName(q) for q in self.query])
 		LOGGER.debug(f"Setting queryName to: {self.queryName!r}")
-	
-	
-
-	def setReferences(self, references : Iterable[tuple[int,str,str,str,str]], force : bool=False, silent : bool=False):
-		
-		self.references = MinimalPathLibrary()
-		with DownloadQueue(hooks=self.hooks) as DQ:
-			jobs = {}
-			for genomeID, genome, strain, genbank_id, refseq_id, assembly_name in references:
-				filename = f"{assembly_name}.fna"
-				LOGGER.info(f"Queueing download for {genome=} as {filename=}")
-				jobID = DQ.download(genbank_id, refseq_id, assembly_name, dst=self.refDir.writable, filename=filename, force=force, hooks=self.hooks)
-				if jobID != -1:
-					jobs[jobID] = genome
-					
-				else:
-					LOGGER.debug(f"self.references[{genome!r}] = {self.refDir.find(filename)=}")
-					self.references[genome] = self.refDir.find(filename)
-			failed = []
-			for jobID in DQ:
-				self.references[jobs[jobID]] = self.refDir.find(DQ.jobs[jobID].kwargs["filename"])
-				if self.references[jobs[jobID]] is None:
-					failed.append(self.references[jobs[jobID]])
-			if len(failed) > 0:
-				raise DownloadFailed(f"Some or all of the reference genomes failed to download. [{', '.join(map(repr, failed))}]")
-
-		LOGGER.info(f"Finished downloading {len(jobs)} reference genomes!")
 
 	def setMaps(self, maps : dict[str,str]):
 		if type(maps) is MinimalPathLibrary:
@@ -256,19 +230,19 @@ class DirectoryLibrary(PathLibrary):
 		LOGGER.debug(f"Setting alignments to:{self.alignments}")
 	
 	def setTargetSNPs(self, force : bool=False):
+		from MetaCanSNPer.modules.Database import Chromosome, Position, GenomeID
 		self.targetSNPs = MinimalPathLibrary()
 		for genomeID, genome, *_ in self.database.references:
 			refPath = self.references[genome]
 			if pExists(refPath):
 				if (filename := self.refDir.find(pName(refPath) + ".vcf")) is None or force:
-					filename = f"{self.refDir.writable / pName(refPath)}.vcf.tmp"
+					tmpFilename = f"{self.refDir.writable / pName(refPath)}.vcf.tmp"
 
-					with openVCF(filename, "w", referenceFile=refPath) as vcfFile:
-						for chromID, chromosome, genomeID in self.database.ChromosomesTable.get(genomeID=genomeID):
-							for pos in self.database.SNPTable.get(DB.Position, chromID=chromID):
+					with openVCF(tmpFilename, "w", referenceFile=refPath) as vcfFile:
+						for chromosome, pos in self.database[Chromosome, Position][GenomeID == genomeID]:
 								# CHROM has to be the same as the accession id that is in the reference file.
 								vcfFile.add(CHROM=chromosome, POS=pos, REF="N", ALT="A,T,C,G")
-					os.rename(filename, filename[:-4])
+					os.rename(tmpFilename, filename)
 				self.targetSNPs[genome] = filename
 			else:
 				raise FileNotFoundError(f"Could not find a local path for {genome=}.")

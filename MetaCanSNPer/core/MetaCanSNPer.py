@@ -18,8 +18,14 @@ import MetaCanSNPer.core.Mappers as Mappers
 import MetaCanSNPer.core.SNPCallers as SNPCallers
 from MetaCanSNPer.core.TerminalUpdater import TerminalUpdater
 
-from MetaCanSNPer.modules.Database import MetaCanSNPerDatabase, DatabaseError
+from MetaCanSNPer.modules.Database import (MetaCanSNPerDatabase, DatabaseError, verifyDatabase, correctDatabase,
+										   Parent, NodeID, GenoType, Position, Ancestral, Derived, SNPReference,
+										   Date, ChromID, Chromosome, GenomeID, Genome, Strain, GenbankID,
+										   RefseqID, Assembly,
+										   Branch)
 from MetaCanSNPer.modules.Downloader import DatabaseDownloader, DownloaderReportHook, ReferenceDownloader
+
+
 
 LOGGER = LogKeeper.createLogger(__name__)
 
@@ -95,7 +101,6 @@ class MetaCanSNPer:
 	def setOrganism(self, organism : str):
 		self.Lib.updateSettings({"organism" : organism})
 		
-
 	def setDatabase(self, databaseName : str=organism + ".db"):
 
 		self.Lib.references = None
@@ -106,13 +111,10 @@ class MetaCanSNPer:
 		
 		for directory in self.Lib.databaseDir:
 			if databaseName in directory:
-				try:
-					MetaCanSNPerDatabase(directory / databaseName, "r").checkDatabase()
+				if MetaCanSNPerDatabase(directory / databaseName, "r").valid is True:
 					self.hooks.trigger("DatabaseDownloaderProgress", {"name" : databaseName, "progress" : int(1)})
 					self.databasePath = directory / databaseName
 					break
-				except DatabaseError:
-					pass
 		else:
 			LOGGER.info(f"No valid database={databaseName} found. Looking for writeable versions or directories that can be updated or downloaded to, respectively.")
 			RH = DownloaderReportHook("DatabaseDownloader", self.hooks, databaseName)
@@ -120,7 +122,6 @@ class MetaCanSNPer:
 			self.databasePath = self.Lib.databaseDir.writable / databaseName
 			DD = DatabaseDownloader(self.Lib.databaseDir.writable)
 
-			DD.postProcess = MetaCanSNPerDatabase.checkDatabase
 			DD.download(databaseName, databaseName, reportHook=RH)
 			
 			DD.wait()
@@ -128,16 +129,18 @@ class MetaCanSNPer:
 		self.database = MetaCanSNPerDatabase(self.databasePath, "r")
 		LOGGER.info(f"Database {self.databaseName} loaded from: {self.databasePath}!")
 	
-	def setReferenceFiles(self, queries : list=database.references):
+	def setReferenceFiles(self, references : Iterable[tuple[int,str,str,str,str,str]]=database.references):
 
-		if queries is Globals._NOT_SET:
+		if references is Globals._NOT_SET:
 			assert self.database is not None, "Database not yet set"
-			queries = self.database.references
+			references = self.database.references
 
 		directory = self.Lib.refDir.writable
 		DD = ReferenceDownloader(directory)
-		files = []
-		for genomeID, genome, strain, genbankID, refseqID, assemblyName in queries:
+
+		self.Lib.references.clear()
+
+		for genomeID, genome, strain, genbankID, refseqID, assemblyName in references:
 			DD.download((genbankID, assemblyName), f"{assemblyName}.fna", reportHook=DownloaderReportHook("ReferenceDownloader", self.hooks, genome))
 			
 			self.Lib.references[genome] = directory / f"{assemblyName}.fna"
@@ -171,12 +174,14 @@ class MetaCanSNPer:
 
 	'''MetaCanSNPer get functions'''
 
-	def getReferenceFiles(self) -> dict[str,Path]:
+	@property
+	def referenceFiles(self) -> dict[str,Path]:
+		'''Fetch files of reference genomes.'''
 		return self.Lib.references
 
-	def getReferences(self):
-		'''Fetch names of reference genomes in connected database. Download any reference genomes not present locally.'''
-		LOGGER.debug(f"Fetching references from database.")
+	@property
+	def references(self):
+		'''Fetch names of reference genomes in connected database.'''
 		return self.database.references
 
 	def getQuery(self):
@@ -259,7 +264,7 @@ class MetaCanSNPer:
 		
 		LOGGER.info("Loading SNPs from database.")
 		self.Lib.setTargetSNPs()
-		LOGGER.info(f"Loaded a total of {len(self.database.SNPTable)} SNPs.")
+		LOGGER.info(f"Loaded a total of {len(self.database.SNPs)} SNPs.")
 		
 		self.runSoftware(SNPCallerType, outputDict=self.Lib.resultSNPs, flags=flags)
 
@@ -267,7 +272,7 @@ class MetaCanSNPer:
 
 		for genome, filePath in self.Lib.resultSNPs:
 			for pos, (chromosome, ref) in getSNPdata(filePath, values=["CHROM", "REF"]):
-				(nodeID,) = self.database.SNPTable.first(DB.NodeID, Position=pos, Chromosome=chromosome)
+				(nodeID,) = self.database[NodeID][Position==pos, Chromosome==chromosome]
 				if (pos, genome) not in self.SNPresults:
 					self.SNPresults[nodeID] = {}
 				self.SNPresults[nodeID][pos] = ref
@@ -275,32 +280,31 @@ class MetaCanSNPer:
 	def traverseTree(self):
 		'''Depth-first tree search.'''
 		LOGGER.info(f"Traversing tree to get genotype called.")
-		node = self.database.tree
+		rootNode = self.database.tree
 		paths : list[list[Branch]] = []
-		nodeScores = {node.nodeID:0}
+		nodeScores = {rootNode.node : 0}
 
 		award = (1, -1, 0)
 
-		paths.append([node])
+		paths.append([rootNode])
 		while paths[-1] != []:
 			paths.append([])
-			for node in paths[-2]:
-				for child in node.children:
-					if child.nodeID in nodeScores: continue
-					for childSNPID, (pos, anc, der) in self.database.SNPsByNode(child.nodeID):
-						nodeScores[child.nodeID] = nodeScores[node.nodeID]
+			for parent in paths[-2]:
+				for child in parent.children:
+					nodeScores[child.node] = nodeScores[parent.node]
+					for childSNPID, pos, anc, der, *_ in self.database.SNPsByNode[child.node]:
 						(called, *_) = self.SNPresults[childSNPID]
 						if der == called:
-							nodeScores[child.nodeID] += award[0]
+							nodeScores[child.node] += award[0]
 						elif anc == called:
-							nodeScores[child.nodeID] += award[1]
+							nodeScores[child.node] += award[1]
 						else:
-							nodeScores[child.nodeID] += award[2]
+							nodeScores[child.node] += award[2]
 					paths[-1].append(child)
-			if paths[-1] == []:
-				paths = paths[:-1]
-				LOGGER.info(f"Finished traversed tree.")
-				return max(nodeScores.items(), key=lambda nodeTupe: nodeTupe[1]), nodeScores
+		
+		paths = paths[:-1]
+		LOGGER.info(f"Finished traversing tree.")
+		return max(nodeScores.items(), key=lambda x: x[1]), nodeScores
 
 	'''Functions'''
 
@@ -309,16 +313,16 @@ class MetaCanSNPer:
 		with open((dst or self.Lib.resultDir.writable) / self.Lib.queryName+"_final.tsv", "w") as finalFile:
 			(finalNodeID, score), scores = self.traverseTree()
 			
-			finalFile.write(f"{self.database.nodeName(finalNodeID):<20}{score}\n")
+			finalFile.write("{:<20}{score}\n".format(*self.database[GenoType][NodeID == finalNodeID], score=score))
 			if self.settings.get("debug"):
 				finalFile.write("\n")
 				for nodeID in scores:
-					finalFile.write(f"{self.database.nodeName(nodeID):<20}{scores[nodeID]}\n")
+					finalFile.write("{:<20}{score}\n".format(*self.database[GenoType][NodeID == nodeID], score=scores[nodeID]))
 
 	def saveSNPdata(self, dst : str=None):
 		""""""
 
-		header = "Name\tReference\tPos\tAncestral base\tDerived base\tTarget base\n"
+		header = "Name\tReference\tChromosome\tPosition\tAncestral base\tDerived base\tTarget base\n"
 
 		if self.settings.get("debug"):
 			LOGGER.debug(f"open({dst or self.Lib.resultDir.writable!r} / {self.Lib.queryName!r}+'_snps.tsv', 'w')")
@@ -345,9 +349,9 @@ class MetaCanSNPer:
 
 		for genomeID, genome, genbankID, refseqID, assemblyName in self.database.references:
 			'''Print SNPs to tab separated file'''
-			for snpID, position, ancestral, derived in self.database.SNPsByGenome[genome]:
-				N, *args = self.SNPresults[snpID]
-				entry = f"{snpID}\t{genome}\t{position}\t{ancestral}\t{derived}\t{N}\n"
+			for nodeID, position, ancestral, derived, chromosome in self.database[NodeID, Position, Ancestral, Derived, Chromosome][GenomeID == genomeID]:
+				N, *args = self.SNPresults[position, chromosome]
+				entry = f"{nodeID}\t{genome}\t{chromosome}\t{position}\t{ancestral}\t{derived}\t{N}\n"
 				if derived == N:
 					called.write(entry)
 				elif ancestral == N:
@@ -363,21 +367,4 @@ class MetaCanSNPer:
 			unique.close()
 		except:
 			pass
-
-	def readQueriesFrom(self, queryFile : str):
-		'''If query input is a text file, parse file'''
-		LOGGER.debug(f"Reading queries from: {queryFile!r}")
-		with open(queryFile, "r") as f:
-			query = [query.strip() for query in f if len(query.strip())]
-		return query
-	
-	# def __del__(self):
-	# 	Globals.RUNNING = False
-
-	def cleanup(self):
-		'''Remove files in temporary folder'''
-		LOGGER.info("Clean up temporary files... ")
-		del self.Lib
-		LOGGER.info("Done!")
-		return
 	
