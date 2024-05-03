@@ -40,19 +40,19 @@ def loadFlattenedTOML(filename):
 			settings[flag] = value
 	return settings
 
-class MetaCanSNPer():
+class MetaCanSNPer(DescribeAnnotations):
 	outputTemplate = "{refName}_{queryName}.{outFormat}"
-	organism : str = Globals._NOT_SET
-	databasePath : Path
-	databaseName : str = Globals._NOT_SET
-	database : MetaCanSNPerDatabase = Globals._NOT_SET
+	organism : str = NotSet
+	databasePath : Path = NotSet
+	databaseName : str = NotSet
+	database : MetaCanSNPerDatabase = NotSet
 	Lib : DirectoryLibrary
 	settings : dict
-	sessionName : str
+	sessionName : str = NotSet
 	SNPresults : dict
 	exceptions : list[Exception]
 
-	queryName : str = Globals._NOT_SET
+	queryName : str
 
 	"""docstring for MetaCanSNPer"""
 	def __init__(self, lib : DirectoryLibrary=None, database : str=None, settings : dict={}, settingsFile : str=None, sessionName : str=None):
@@ -102,7 +102,7 @@ class MetaCanSNPer():
 
 	def setOrganism(self, organism : str):
 		self.Lib.updateSettings({"organism" : organism})
-		self.databaseName = organism + ".db"
+		del self.databaseName, self.database, self.databasePath
 		
 	def setDatabase(self, databaseName : str=organism + ".db"):
 
@@ -134,8 +134,8 @@ class MetaCanSNPer():
 	
 	def setReferenceFiles(self, references : Iterable[tuple[int,str,str,str,str,str]]=database.references):
 
-		if references is Globals._NOT_SET:
-			assert self.database is not None, "Database not yet set"
+		if references is NotSet:
+			assert self.database is not NotSet, "Database not yet set"
 			references = self.database.references
 
 		directory = self.Lib.refDir.writable

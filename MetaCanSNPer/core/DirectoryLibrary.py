@@ -14,6 +14,11 @@ import MetaCanSNPer.core.LogKeeper as LogKeeper
 import PseudoPathy.Globals
 PseudoPathy.Globals.LOGGER = LOGGER = LogKeeper.createLogger(__name__)
 
+class QueryPathList(PathList):
+	@cached_property
+	def nameAlign(self):
+		return fileNameAlign(*[pName(q) for q in self])
+
 '''Container and handler of directories and files'''
 class DirectoryLibrary(PathLibrary):
 	'''
@@ -50,13 +55,18 @@ class DirectoryLibrary(PathLibrary):
 	# Non-Pathy attributes. Must be initialized using object.__setattr__
 
 	settings : dict
-	query : PathList[FilePath]
-	sessionName : str
+	query : QueryPathList[FilePath] = NotSet
 	hooks : Hooks
-	queryName : str
-	chromosomes : list[str]
 	
-	def __init__(self, settings : dict, sessionName="Unnamed-Session", hooks=Hooks(), **kwargs):
+	sessionName : str = NotSet
+	@cached_property
+	def queryName(self) -> str:
+		return self.query.nameAlign
+	@cached_property
+	def queryName(self) -> str:
+		return "Sample-" + self.query.nameAlign + ""
+	
+	def __init__(self, settings : dict, sessionName=sessionName, hooks=Hooks(), **kwargs):
 		"""Directories that can be passed as kwargs:
 		workDir, targetDir, tmpDir, refDir, databaseDir, outDir
 
@@ -69,7 +79,7 @@ class DirectoryLibrary(PathLibrary):
 		super(DirectoryLibrary, self).__init__(self)
 		
 		object.__setattr__(self, "settings", {})
-		object.__setattr__(self, "sessionName", sessionName)
+		if object.__setattr__(self, "sessionName", sessionName)
 		object.__setattr__(self, "hooks", hooks)
 		
 		self.updateSettings(settings | kwargs)
@@ -86,7 +96,6 @@ class DirectoryLibrary(PathLibrary):
 		
 		object.__setattr__(self, "query", PathList())
 		object.__setattr__(self, "queryName", "")
-		object.__setattr__(self, "chromosomes", [])
 		
 		self.maps = MinimalPathLibrary()
 		self.alignments = MinimalPathLibrary()
@@ -206,7 +215,7 @@ class DirectoryLibrary(PathLibrary):
 					LOGGER.error(f"Query file {q!r} could not be found.")
 					raise FileNotFoundError(f"Query file {q!r} could not be found.")
 		LOGGER.debug(f"Setting query to: '{self.query}'")
-		self.queryName = fileNameAlign(*[pName(q) for q in self.query])
+		self.queryName = 
 		LOGGER.debug(f"Setting queryName to: {self.queryName!r}")
 
 	def setMaps(self, maps : dict[str,str]):

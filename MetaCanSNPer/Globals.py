@@ -37,26 +37,12 @@ from time import sleep
 
 class Number: pass
 Number = int|float
-# class Comparisons:
-#     def __init__(self, left, right=None, orAnd=None):
-#         self.left, self.right, self.orAnd = left, right, orAnd
-#     def __eq__(self, other):
-#         if self.orAnd:
-#             return other == self.left or other == self.right
-#         else:
-#             return other == self.left and other == self.right
-#     def __or__(self, other):
-#         return Comparisons(self, other, orAnd=True)
-#     def __and__(self, other):
-#         return Comparisons(self, other, orAnd=False)
 
-# class Below(Comparisons):
-#     def __eq__(self, other):
-#         return other < self.left
-
-# class Above(Comparisons):
-#     def __eq__(self, other):
-#         return other > self.left
+class NoneStr:
+    def __mult__(self, other): return self
+    def __add__(self, other): return self
+    def __getattribute__(self, name): return self
+    def __str__(self): return self
 
 def printCall(func, args, kwargs):
     return f"{getattr(func, '__qualname__', getattr(func, '__name__', func))}({', '.join(itertools.chain(map(str, args), map(lambda keyval : str(keyval[0])+"="+str(keyval[1]), kwargs.items())))})"
@@ -64,11 +50,10 @@ def printCall(func, args, kwargs):
 random.seed()
 from tempfile import NamedTemporaryFile
 
-class DescribeAnnotations(type):
+_NULL_KEY = object()
 
 class UninitializedError(AttributeError):
-    
-    def __init__(self, obj=None, name=None):
+    def __init__(self, obj=None, name=None, **kwargs):
         if obj is not None:
             objName = repr(type(obj).__name__)
         else:
@@ -77,10 +62,31 @@ class UninitializedError(AttributeError):
             name = repr(name) + " "
         else:
             name = ""
-        self.args = (f"Attribute {name}of {objName} was accessed, but has yet to be set.",)
-        
+        super().__init__(f"Attribute {name}of {objName} was accessed, but has yet to be set.", **kwargs)
+
+class InitCheckDescriptor:
+
+    def __init__(cls, className, bases, namespace):
+        cls.names = {}
+
+    def __set_name__(self, owner, name):
+        object.__getattribute__(self, "names")[id(owner)] = name
+
     def __get__(self, instance, owner=None):
-        self
+        return instance.__dict__.get(object.__getattribute__(self, "names").get(id(owner), id(_NULL_KEY)), self)
+
+    def __delete__(self, instance):
+        pass
+
+    def __mult__(self, other): return self
+    def __add__(self, other): return self
+    def __sub__(self, other): return self
+    def __getattribute__(self, name): return self
+
+    def __bool__(self): return False
+
+class NotSet(metaclass=InitCheckDescriptor): pass
+
 
 LOG_DIR = None
 for root in CommonGroups().locals:
@@ -131,12 +137,6 @@ class MissingDependancy(Exception): pass
 class Aligner: pass
 class Mapper: pass
 class SNPCaller: pass
-class NoneStr:
-    def __mult__(self, other): return self
-    def __add__(self, other): return self
-    def __getattribute__(self, name): return self
-    def __str__(self): return self
-_NOT_SET = NoneStr()
 
 ## Default .toml
 
