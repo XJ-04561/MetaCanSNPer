@@ -14,11 +14,6 @@ import MetaCanSNPer.core.LogKeeper as LogKeeper
 import PseudoPathy.Globals
 PseudoPathy.Globals.LOGGER = LOGGER = LogKeeper.createLogger(__name__)
 
-class QueryPathList(PathList):
-	@cached_property
-	def nameAlign(self):
-		return fileNameAlign(*[pName(q) for q in self])
-
 '''Container and handler of directories and files'''
 class DirectoryLibrary(PathLibrary):
 	'''
@@ -54,19 +49,20 @@ class DirectoryLibrary(PathLibrary):
 
 	# Non-Pathy attributes. Must be initialized using object.__setattr__
 
-	settings : dict
-	query : QueryPathList[FilePath] = NotSet
+	settings : dict = None
+	query : PathList[FilePath] = NotSet
 	hooks : Hooks
 	
+	startTime : float
 	sessionName : str = NotSet
 	@cached_property
 	def queryName(self) -> str:
 		return self.query.nameAlign
 	@cached_property
-	def queryName(self) -> str:
-		return "Sample-" + self.query.nameAlign + ""
+	def sessionName(self) -> str:
+		return "Sample-" + self.query.nameAlign + self.startTime
 	
-	def __init__(self, settings : dict, sessionName=sessionName, hooks=Hooks(), **kwargs):
+	def __init__(self, settings : dict, sessionName=sessionName, hooks=Hooks(), startTime=None, **kwargs):
 		"""Directories that can be passed as kwargs:
 		workDir, targetDir, tmpDir, refDir, databaseDir, outDir
 
@@ -76,10 +72,10 @@ class DirectoryLibrary(PathLibrary):
 
 		LOGGER.info("Creating DirectoryLibrary object.")
 		
-		super(DirectoryLibrary, self).__init__(self)
+		super().__init__(**kwargs)
 		
-		object.__setattr__(self, "settings", {})
-		if object.__setattr__(self, "sessionName", sessionName)
+		self.settings = self.settings or {}
+		self.sessionName = self.settings or {}
 		object.__setattr__(self, "hooks", hooks)
 		
 		self.updateSettings(settings | kwargs)

@@ -27,7 +27,7 @@ import VariantCallFixer.Globals as VCFGlobals
 from VariantCallFixer import openVCF
 from PseudoPathy import MinimalPathLibrary, PathLibrary, PathGroup, Path, DirectoryPath, FilePath, PathList
 from PseudoPathy.Library import CommonGroups
-
+from collections import namedtuple
 
 from types import FunctionType, MethodType
 import random, logging, re, time, os, sys, shutil, itertools
@@ -87,6 +87,36 @@ class InitCheckDescriptor:
 
 class NotSet(metaclass=InitCheckDescriptor): pass
 
+class _IterTimerInit:
+    def __iter__(self):
+        return iter(time.localtime())
+
+def replTimeMatch(timer, m):
+    return format(timer[m.group(0)[0]], f">0{len(m.group(0))}")
+
+timeLetterPattern = re.compile(r"([YmdHMSzaAbBcIp])\1*")
+
+class Time(namedtuple("Time", ["year", "mon", "mday", "hour", "min", "sec", "wday", "yday", "isdst"], defaults=_IterTimerInit())):
+    def __getattr__(self, name):
+        pass
+            
+    def __format__(self, fs : str):
+        timeLetterPattern.sub(fs, replTimeMatch)
+
+    Y  Year with century as a decimal number.
+    M  Month as a decimal number [01,12].
+    D  Day of the month as a decimal number [01,31].
+    H  Hour (24-hour clock) as a decimal number [00,23].
+    M  Minute as a decimal number [00,59].
+    S  Second as a decimal number [00,61].
+    Z  Time zone offset from UTC.
+    a  Locale's abbreviated weekday name.
+    A  Locale's full weekday name.
+    b  Locale's abbreviated month name.
+    B  Locale's full month name.
+    c  Locale's appropriate date and time representation.
+    I  Hour (12-hour clock) as a decimal number [01,12].
+    p  Locale's equivalent of either AM or PM.
 
 LOG_DIR = None
 for root in CommonGroups().locals:

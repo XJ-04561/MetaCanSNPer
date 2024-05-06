@@ -40,7 +40,7 @@ def loadFlattenedTOML(filename):
 			settings[flag] = value
 	return settings
 
-class MetaCanSNPer(DescribeAnnotations):
+class MetaCanSNPer:
 	outputTemplate = "{refName}_{queryName}.{outFormat}"
 	organism : str = NotSet
 	databasePath : Path = NotSet
@@ -65,7 +65,7 @@ class MetaCanSNPer(DescribeAnnotations):
 		self.hooks.addHook("ReportError", target=lambda eventInfo : self.exceptions.append(eventInfo["exception"]))
 		
 		if lib is None:
-			self.Lib = DirectoryLibrary(settings={k:(v if type(v) is not list else tuple(v)) for k,v in settings.items()}, hooks=self.hooks)
+			self.Lib = DirectoryLibrary(settings={k:(v if type(v) is not list else tuple(v)) for k,v in settings.items()}, hooks=self.hooks, startTime=self.startTime)
 		else:
 			self.Lib = lib
 		
