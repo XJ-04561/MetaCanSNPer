@@ -60,7 +60,7 @@ class DirectoryLibrary(PathLibrary):
 		return self.query.nameAlign
 	@cached_property
 	def sessionName(self) -> str:
-		return "Sample-" + self.query.nameAlign + self.startTime
+		return UniqueFilePath(self., "Sample-" + self.query.nameAlign)
 	
 	def __init__(self, settings : dict, sessionName=sessionName, hooks=Hooks(), startTime=None, **kwargs):
 		"""Directories that can be passed as kwargs:

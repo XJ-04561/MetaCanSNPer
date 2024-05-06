@@ -88,50 +88,23 @@ class InitCheckDescriptor:
 class NotSet(metaclass=InitCheckDescriptor): pass
 
 class _IterTimerInit:
+    n : int|None
+    def __init__(self, n=None):
+        self.n = n
     def __iter__(self):
-        return iter(time.localtime())
+        return iter(time.localtime()[:self.n])
 
 def replTimeMatch(timer, m):
     return format(timer[m.group(0)[0]], f">0{len(m.group(0))}")
 
-timeLetterPattern = re.compile(r"([YmdHMSzaAbBcIp])\1*")
+timeLetterPattern = re.compile(r"(Y+|M+|D+|h+|m+|s+)")
 
-class Time(namedtuple("Time", ["year", "mon", "mday", "hour", "min", "sec", "wday", "yday", "isdst"], defaults=_IterTimerInit())):
-    def __getattr__(self, name):
-        pass
-            
+class Time(namedtuple("Time", ["Y", "M", "D", "h", "m", "s"], defaults=_IterTimerInit(6))):
     def __format__(self, fs : str):
-        timeLetterPattern.sub(fs, replTimeMatch)
-
-    Y  Year with century as a decimal number.
-    M  Month as a decimal number [01,12].
-    D  Day of the month as a decimal number [01,31].
-    H  Hour (24-hour clock) as a decimal number [00,23].
-    M  Minute as a decimal number [00,59].
-    S  Second as a decimal number [00,61].
-    Z  Time zone offset from UTC.
-    a  Locale's abbreviated weekday name.
-    A  Locale's full weekday name.
-    b  Locale's abbreviated month name.
-    B  Locale's full month name.
-    c  Locale's appropriate date and time representation.
-    I  Hour (12-hour clock) as a decimal number [01,12].
-    p  Locale's equivalent of either AM or PM.
+        timeLetterPattern.sub(fs, replTimeMatch.__get__(self, type(self)))
 
 LOG_DIR = None
-for root in CommonGroups().locals:
-    path = os.path.join(root, f"{SOFTWARE_NAME}-Results", "Logs")
-    if pAccess(path, "rwx"):
-        LOG_DIR = path
-        break
-if LOG_DIR is None:
-    for root in CommonGroups().locals:
-        path = os.path.join(root, f"{SOFTWARE_NAME}-Results", "Logs")
-        if pBackAccess(path, "w"):
-            if pMakeDirs(path):
-                LOG_DIR = path
-                break
-del root, path
+
 ## LogKeeper Globals
 with NamedTemporaryFile(prefix=time.strftime("MetaCanSNPer-(%Y-%m-%d)-(%H-%M-%S)-", time.localtime()), suffix=".log", dir=LOG_DIR, delete=False) as f:
     LOGGING_FILEPATH = f.name
