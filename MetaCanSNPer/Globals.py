@@ -25,27 +25,79 @@ from PseudoPathy.PathShortHands import *
 import PseudoPathy.Globals as PPGlobals
 import VariantCallFixer.Globals as VCFGlobals
 from VariantCallFixer import openVCF
-from PseudoPathy import MinimalPathLibrary, PathLibrary, PathGroup, Path, DirectoryPath, FilePath, PathList
-from PseudoPathy.Library import CommonGroups
+from PseudoPathy import *
 from collections import namedtuple
 
 from types import FunctionType, MethodType
 import random, logging, re, time, os, sys, shutil, itertools
 from functools import cache, cached_property
-from typing import Iterable, Callable, Any, Generator, Literal, AnyStr, TextIO, BinaryIO, Self
+from typing import Iterable, Callable, Any, Generator, Literal, AnyStr, TextIO, BinaryIO, Self, overload
 from time import sleep
+from collections import defaultdict, OrderedDict
+import tomllib as toml
+from appdirs import user_log_dir, user_config_dir, site_config_dir
+
+LOG_DIR = user_log_dir(SOFTWARE_NAME)
+with NamedTemporaryFile(prefix=time.strftime("MetaCanSNPer-(%Y-%m-%d)-(%H-%M-%S)-", time.localtime()), suffix=".log", dir=LOG_DIR, delete=False) as f:
+	LOGGING_FILEPATH = f.name
+LOGGER_FILEHANDLER = logging.FileHandler(LOGGING_FILEPATH)
+LOGGER_FILEHANDLER.setFormatter(logging.Formatter("[%(name)s] %(asctime)s - %(levelname)s: %(message)s"))
+LOGGER = logging.Logger("MetaCanSNPer")
+LOGGER.addHandler(LOGGER_FILEHANDLER)
+
+
+## Default .toml
+
+DEFAULT_TOML_TEMPLATE = """[FileManagement]
+saveTemp = false
+referenceFormats = [".fna", ".fasta"]
+
+[Software]
+# mapper = minimap2
+# aligner = progressiveMauve
+# snpCaller = gatk_Mutect2
+
+[Directories]
+# workDir = 
+# userDir = 
+# installDir = 
+# targetDir = 
+# refDir = 
+# databaseDir = 
+# tmpDir = 
+# outDir = 
+# sessionName = 
+"""
+
+def loadFlattenedTOML(filename):
+	with open(filename, "rb") as f:
+		tmp : dict[str,dict] = toml.load(f)
+	# Settings hierarchy looks like this: ["Category"]["Flag"] -> Value
+	# Flatten hierarchy so flags are easily accessible
+	settings = {}
+	for flags in tmp.values():
+		for flag, value in flags.items():
+			settings[flag] = value
+	return settings
+_configDir = Path(user_config_dir(SOFTWARE_NAME))
+if (path := _configDir.find("defaults.toml")) is None:
+	open(_configDir / "defaults.toml", "w").write(DEFAULT_TOML_TEMPLATE)
+DEFAULT_SETTINGS = loadFlattenedTOML(_configDir / "defaults.toml")
+
+PPGlobals.LOGGER = LOGGER.getChild("PseudoPathy")
+VCFGlobals.LOGGER = LOGGER.getChild("VariantCallFixer")
 
 class Number: pass
 Number = int|float
 
 class NoneStr:
-    def __mult__(self, other): return self
-    def __add__(self, other): return self
-    def __getattribute__(self, name): return self
-    def __str__(self): return self
+	def __mult__(self, other): return self
+	def __add__(self, other): return self
+	def __getattribute__(self, name): return self
+	def __str__(self): return self
 
 def printCall(func, args, kwargs):
-    return f"{getattr(func, '__qualname__', getattr(func, '__name__', func))}({', '.join(itertools.chain(map(str, args), map(lambda keyval : str(keyval[0])+"="+str(keyval[1]), kwargs.items())))})"
+	return f"{getattr(func, '__qualname__', getattr(func, '__name__', func))}({', '.join(itertools.chain(map(str, args), map(lambda keyval : str(keyval[0])+"="+str(keyval[1]), kwargs.items())))})"
 
 random.seed()
 from tempfile import NamedTemporaryFile
@@ -53,66 +105,40 @@ from tempfile import NamedTemporaryFile
 _NULL_KEY = object()
 
 class UninitializedError(AttributeError):
-    def __init__(self, obj=None, name=None, **kwargs):
-        if obj is not None:
-            objName = repr(type(obj).__name__)
-        else:
-            objName = "Object"
-        if name is not None:
-            name = repr(name) + " "
-        else:
-            name = ""
-        super().__init__(f"Attribute {name}of {objName} was accessed, but has yet to be set.", **kwargs)
+	def __init__(self, obj=None, name=None, **kwargs):
+		if obj is not None:
+			objName = repr(type(obj).__name__)
+		else:
+			objName = "Object"
+		if name is not None:
+			name = repr(name) + " "
+		else:
+			name = ""
+		super().__init__(f"Attribute {name}of {objName} was accessed, but has yet to be set.", **kwargs)
 
 class InitCheckDescriptor:
 
-    def __init__(cls, className, bases, namespace):
-        cls.names = {}
+	def __init__(cls, className, bases, namespace):
+		cls.names = {}
 
-    def __set_name__(self, owner, name):
-        object.__getattribute__(self, "names")[id(owner)] = name
+	def __set_name__(self, owner, name):
+		object.__getattribute__(self, "names")[id(owner)] = name
 
-    def __get__(self, instance, owner=None):
-        return instance.__dict__.get(object.__getattribute__(self, "names").get(id(owner), id(_NULL_KEY)), self)
+	def __get__(self, instance, owner=None):
+		return instance.__dict__.get(object.__getattribute__(self, "names").get(id(owner), id(_NULL_KEY)), self)
 
-    def __delete__(self, instance):
-        pass
+	def __delete__(self, instance):
+		pass
 
-    def __mult__(self, other): return self
-    def __add__(self, other): return self
-    def __sub__(self, other): return self
-    def __getattribute__(self, name): return self
+	def __mult__(self, other): return self
+	def __add__(self, other): return self
+	def __sub__(self, other): return self
+	def __getattribute__(self, name): return self
 
-    def __bool__(self): return False
+	def __bool__(self): return False
 
 class NotSet(metaclass=InitCheckDescriptor): pass
 
-class _IterTimerInit:
-    n : int|None
-    def __init__(self, n=None):
-        self.n = n
-    def __iter__(self):
-        return iter(time.localtime()[:self.n])
-
-def replTimeMatch(timer, m):
-    return format(timer[m.group(0)[0]], f">0{len(m.group(0))}")
-
-timeLetterPattern = re.compile(r"(Y+|M+|D+|h+|m+|s+)")
-
-class Time(namedtuple("Time", ["Y", "M", "D", "h", "m", "s"], defaults=_IterTimerInit(6))):
-    def __format__(self, fs : str):
-        timeLetterPattern.sub(fs, replTimeMatch.__get__(self, type(self)))
-
-LOG_DIR = None
-
-## LogKeeper Globals
-with NamedTemporaryFile(prefix=time.strftime("MetaCanSNPer-(%Y-%m-%d)-(%H-%M-%S)-", time.localtime()), suffix=".log", dir=LOG_DIR, delete=False) as f:
-    LOGGING_FILEPATH = f.name
-LOGGER_FILEHANDLER = logging.FileHandler(LOGGING_FILEPATH)
-LOGGER_FILEHANDLER.setFormatter(logging.Formatter("[%(name)s] %(asctime)s - %(levelname)s: %(message)s"))
-
-PPGlobals.LOGGER.addHandler(LOGGER_FILEHANDLER)
-VCFGlobals.LOGGER.addHandler(LOGGER_FILEHANDLER)
 
 ## ArgParser Globals
 
@@ -141,25 +167,76 @@ class Aligner: pass
 class Mapper: pass
 class SNPCaller: pass
 
-## Default .toml
 
-DEFAULT_TOML_TEMPLATE = """[FileManagement]
-saveTemp = false
-referenceFormats = [".fna", ".fasta"]
+class Default:
+	
+	SIZE_LIMIT = 10000
 
-[Software]
-# mapper = minimap2
-# aligner = progressiveMauve
-# snpCaller = gatk_Mutect2
+	deps : tuple = None
+	data : dict
+	name : str
 
-[Directories]
-# workDir = 
-# userDir = 
-# installDir = 
-# targetDir = 
-# refDir = 
-# databaseDir = 
-# tmpDir = 
-# outDir = 
-# sessionName = 
-"""
+	fget : Callable
+	fset : Callable
+	fdel : Callable
+
+	def __init__(self, fget=None, fset=None, fdel=None, doc=None, deps=None):
+		self.data = {}
+		self.fget = fget
+		self.fset = fset
+		self.fdel = fdel
+		self.__doc__ = doc or fget.__doc__ or getattr(self, "__doc__", None)
+		if deps is not None:
+			self.deps = deps
+		
+	def __call__(self, fget=None, fset=None, fdel=None, doc=None):
+		self.__init__(self, fget, fset, fdel, doc=doc)
+	
+	def __class_getitem__(cls, deps):
+		"""Calls Default(None) and adds the keys provided as the names of attributes upon which this value depends
+		before returning. This is useful for creating attributes which have default values which are meant to be
+		dependent on other attributes of the same object. When getting the same attribute repeatedly, new attribute
+		value instances will not be created, the first one is returned until one of the dependency attributes are
+		changed."""
+		obj = cls()
+		obj.deps = tuple(deps)
+		return obj
+	
+	def __set_name__(self, owner, name):
+		self.name = name
+
+	def __get__(self, instance, owner=None):
+		if instance is None:
+			return self
+		if self.name in instance.__dict__:
+			return instance.__dict__[self.name]
+		
+		idSpec = None if self.deps is None else tuple(id(getattr(instance, attrName, None)) for attrName in self.deps)
+		if id(instance) not in self.data:
+			self.data[id(instance)] = (idSpec, self.fget(instance))
+			return self.data[id(instance)][1]
+		elif self.data[id(instance)][0] != idSpec:
+			self.data[id(instance)] = (idSpec, self.fget(instance))
+			return self.data[id(instance)][1]
+		else:
+			return self.data[id(instance)][1]
+	
+	def __set__(self, instance, value):
+		if self.fset is None:
+			instance.__dict__[self.name] = value
+		else:
+			self.fset(instance, value)
+	
+	def __delete__(self, instance, owner=None):
+			if self.fdel is not None:
+				self.fdel(instance)
+			else:
+				instance.__dict__.pop(self.name, None)
+				if id(instance) in self.data:
+					del self.data[id(instance)]
+	
+	def setter(self, fset):
+		self.fset = fset
+	
+	def deleter(self, fdel):
+		self.fdel = fdel
