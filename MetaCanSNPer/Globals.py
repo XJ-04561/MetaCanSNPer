@@ -36,9 +36,11 @@ from time import sleep
 from collections import defaultdict, OrderedDict
 import tomllib as toml
 from appdirs import user_log_dir, user_config_dir, site_config_dir
+from tempfile import NamedTemporaryFile
 
 LOG_DIR = user_log_dir(SOFTWARE_NAME)
-with NamedTemporaryFile(prefix=time.strftime("MetaCanSNPer-(%Y-%m-%d)-(%H-%M-%S)-", time.localtime()), suffix=".log", dir=LOG_DIR, delete=False) as f:
+pMakeDirs(LOG_DIR)
+with NamedTemporaryFile(prefix=time.strftime("MetaCanSNPer-(%Y-%m-%d)-(%H-%M-%S)-[", time.localtime()), suffix="].log", dir=LOG_DIR, delete=False) as f:
 	LOGGING_FILEPATH = f.name
 LOGGER_FILEHANDLER = logging.FileHandler(LOGGING_FILEPATH)
 LOGGER_FILEHANDLER.setFormatter(logging.Formatter("[%(name)s] %(asctime)s - %(levelname)s: %(message)s"))
@@ -80,9 +82,12 @@ def loadFlattenedTOML(filename):
 			settings[flag] = value
 	return settings
 _configDir = Path(user_config_dir(SOFTWARE_NAME))
-if (path := _configDir.find("defaults.toml")) is None:
-	open(_configDir / "defaults.toml", "w").write(DEFAULT_TOML_TEMPLATE)
+_configDir.create(purpose="rw")
+if "defaults.toml" not in _configDir:
+	with open(_configDir / "defaults.toml", "w") as f:
+		f.write(DEFAULT_TOML_TEMPLATE)
 DEFAULT_SETTINGS = loadFlattenedTOML(_configDir / "defaults.toml")
+
 
 PPGlobals.LOGGER = LOGGER.getChild("PseudoPathy")
 VCFGlobals.LOGGER = LOGGER.getChild("VariantCallFixer")

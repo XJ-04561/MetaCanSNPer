@@ -4,7 +4,6 @@ from PseudoPathy.Functions import createTemp
 
 from MetaCanSNPer.Globals import *
 import MetaCanSNPer.Globals as Globals
-from MetaCanSNPer.core.FileNameAlignment import align as fileNameAlign
 from MetaCanSNPer.core.Hooks import Hooks
 
 from MetaCanSNPer.modules.Database import MetaCanSNPerDatabase
