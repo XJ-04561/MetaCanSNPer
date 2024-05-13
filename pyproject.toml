@@ -34,10 +34,10 @@ classifiers = [
 ]
 dependencies = [
     "appdirs",
-    "PseudoPathy @ git+https://github.com/XJ-04561/PseudoPathy.git",
-    "This @ git+https://github.com/XJ-04561/This.git",
-    "VariantCallFixer @ git+https://github.com/XJ-04561/VariantCallFixer.git",
-    "MetaCanSNPerDatabases @ git+https://github.com/XJ-04561/MetaCanSNPerDatabases.git"
+    "PseudoPathy @ git+https://github.com/XJ-04561/PseudoPathy",
+    "This @ git+https://github.com/XJ-04561/This",
+    "VariantCallFixer @ git+https://github.com/XJ-04561/VariantCallFixer",
+    "SQLOOP @ git+https://github.com/XJ-04561/SQLOOP"
 ]
 
 [project.urls]
