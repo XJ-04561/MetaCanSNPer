@@ -85,7 +85,7 @@ class MetaCanSNPer:
 		
 		for directory in self.Lib.databaseDir:
 			if databaseName in directory:
-				if MetaCanSNPerDatabase(directory / databaseName, "r").valid is True:
+				if MetaCanSNPerDatabase(directory / databaseName, "r", organism=self.organism).valid is True:
 					self.hooks.trigger("DatabaseDownloaderProgress", {"name" : databaseName, "progress" : int(1)})
 					self.databasePath = directory / databaseName
 					break
@@ -100,7 +100,7 @@ class MetaCanSNPer:
 			
 			DD.wait()
 		
-		self.database = MetaCanSNPerDatabase(self.databasePath, "r")
+		self.database = MetaCanSNPerDatabase(self.databasePath, "r", organism=self.organism)
 		self.LOG.info(f"Database {self.databaseName} loaded from: {self.databasePath}!")
 	
 	def setReferenceFiles(self, references : Iterable[tuple[int,str,str,str,str,str]]=database.references):
