@@ -19,13 +19,6 @@ LEGACY_HASH = "7630f33662e27489b7bb7b3b121ca4ff"
 LEGACY_VERSION = 0
 
 
-TABLE_NAME_SNP_ANNOTATION	= "snp_annotation"
-TABLE_NAME_REFERENCES		= "snp_references"
-TABLE_NAME_TREE				= "tree"
-TABLE_NAME_CHROMOSOMES		= "chromosomes"
-
-TABLES = [TABLE_NAME_SNP_ANNOTATION, TABLE_NAME_REFERENCES, TABLE_NAME_TREE, TABLE_NAME_CHROMOSOMES]
-
 class Parent(Column):						type=INTEGER
 class GenoType(Column):						type=TEXT
 class NodeID(Column):						type=INTEGER
