@@ -71,8 +71,10 @@ class ThreadFunction(ThreadDescriptor):
 	def __get__(self, instance, owner=None):
 		return ThreadMethod(self.func.__get__(instance, owner=owner))
 	def __set_name__(self, instance, name):
-		type(self.func).__set_name__(self, instance, name)
-		self.func.__set_name__(self, instance, name)
+		if hasattr(self.func, "__set_name__"):
+			self.func.__set_name__(self, instance, name)
+		elif hasattr(type(self.func), "__set_name__"):
+			type(self.func).__set_name__(instance, name)
 
 def threadDescriptor(func):
 	"""The actual decorator to use."""

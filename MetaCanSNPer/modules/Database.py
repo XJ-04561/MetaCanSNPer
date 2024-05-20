@@ -1,7 +1,7 @@
 
 
 import SQLOOP.Globals as Globals
-from SQLOOP import Database, Assertion, DatabaseError, verifyDatabase, correctDatabase
+from SQLOOP import *
 from SQLOOP.core import *
 import argparse, sys
 
@@ -126,13 +126,13 @@ import  MetaCanSNPer.modules.LegacyDatabase as Legacy
 class NotLegacyCanSNPer2(Assertion):
 	legacyObjects = {}
 	@classmethod
-	def exception(self, database : Database) -> Exception:
+	def exception(self, database : "MetaCanSNPerDatabase"=None) -> Exception:
 		return IsLegacyCanSNPer2("Database is Legacy CanSNPer2 schema.")
 	@classmethod
-	def condition(self, database : Database) -> bool:
+	def condition(self, database : "MetaCanSNPerDatabase") -> bool:
 		return database.tablesHash != LEGACY_HASH
 	@classmethod
-	def rectify(self, database : Database) -> None:
+	def rectify(self, database : "MetaCanSNPerDatabase") -> None:
 		import appdirs
 		import LegacyDatabase as LO
 		from json import loads
@@ -188,8 +188,8 @@ class NotLegacyCanSNPer2(Assertion):
 		database(ALTER - TABLE - SNPsTable - RENAME - TO - TempTable)
 		database(COMMIT)
 		database(BEGIN - TRANSACTION)
-		database(CREATE - TABLE - sql(SNPsTable))
-		database(INSERT - INTO - SNPsTable - (NodeID, Position, AncestralBase, DerivedBase, Citation, Date, ChromosomeID) - SELECT (NodeMinus1, LO.Position, LO.AncestralBase, LO.DerivedBase, LO.Citation, LO.Date, LO.GenomeID) - FROM - TempTable)
+		database(CREATE - TABLE (sql(SNPsTable)))
+		database(INSERT - INTO - SNPsTable - (NodeID, Position, AncestralBase, DerivedBase, Citation, Date, ChromosomeID) - SELECT (NodeMinus1, LO.Position, LO.AncestralBase, LO.DerivedBase, LO.Citation, LO.Date, LO.GenomeID) - FROM (TempTable))
 		database(DROP - TABLE - TempTable)
 		database(COMMIT)
 
@@ -254,23 +254,23 @@ class MetaCanSNPerDatabase(Database):
 	
 	@cached_property
 	def references(self):
-		return tuple(self(SELECT (ALL) - FROM (ReferencesTable)))
+		return tuple(self[ALL, ReferencesTable])
 	
 	@property
 	def SNPs(self):
-		return self(SELECT (ALL) - FROM (SNPsTable))
+		return self[ALL, SNPsTable]
 	
 	@cached_property
 	def chromosomes(self):
-		return tuple(self(SELECT (ALL) - FROM (SNPsTable)))
+		return tuple(self[ALL, ChromosomesTable])
 	
 	@cached_property
 	def SNPsByReference(self):
-		return {genome:tuple(self[ALL][SNPsTable][GenomeID == genomeID]) for genomeID, genome in self[GenomeID, Genome]}
+		return {genome:tuple(self[ALL, SNPsTable, GenomeID == genomeID]) for genomeID, genome in self[GenomeID, Genome]}
 	
 	@cached_property
 	def SNPsByNode(self):
-		return {NodeID:tuple(self[ALL][SNPsTable][NodeID == nodeID]) for nodeID in self[NodeID]}
+		return {nodeID:tuple(self[ALL, SNPsTable, NodeID == nodeID]) for nodeID in self[NodeID, TreeTable]}
 
 def correctDatabase(filename):
 	database = MetaCanSNPerDatabase(filename, "w")
@@ -279,6 +279,7 @@ def correctDatabase(filename):
 		e = database.exception
 		e.add_note(f"Tables hash: {database.tablesHash}\nIndexes Hash: {database.indexesHash}")
 		raise e
+	database.close()
 
 DatabaseDownloader.postProcess = correctDatabase
 
@@ -395,7 +396,7 @@ def main():
 			print(f"    Arbitrary `.get` from one table only.")
 			LOGGER.debug(f"Arbitrary `.get` from one table only.")
 			string = []
-			for row in database[Position, AncestralBase, DerivedBase][ChromosomeID == 1]:
+			for row in database[Position, AncestralBase, DerivedBase, ChromosomeID == 1]:
 				string.append(",\t".join(map(str, row)))
 			LOGGER.debug("\n".join(string))
 
@@ -411,14 +412,14 @@ def main():
 			print(f"    Arbitrary `.get` from one table referencing adjacent table.")
 			LOGGER.debug(f"Arbitrary `.get` from one table referencing adjacent table.")
 			string = []
-			for row in database[Position, AncestralBase, DerivedBase][Chromosome == chromosome]:
+			for row in database[Position, AncestralBase, DerivedBase, Chromosome == chromosome]:
 				string.append(",\t".join(map(str, row)))
 			LOGGER.debug("\n".join(string))
 
 			print(f"    Arbitrary `.get` from one table referencing across more than one chained table.")
 			LOGGER.debug(f"Arbitrary `.get` from one table referencing across more than one chained table.")
 			string = []
-			for row in database[Position, AncestralBase, DerivedBase][Genome == genome]:
+			for row in database[Position, AncestralBase, DerivedBase, Genome == genome]:
 				string.append(",\t".join(map(str, row)))
 			LOGGER.debug("\n".join(string))
 	
@@ -454,7 +455,7 @@ def main():
 	downloadParser.add_argument("--outDir", default=os.path.realpath("."))
 	downloadParser.set_defaults(func=download)
 
-	testParser : argparse.ArgumentParser = modeGroup.add_parser("test", help="Test out the features of MetaCanSNPerDatabases to see if your environment is suitable for using it.")
+	testParser : argparse.ArgumentParser = modeGroup.add_parser("test", help="Test out the features of MetaCanSNPerDatabase to see if your environment is suitable for using it.")
 	testParser.add_argument("database", nargs="+", type=os.path.realpath, default=["francisella_tularensis.db"])
 	testParser.add_argument("--refDir")
 	testParser.add_argument("--noCopy", action="store_true")
@@ -470,7 +471,7 @@ def main():
 		parser.print_help()
 		exit(0)
 	elif "--version" in sys.argv:
-		print(f"MetaCanSNPerDatabases v. {MetaCanSNPerDatabase.CURRENT_VERSION}")
+		print(f"MetaCanSNPerDatabase v. {MetaCanSNPerDatabase.CURRENT_VERSION}")
 		exit(0)
 	elif all(mode not in sys.argv for mode in ["write", "update", "download", "test"]):
 		print("No mode chosen check usage to see which mode is appropriate for your intended use.", file=sys.stderr)

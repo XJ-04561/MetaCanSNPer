@@ -103,7 +103,15 @@ class DirectoryLibrary(SoftwareLibrary):
 
 		self.LOG.info("Creating DirectoryLibrary object.")
 		
-		self.query = PathList(self.targetDir.find(query))
+		if isinstance(query, str):
+			query = [query]
+
+		queryList = [self.targetDir.find(q) for q in query]
+		
+		if None in queryList:
+			raise FileNotFoundError(f"Query files not found: {', '.join(filter(lambda x:x not in self.targetDir, query))}")
+		
+		self.query = PathList(queryList)
 		self.LOG = self.LOG.getChild(f"[{self.queryName}]")
 		
 		self.organism = organism
@@ -132,6 +140,6 @@ class DirectoryLibrary(SoftwareLibrary):
 			filePath = path / filename
 			
 			with openVCF(filePath, mode="w", referenceFile=refPath) as vcfFile:
-				for chromosome, pos in self.database[Chromosome, Position][GenomeID == genomeID]:
+				for chromosome, pos in self.database[Chromosome, Position, GenomeID == genomeID]:
 					vcfFile.add(CHROM=chromosome, POS=pos, REF="N", ALT="A,T,C,G")
 				self.targetSNPs[genome] = filePath

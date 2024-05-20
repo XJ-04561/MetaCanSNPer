@@ -17,10 +17,7 @@ import MetaCanSNPer.core.Mappers as Mappers
 import MetaCanSNPer.core.SNPCallers as SNPCallers
 from MetaCanSNPer.core.TerminalUpdater import TerminalUpdater
 
-from MetaCanSNPer.modules.Database import (MetaCanSNPerDatabase, DatabaseError, verifyDatabase, correctDatabase,
-										   Parent, NodeID, GenoType, Position, Ancestral, Derived, SNPReference,
-										   Date, ChromID, Chromosome, GenomeID, Genome, Strain, GenbankID,
-										   RefseqID, Assembly, Branch)
+from MetaCanSNPer.modules.Database import *
 from MetaCanSNPer.modules.Downloader import DatabaseDownloader, DownloaderReportHook, ReferenceDownloader
 
 
@@ -34,7 +31,7 @@ class MetaCanSNPer:
 
 	settings : dict = DEFAULT_SETTINGS.copy()
 	Lib : DirectoryLibrary
-	database : MetaCanSNPerDatabase
+	database : MetaCanSNPerDatabase = NotSet
 
 	databasePath : Path
 	databaseName : str
@@ -225,7 +222,7 @@ class MetaCanSNPer:
 
 		for genome, filePath in self.Lib.resultSNPs:
 			for pos, (chromosome, ref) in getSNPdata(filePath, values=["CHROM", "REF"]):
-				(nodeID,) = self.database[NodeID][Position==pos, Chromosome==chromosome]
+				(nodeID,) = self.database[NodeID, Position==pos, Chromosome==chromosome]
 				if (pos, genome) not in self.SNPresults:
 					self.SNPresults[nodeID] = {}
 				self.SNPresults[nodeID][pos] = ref
@@ -266,11 +263,11 @@ class MetaCanSNPer:
 		with open((dst or self.Lib.resultDir.writable) / self.Lib.queryName+"_final.tsv", "w") as finalFile:
 			(finalNodeID, score), scores = self.traverseTree()
 			
-			finalFile.write("{:<20}{score}\n".format(*self.database[GenoType][NodeID == finalNodeID], score=score))
+			finalFile.write("{:<20}{score}\n".format(*self.database[GenoType, NodeID == finalNodeID], score=score))
 			if self.settings.get("debug"):
 				finalFile.write("\n")
 				for nodeID in scores:
-					finalFile.write("{:<20}{score}\n".format(*self.database[GenoType][NodeID == nodeID], score=scores[nodeID]))
+					finalFile.write("{:<20}{score}\n".format(*self.database[GenoType, NodeID == nodeID], score=scores[nodeID]))
 
 	def saveSNPdata(self, dst : str=None):
 		""""""
@@ -302,7 +299,7 @@ class MetaCanSNPer:
 
 		for genomeID, genome, genbankID, refseqID, assemblyName in self.database.references:
 			'''Print SNPs to tab separated file'''
-			for nodeID, position, ancestral, derived, chromosome in self.database[NodeID, Position, Ancestral, Derived, Chromosome][GenomeID == genomeID]:
+			for nodeID, position, ancestral, derived, chromosome in self.database[NodeID, Position, AncestralBase, DerivedBase, Chromosome, GenomeID == genomeID]:
 				N, *args = self.SNPresults[position, chromosome]
 				entry = f"{nodeID}\t{genome}\t{chromosome}\t{position}\t{ancestral}\t{derived}\t{N}\n"
 				if derived == N:

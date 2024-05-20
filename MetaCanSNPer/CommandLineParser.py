@@ -151,7 +151,7 @@ def handleOptions(args : argparse.Namespace):
 
 def initializeMainObject(args):
 
-	from MetaCanSNPer.modules.Database import Genome
+	from MetaCanSNPer.modules.Database import ReferencesTable
 	mObj = MetaCanSNPer(settings=vars(args), settingsFile=args.settingsFile)
 	
 	if not args.silent: print(f"Checking query {args.query}")
@@ -164,15 +164,15 @@ def initializeMainObject(args):
 
 	if args.sessionName is not None: mObj.setSessionName(args.sessionName)
 
-	with TerminalUpdater(f"Checking Reference Genomes:", category="DownloadReferences", hooks=mObj.hooks, threadNames=list(mObj.database[Genome]), printer=LoadingBar):
+	with TerminalUpdater(f"Checking Reference Genomes:", category="DownloadReferences", hooks=mObj.hooks, threadNames=list(mObj.database[ReferencesTable.Genome]), printer=LoadingBar):
 		mObj.setReferenceFiles()
 	
 	return mObj
 
 def runJob(mObj : MetaCanSNPer, args : argparse.Namespace, argsDict : dict):
 	
-	from MetaCanSNPer.modules.Database import Genome
-	genomes = list(mObj.database[Genome])
+	from MetaCanSNPer.modules.Database import ReferencesTable
+	genomes = list(mObj.database[ReferencesTable.Genome])
 	
 	if args.mapper is not None:
 		with TerminalUpdater(f"Creating Mappings:", category="Mappers", hooks=mObj.hooks, threadNames=genomes, printer=Spinner):

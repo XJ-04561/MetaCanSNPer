@@ -129,6 +129,9 @@ class InitCheckDescriptor:
 	def __set_name__(self, owner, name):
 		object.__getattribute__(self, "names")[id(owner)] = name
 
+	def __set__(self, instance, value):
+		instance.__dict__[object.__getattribute__(self, "names")[id(type(instance))]] = value
+
 	def __get__(self, instance, owner=None):
 		return instance.__dict__.get(object.__getattribute__(self, "names").get(id(owner), id(_NULL_KEY)), self)
 
@@ -195,7 +198,8 @@ class Default:
 			self.deps = deps
 		
 	def __call__(self, fget=None, fset=None, fdel=None, doc=None):
-		self.__init__(self, fget, fset, fdel, doc=doc)
+		self.__init__(fget, fset, fdel, doc=doc)
+		return self
 	
 	def __class_getitem__(cls, deps):
 		"""Calls Default(None) and adds the keys provided as the names of attributes upon which this value depends
@@ -203,9 +207,7 @@ class Default:
 		dependent on other attributes of the same object. When getting the same attribute repeatedly, new attribute
 		value instances will not be created, the first one is returned until one of the dependency attributes are
 		changed."""
-		obj = cls()
-		obj.deps = tuple(deps)
-		return obj
+		return cls(deps=deps)
 	
 	def __set_name__(self, owner, name):
 		self.name = name

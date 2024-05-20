@@ -7,7 +7,7 @@ import MetaCanSNPer.core.LogKeeper as LogKeeper
 import MetaCanSNPer.core.ErrorFixes as ErrorFixes
 from MetaCanSNPer.core.DirectoryLibrary import DirectoryLibrary
 from MetaCanSNPer.core.Hooks import Hooks
-from MetaCanSNPerDatabases import DatabaseReader
+from MetaCanSNPer.modules.Database import MetaCanSNPerDatabase
 from MetaCanSNPer.core.Commands import Command
 from MetaCanSNPer.Globals import *
 import MetaCanSNPer.Globals as Globals
@@ -19,7 +19,7 @@ illegalPattern = re.compile(r"[^\w_ \-\.]")
 # Aligner and Mapper classes to inherit from
 class ProcessWrapper:
 	Lib : DirectoryLibrary
-	database : DatabaseReader
+	database : MetaCanSNPerDatabase
 	hooks : Hooks
 	softwareName : str
 	history : dict[int, list[int]] # History
@@ -32,7 +32,7 @@ class ProcessWrapper:
 	command : Command
 	_hooksList : dict
 
-	def __init__(self, lib : DirectoryLibrary, database : DatabaseReader, outputTemplate : str, out : dict[str,str]={}, hooks : Hooks=Hooks(), settings : dict[str,Any]={}):
+	def __init__(self, lib : DirectoryLibrary, database : MetaCanSNPerDatabase, outputTemplate : str, out : dict[str,str]={}, hooks : Hooks=Hooks(), settings : dict[str,Any]={}):
 		self.Lib = lib
 		self.database = database
 		self.queryName = self.Lib.queryName ## get name of file and remove ending
@@ -194,7 +194,7 @@ class IndexingWrapper(ProcessWrapper):
 	solutions : ErrorFixes.SolutionContainer
 
 	
-	def __init__(self, lib : DirectoryLibrary, database : DatabaseReader, outputTemplate : str, out : dict[str,str], hooks : Hooks=Hooks(), flags : list[str]=[], settings : dict[str,Any]={}):
+	def __init__(self, lib : DirectoryLibrary, database : MetaCanSNPerDatabase, outputTemplate : str, out : dict[str,str], hooks : Hooks=Hooks(), flags : list[str]=[], settings : dict[str,Any]={}):
 		super().__init__(lib=lib, database=database, outputTemplate=outputTemplate, out=out, hooks=hooks, settings=settings)
 		
 		self.flags = flags
