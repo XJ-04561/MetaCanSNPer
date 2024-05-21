@@ -47,6 +47,7 @@ LOGGER_FILEHANDLER.setFormatter(logging.Formatter("[%(name)s] %(asctime)s - %(le
 LOGGER = logging.Logger("MetaCanSNPer")
 LOGGER.addHandler(LOGGER_FILEHANDLER)
 
+DEV_NULL = open(os.devnull, "w")
 ISATTY = sys.stdout.isatty()
 
 ## Default .toml
@@ -191,6 +192,8 @@ class Default:
 
 	def __init__(self, fget=None, fset=None, fdel=None, doc=None, deps=None):
 		self.data = {}
+		if hasattr(fget, "__annotations__"):
+			self.__annotations__ = fget.__annotations__
 		self.fget = fget
 		self.fset = fset
 		self.fdel = fdel
@@ -245,6 +248,8 @@ class Default:
 	
 	def setter(self, fset):
 		self.fset = fset
+		return self
 	
 	def deleter(self, fdel):
 		self.fdel = fdel
+		return self

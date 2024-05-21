@@ -281,7 +281,7 @@ def correctDatabase(filename):
 		raise e
 	database.close()
 
-DatabaseDownloader.postProcess = correctDatabase
+DatabaseDownloader.postProcess = staticmethod(correctDatabase)
 
 def loadFromReferenceFile(database : Database, file : TextIO, refDir : str="."):
 	file.seek(0)

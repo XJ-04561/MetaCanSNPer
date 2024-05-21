@@ -13,6 +13,15 @@ import textwrap
 LOGGER = createLogger(__name__)
 _NOT_FOUND = object()
 
+# print(sys.stdout.encoding)
+# if sys.stdout.encoding == "utf-8":
+# 	SQUARE = "\u2588"
+# 	HALF_SQUARE = "\u258C"
+# else:
+
+SQUARE = "="
+HALF_SQUARE = ":"
+
 class HashCachedProperty:
 	_cache : dict
 	attrname : str = None
@@ -150,6 +159,13 @@ class Indicator:
 	def threads(self) -> HitchableDict[str,float]:
 		return self._threads
 	
+	@property
+	def terminalWidth(self):
+		if ISATTY:
+			return os.get_terminal_size()[0]
+		else:
+			return 80
+	
 	@threads.setter
 	def threads(self, threads : HitchableDict[str,float]):
 		self._threads = threads
@@ -158,13 +174,13 @@ class Indicator:
 		self.N = len(self.names)
 		self.entries = list(map(lambda _:" "*self.innerLength, range(self.N)))
 		try:
-			self.createRowTemplate(os.get_terminal_size()[0])
+			self.createRowTemplate(self.terminalWidth)
 		except OSError as e:
 			e.add_note(f"This likely occurred because something is capturing the stdout of {SOFTWARE_NAME}, try running it in silent mode.")
 			raise e
 		self.finishedThreads.intersection_update(self._threads)
 
-	def __init__(self, threads : HitchableDict, symbols : tuple[str], length : int=10, message : str="", sep : str=" ", borders : tuple[str,str]=("[", "]"), crashSymbol=None, finishSymbol="\u2588", out=stdout, preColor : str=None, partition : str=None, crashColor : str=None, skippedColor : str=None, finishColor : str=None, postColor : str=None, progColor : str=None):
+	def __init__(self, threads : HitchableDict, symbols : tuple[str], length : int=10, message : str="", sep : str=" ", borders : tuple[str,str]=("[", "]"), crashSymbol="X", finishSymbol=SQUARE, out=stdout, preColor : str=None, partition : str=None, crashColor : str=None, skippedColor : str=None, finishColor : str=None, postColor : str=None, progColor : str=None):
 		
 		self.preColor		= preColor or ("\u001b[33;40m" if supportsColor() else "")
 		self.progColor		= progColor or ("\u001b[35;40m" if supportsColor() else "")
@@ -186,8 +202,8 @@ class Indicator:
 
 		self.length = length
 
-		self.threads = threads
 		self.finishedThreads = set()
+		self.threads = threads
 	
 	@property
 	def symbols(self) -> tuple[str]:
@@ -242,7 +258,7 @@ class Indicator:
 		rowTemplate = firstRow + "".join(rowTemplate)
 		
 		backspaces = "\b" * len(rowTemplate)
-		whitespaces = " " * len(self.backspaces)
+		whitespaces = " " * len(backspaces)
 		
 		return backspaces, whitespaces, rowTemplate
 
@@ -264,7 +280,7 @@ class Indicator:
 		
 		generator = self.rowGenerator()
 		while self.running:
-			self.backspaces, self.whitespaces, self.rowTemplate = self.createRowTemplate(os.get_terminal_size()[0])
+			self.backspaces, self.whitespaces, self.rowTemplate = self.createRowTemplate(self.terminalWidth)
 			for i in range(len(self.names)):
 				try:
 					self.entries[i] = next(generator)
@@ -275,15 +291,15 @@ class Indicator:
 			h, m, s, ms = s // 3600, (s % 3600) // 60, s % 60, s % 1
 			if all(p is None or p == 1 for p in self.threads.values()):
 				break
-			print(self.backspaces, end=self.rowTemplate.format(time=f"{h:0>2d}:{m:0>2d}:{s:0>2d},{ms:0<3d}", names=self.names, bars=self.entries), flush=True, file=self.out)
+			print(self.backspaces, end=self.rowTemplate.format(time=f"{h:0>2.0f}:{m:0>2.0f}:{s:0>2.0f},{ms:0<3.0f}", names=self.names, bars=self.entries), flush=True, file=self.out)
 			self.condition.acquire(timeout=0.2)
 		
 		if None in self.threads.values():
-			print(self.backspaces, end=self.rowTemplate.format(time=f"{h:0>2d}:{m:0>2d}:{s:0>2d},{ms:0<3d} Failed!", names=self.names, bars=self.entries), flush=True, file=self.out)
+			print(self.backspaces, end=self.rowTemplate.format(time=f"{h:0>2.0f}:{m:0>2.0f}:{s:0>2.0f},{ms:0<3.0f} Failed!", names=self.names, bars=self.entries), flush=True, file=self.out)
 		elif all(map((1).__eq__, self.threads.values())):
-			print(self.backspaces, end=self.rowTemplate.format(time=f"{h:0>2d}:{m:0>2d}:{s:0>2d},{ms:0<3d} Done!", names=self.names, bars=self.entries), flush=True, file=self.out)
+			print(self.backspaces, end=self.rowTemplate.format(time=f"{h:0>2.0f}:{m:0>2.0f}:{s:0>2.0f},{ms:0<3.0f} Done!", names=self.names, bars=self.entries), flush=True, file=self.out)
 		else:
-			print(self.backspaces, end=self.rowTemplate.format(time=f"{h:0>2d}:{m:0>2d}:{s:0>2d},{ms:0<3d} Interrupted!", names=self.names, bars=self.entries), flush=True, file=self.out)
+			print(self.backspaces, end=self.rowTemplate.format(time=f"{h:0>2.0f}:{m:0>2.0f}:{s:0>2.0f},{ms:0<3.0f} Interrupted!", names=self.names, bars=self.entries), flush=True, file=self.out)
 		print(flush=True, file=self.out)
 	
 	def checkDone(self):
@@ -291,12 +307,15 @@ class Indicator:
 			self.running = False
 
 	def kill(self):
-		self.running*=0
-		self.condition.release()
+		self.running = False
+		try:
+			self.condition.notify_all()
+		except RuntimeError:
+			pass
 
 class LoadingBar(Indicator):
 
-	def __init__(self, threads, length=10, fill="\u2588", halfFill="\u258C", background=" ", **kwargs):
+	def __init__(self, threads, length=10, fill=SQUARE, halfFill=HALF_SQUARE, background=" ", **kwargs):
 		super().__init__(threads, [fill, halfFill, background], **kwargs)
 		self.innerLength = length - self.borderLength
 
@@ -493,12 +512,18 @@ class TerminalUpdater:
 	def kill(self):
 		"""Does not wait for thread to stop."""
 		self.printer.running = False
-		self.printer.condition.release()
+		try:
+			self.printer.condition.notify_all()
+		except RuntimeError:
+			pass
 
 	def stop(self):
 		"""Waits for thread to stop."""
 		self.printer.running = False
-		self.printer.condition.release()
+		try:
+			self.printer.condition.notify_all()
+		except RuntimeError:
+			pass
 		self.thread.join()
 
 	def mainLoop(self, *args, **kwargs):

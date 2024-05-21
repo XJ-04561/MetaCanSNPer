@@ -36,6 +36,15 @@ class DirectoryLibrary(SoftwareLibrary):
 	sessionName : str = cached_property(lambda self : f"Sample-{self.queryName}-{time.strftime('%Y-%m-%d_%H-%M-%S', time.localtime())}")
 	"""Defaults to 'Sample-[QUERY_NAME]-[CURRENT_DATE]'"""
 
+	targetDir : PathGroup
+	refDir : PathGroup
+	SNPDir : PathGroup
+	databaseDir : PathGroup
+	tmpDir : PathGroup
+	outDir : PathGroup
+	resultDir : DirectoryPath
+	logDir : DirectoryPath
+	
 	@property
 	def query(self):
 		try:
@@ -71,7 +80,7 @@ class DirectoryLibrary(SoftwareLibrary):
 		return self.dataDir / "Databases"
 	
 	@Default["userCacheDir"]
-	def tmpDir(self) -> PathGroup:
+	def tmpDir(self) -> DirectoryPath:
 		return self.userCacheDir
 	
 	@Default["targetDir", "userDir", "SOFTWARE_NAME"]
@@ -86,7 +95,7 @@ class DirectoryLibrary(SoftwareLibrary):
 
 	@Default["outDir", "sessionName"]
 	def logDir(self) -> DirectoryPath:
-		return self.userLogDir / self.SOFTWARE_NAME / self.sessionName
+		return self.userLogDir / self.sessionName
 	@logDir.setter
 	def logDir(self, value):
 		if isinstance(value, (PathGroup, Path)):
@@ -125,8 +134,18 @@ class DirectoryLibrary(SoftwareLibrary):
 		self.organism = organism
 		self.settings |= settings
 
-		super().__init__(**kwargs)
+		super().__init__(**{name:value for name, value in kwargs.items() if value is not None})
 		self.LOG = self.LOG.getChild(f"[{self.sessionName}]")
+
+		self.targetDir.create(purpose="w")
+		self.refDir.create(purpose="w")
+		self.SNPDir.create(purpose="w")
+		self.databaseDir.create(purpose="w")
+		self.tmpDir.create(purpose="w")
+		self.outDir.create(purpose="w")
+		self.resultDir.create(purpose="w")
+		self.logDir.create(purpose="w")
+
 
 	def __getattribute__(self, name):
 		super().__getattribute__("LOG").debug(f"[0x{id(self):0>16X}] Getting {name!r}")

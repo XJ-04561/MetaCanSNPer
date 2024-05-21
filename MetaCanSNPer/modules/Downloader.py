@@ -4,10 +4,11 @@ import MetaCanSNPer.Globals as Globals
 import MetaCanSNPer.core.Hooks as Hooks
 from MetaCanSNPer.core.LogKeeper import createLogger
 from collections import defaultdict
-from threading import Thread, _DummyThread
+from threading import Thread, _DummyThread, Lock, Semaphore, Condition
 import sqlite3
+from queue import Queue, Empty as EmptyQueueException
 
-LOGGER = createLogger(__name__)
+LOGGER = Globals.LOGGER.getChild("Downloader")
 
 NULL_LOGGER = logging.Logger("NULL_LOGGER", 100)
 
@@ -30,6 +31,88 @@ class URL:
 			{"query" : query}
 
 		return self.string.format(**query)
+
+
+class DatabaseThread:
+
+	LOG : logging.Logger = LOGGER.getChild("DatabaseThread")
+
+	queue : Queue[list[str,list,Lock, list]]
+	queueLock : Lock
+	running : bool
+	
+	filename : str
+	_thread : Thread
+	_connection : sqlite3.Connection
+
+	def __init__(self, filename : str):
+		self.running = True
+		self.queue = Queue()
+		self.queueLock = Lock()
+		self.queueLock.acquire()
+		self.filename = filename
+		self._thread = Thread(target=self.mainLoop, daemon=True)
+		self._thread.start()
+
+	def mainLoop(self):
+		try:
+			self._connection = sqlite3.connect(self.filename)
+			while self.running:
+				try:
+					string, params, lock, results = self.queue.get(timeout=15)
+					results.extend(self._connection.execute(string, params).fetchall())
+					lock.release()
+					self.queue.task_done()
+				except EmptyQueueException:
+					pass
+				except Exception as e:
+					self.LOG.exception(e)
+					try:
+						results.append(e)
+						lock.release()
+					except:
+						pass
+
+		except Exception as e:
+			self.LOG.exception(e)
+			try:
+				results.append(e)
+				lock.release()
+			except:
+				pass
+			for _ in range(self.queue.unfinished_tasks):
+				string, params, lock = self.queue.get(timeout=15)
+				lock.release()
+
+	def execute(self, string : str, params : list=[]):
+		lock = Lock()
+		lock.acquire()
+		results = []
+		self.queue.put([string, params, lock, results])
+		lock.acquire()
+		
+		if results and isinstance(results[-1], Exception):
+			raise results[-1]
+		
+		return results
+	
+	def executemany(self, *statements : tuple[str, list]):
+		fakeLock = lambda :None
+		fakeLock.release = lambda :None
+
+		with self.queueLock:
+			results = [[] for _ in len(statements)]
+			for i, statement in enumerate(statements[:-1]):
+				self.queue.put([*statement, fakeLock, results[i]])
+			lock = Lock()
+			lock.acquire()
+			self.queue.put([*statements[-1], lock, results[-1]])
+		lock.acquire()
+		
+		if results and isinstance(results[-1], Exception):
+			raise results[-1]
+		
+		return results
 
 class ThreadDescriptor:
 
@@ -101,7 +184,7 @@ class Job:
 	filename : str
 	out : Path
 	reportHook : Callable = lambda prog : None
-	_queueConnection : sqlite3.Connection
+	_queueConnection : DatabaseThread
 	LOGGER : logging.Logger = NULL_LOGGER
 	def __init__(self, query, filename, reportHook=None, out=Path("."), conn=None, *, logger=LOGGER):
 		self.query = query
@@ -120,24 +203,24 @@ class Job:
 			return True
 
 	def isListed(self):
-		return self._queueConnection.execute("SELECT CASE WHEN EXISTS(SELECT 1 FROM queueTable WHERE name = ?) THEN TRUE ELSE FALSE;", [self.filename]).fetchone()[0]
+		return self._queueConnection.execute("SELECT CASE WHEN EXISTS(SELECT 1 FROM queueTable WHERE name = ?) THEN TRUE ELSE FALSE;", [self.filename])[0][0]
 	def isQueued(self):
-		return self._queueConnection.execute("SELECT CASE WHEN EXISTS(SELECT 1 FROM queueTable WHERE name = ? AND progress < 0.0) THEN TRUE ELSE FALSE;", [self.filename]).fetchone()[0]
+		return self._queueConnection.execute("SELECT CASE WHEN EXISTS(SELECT 1 FROM queueTable WHERE name = ? AND progress < 0.0) THEN TRUE ELSE FALSE;", [self.filename])[0][0]
 	def isDownloading(self):
-		return self._queueConnection.execute("SELECT CASE WHEN EXISTS(SELECT 1 FROM queueTable WHERE name = ? AND progress >= 0.0 AND progress < 1.0) THEN TRUE ELSE FALSE;", [self.filename]).fetchone()[0]
+		return self._queueConnection.execute("SELECT CASE WHEN EXISTS(SELECT 1 FROM queueTable WHERE name = ? AND progress >= 0.0 AND progress < 1.0) THEN TRUE ELSE FALSE;", [self.filename])[0][0]
 	def isDone(self):
-		return self._queueConnection.execute("SELECT CASE WHEN EXISTS(SELECT 1 FROM queueTable WHERE name = ? AND progress = 1.0) THEN TRUE ELSE FALSE;", [self.filename]).fetchone()[0]
+		return self._queueConnection.execute("SELECT CASE WHEN EXISTS(SELECT 1 FROM queueTable WHERE name = ? AND progress = 1.0) THEN TRUE ELSE FALSE;", [self.filename])[0][0]
 	def isPostProcess(self):
-		return self._queueConnection.execute("SELECT CASE WHEN EXISTS(SELECT 1 FROM queueTable WHERE name = ? AND progress > 1.0) THEN TRUE ELSE FALSE;", [self.filename]).fetchone()[0]
+		return self._queueConnection.execute("SELECT CASE WHEN EXISTS(SELECT 1 FROM queueTable WHERE name = ? AND progress > 1.0) THEN TRUE ELSE FALSE;", [self.filename])[0][0]
 	def isDead(self):
-		return self._queueConnection.execute("SELECT CASE WHEN EXISTS(SELECT 1 FROM queueTable WHERE name = ? AND timestamp + 10.0 < julianday(CURRENT_TIMESTAMP)) THEN TRUE ELSE FALSE;", [self.filename]).fetchone()[0]
+		return self._queueConnection.execute("SELECT CASE WHEN EXISTS(SELECT 1 FROM queueTable WHERE name = ? AND timestamp + 10.0 < julianday(CURRENT_TIMESTAMP)) THEN TRUE ELSE FALSE;", [self.filename])[0][0]
 	
 	def updateProgress(self, name, prog : float):
 		self._queueConnection.execute("UPDATE queueTable SET progress = ?, timestamp = julianday(CURRENT_TIMESTAMP) WHERE name = ?;", [prog, name])
 		self.reportHook(prog)
 
 	def getProgress(self):
-		if (ret := self._queueConnection.execute("SELECT progress FROM queueTable WHERE name = ?;", [self.filename]).fetchone()) is None:
+		if (ret := self._queueConnection.execute("SELECT progress FROM queueTable WHERE name = ?;", [self.filename])[0]) is None:
 			return None
 		else:
 			return ret[0]
@@ -156,25 +239,32 @@ class Job:
 	def run(self, sources, postProcess : Callable=None):
 
 		try:
-			from urllib.request import urlretrieve
+			from urllib.request import urlretrieve, HTTPError
+
 			reportHook = ReportHook(self.reportHook)
+			outFile = "N/A"
 			for sourceName, sourceLink in sources:
 				try:
 					(outFile, msg) = urlretrieve(sourceLink.format(query=self.query), filename=self.out / self.filename, reporthook=reportHook) # Throws error if 404
+
 					if postProcess is not None:
 						self.reportHook(2.0)
 						postProcess(outFile)
 					return outFile, sourceName
-				except Exception as e:
-					self.LOGGER.info(f"Couldn't download from source={sourceName}, url: {sourceLink.format(filename=self.filename)!r}")
+
+				except HTTPError as e:
+					self.LOGGER.info(f"Couldn't download from source={sourceName}, url: {sourceLink.format(query=self.query)}")
 					self.LOGGER.exception(e, stacklevel=logging.DEBUG)
+				except Exception as e:
+					e.add_note(f"This occurred while processing {outFile} downloaded from {sourceLink.format(query=self.query)}")
+					self.LOGGER.exception(e)
+					raise e
 			self.reportHook(None)
 			self.LOGGER.error(f"No database named {self.filename!r} found online. Sources tried: {', '.join(map(*this[0] + ': ' + this[1], sources))}")
 			return None, None
 		except Exception as e:
 			self.reportHook(None)
 			raise e
-
 
 class Downloader:
 
@@ -188,7 +278,7 @@ class Downloader:
 	jobs : list
 	
 
-	_queueConnection : sqlite3.Connection
+	_queueConnection : DatabaseThread
 	_threads : list[Thread]= []
 	LOGGER : logging.Logger = NULL_LOGGER
 
@@ -203,7 +293,7 @@ class Downloader:
 		self.database = f"{self.__module__}_QUEUE.db"
 		self.jobs = []
 		
-		self._queueConnection = sqlite3.connect(self.directory / self.database)
+		self._queueConnection = DatabaseThread(self.directory / self.database)
 		self._queueConnection.execute("CREATE TABLE IF NOT EXISTS queueTable (name TEXT UNIQUE, progress DECIMAL default -1.0, modified DECIMAL DEFAULT (julianday(CURRENT_TIMESTAMP)));")
 		if logger is not None:
 			self.LOGGER = logger
@@ -229,7 +319,7 @@ class Downloader:
 		job = Job(query, filename, reportHook=reportHook, out=self.directory, conn=self._queueConnection, logger=self.LOGGER)
 		self.jobs.append(job)
 		if job.reserveQueue():
-			job.run()
+			job.run(self.SOURCES, postProcess=self.postProcess)
 		elif job.isDone():
 			reportHook(int(1))
 		else:
@@ -268,11 +358,11 @@ class DatabaseDownloader(Downloader):
 		("MetaCanSNPer-data", "https://github.com/XJ-04561/MetaCanSNPer-data/raw/master/database/{query}"), # MetaCanSNPer
 		("CanSNPer2-data", "https://github.com/FOI-Bioinformatics/CanSNPer2-data/raw/master/database/{query}") # Legacy CanSNPer
 	]
-	LOGGER = LOGGER
+	LOGGER = LOGGER.getChild("DatabaseDownloader")
 
 class ReferenceDownloader(Downloader):
 	SOURCES = [
 		("NCBI", NCBI_URL)
 	]
-	LOGGER = LOGGER
+	LOGGER = LOGGER.getChild("ReferenceDownloader")
 	postProcess = gunzip

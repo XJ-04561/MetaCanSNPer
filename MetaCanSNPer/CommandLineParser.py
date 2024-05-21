@@ -14,10 +14,10 @@ from MetaCanSNPer.Globals import __version__
 import MetaCanSNPer.core.LogKeeper as LogKeeper
 from MetaCanSNPer.core.MetaCanSNPer import MetaCanSNPer
 from MetaCanSNPer.core.TerminalUpdater import TerminalUpdater, Spinner, LoadingBar, TextProgress
-if not ISATTY:
-	TerminalUpdater = lambda *args, **kwargs: open(os.devnull, "r")
 import MetaCanSNPer.Globals as Globals
 import MetaCanSNPer as package
+
+
 
 LOGGER = LogKeeper.createLogger(__name__)
 	
@@ -147,10 +147,6 @@ def handleOptions(args : argparse.Namespace):
 		import PseudoPathy.Globals
 		PseudoPathy.Globals.PROGRAM_DIRECTORY = args.installDir
 
-	if args.silent or not ISATTY:
-		global TerminalUpdater
-		TerminalUpdater = lambda *args, **kwargs: open(os.devnull, "r")
-
 def initializeMainObject(args):
 
 	from MetaCanSNPer.modules.Database import ReferencesTable
@@ -158,12 +154,12 @@ def initializeMainObject(args):
 
 	database = args.database or mObj.databaseName
 
-	with TerminalUpdater(f"Checking database {database}:", category="DownloadDatabase", hooks=mObj.hooks, threadNames=[database], printer=LoadingBar):
+	with TerminalUpdater(f"Checking database {database}:", category="DownloadDatabase", hooks=mObj.hooks, threadNames=[database], printer=LoadingBar, out=sys.stdout if ISATTY else DEV_NULL):
 		mObj.setDatabase(database)
 
 	if args.sessionName is not None: mObj.setSessionName(args.sessionName)
 
-	with TerminalUpdater(f"Checking Reference Genomes:", category="DownloadReferences", hooks=mObj.hooks, threadNames=list(mObj.database[ReferencesTable.Genome]), printer=LoadingBar):
+	with TerminalUpdater(f"Checking Reference Genomes:", category="DownloadReferences", hooks=mObj.hooks, threadNames=list(mObj.database[ReferencesTable.Genome]), printer=LoadingBar, out=sys.stdout if ISATTY else DEV_NULL):
 		mObj.setReferenceFiles()
 	
 	return mObj
@@ -174,19 +170,19 @@ def runJob(mObj : MetaCanSNPer, args : argparse.Namespace, argsDict : dict):
 	genomes = list(mObj.database[ReferencesTable.Genome])
 	
 	if args.mapper is not None:
-		with TerminalUpdater(f"Creating Mappings:", category="Mappers", hooks=mObj.hooks, threadNames=genomes, printer=Spinner):
+		with TerminalUpdater(f"Creating Mappings:", category="Mappers", hooks=mObj.hooks, threadNames=genomes, printer=Spinner, out=sys.stdout if ISATTY else DEV_NULL):
 			mObj.createMap(softwareName=args.mapper, flags=argsDict.get("--mapperOptions", {}))
 
 	if args.aligner is not None:
-		with TerminalUpdater(f"Creating Alignments:", category="Aligners", hooks=mObj.hooks, threadNames=genomes, printer=Spinner):
+		with TerminalUpdater(f"Creating Alignments:", category="Aligners", hooks=mObj.hooks, threadNames=genomes, printer=Spinner, out=sys.stdout if ISATTY else DEV_NULL):
 			mObj.createAlignment(softwareName=args.aligner, flags=argsDict.get("--alignerOptions", {}))
 	
-	with TerminalUpdater(f"Creating Alignments:", category="Aligners", hooks=mObj.hooks, threadNames=genomes, printer=Spinner):
+	with TerminalUpdater(f"Creating Alignments:", category="Aligners", hooks=mObj.hooks, threadNames=genomes, printer=Spinner, out=sys.stdout if ISATTY else DEV_NULL):
 		mObj.callSNPs(softwareName=args.snpCaller, flags=argsDict.get("--snpCallerOptions", {}))
 
 def saveResults(mObj : MetaCanSNPer, args : argparse.Namespace):
 
-	with TerminalUpdater(f"Saving Results:", category="SavingResults", hooks=mObj.hooks, threadNames=[mObj.queryName], printer=Spinner):
+	with TerminalUpdater(f"Saving Results:", category="SavingResults", hooks=mObj.hooks, threadNames=[mObj.queryName], printer=Spinner, out=sys.stdout if ISATTY else DEV_NULL):
 		mObj.saveSNPdata()
 		mObj.saveResults()
 		mObj.hooks.trigger("SavingResultsFinished", {"name" : mObj.queryName})

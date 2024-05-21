@@ -85,6 +85,7 @@ class MetaCanSNPer:
 		for directory in self.Lib.databaseDir:
 			if databaseName in directory:
 				if MetaCanSNPerDatabase(directory / databaseName, "r", organism=self.organism).valid is True:
+					self.LOG.debug(f"Found {databaseName} in directory {directory}")
 					self.hooks.trigger("DatabaseDownloaderProgress", {"name" : databaseName, "progress" : int(1)})
 					self.databasePath = directory / databaseName
 					break
