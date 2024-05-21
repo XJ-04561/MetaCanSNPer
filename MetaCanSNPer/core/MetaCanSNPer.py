@@ -34,12 +34,12 @@ class MetaCanSNPer:
 	database : MetaCanSNPerDatabase = NotSet
 
 	databasePath : Path
-	databaseName : str
+	databaseName : str = Default["organism"](lambda self:f"{self.organism}.db")
 	
 	referenceFiles = property(lambda self:self.Lib.references)
 	references = property(lambda self:self.database.references, doc="""Fetch names of reference genomes in connected database.""")
 
-	query = property(lambda self:self.Lib.query)
+	query = property(lambda self:self.Lib.query, lambda self, value:setattr(self.Lib, "query", value))
 	queryName : str = Default["Lib.query"](lambda self:self.Lib.queryName)
 	sessionName : str = Default["Lib.query"](lambda self:self.Lib.sessionName)
 	
@@ -48,29 +48,31 @@ class MetaCanSNPer:
 
 
 	@overload
-	def __init__(self, /, organism : str, query : list[str]|str, *, lib : DirectoryLibrary=None, database : str=None, settings : dict={}, settingsFile : str=None, sessionName : str=None): ...
+	def __init__(self, /, organism : str, query : list[str]|str, *, lib : DirectoryLibrary=None, database : str=None,
+			  settings : dict={}, settingsFile : str=None, sessionName : str=None): ...
 
 	def __init__(self, /, organism : str, query : list[str]|str, **kwargs):
 
 		self.LOG.info(f"Initializing MetaCanSNPer object at 0x{id(self):0>16X}.")
 		self.exceptions = []
 		self.hooks.addHook("ReportError", target=lambda eventInfo : self.exceptions.append(eventInfo["exception"]))
-
-		if "settingsFile" in kwargs and os.path.exists(kwargs["settingsFile"]):
+		self.settings = DEFAULT_SETTINGS.copy()
+		
+		if kwargs.get("settingsFile"):
+			if not os.path.exists(kwargs["settingsFile"]):
+				raise FileNotFoundError(f"Could not find the settingsFile {kwargs['settingsFile']!r}")
 			self.settings |= loadFlattenedTOML(kwargs["settingsFile"])
-		elif "settingsFile" in kwargs:
-			raise FileNotFoundError(f"Could not found the settingsFile {kwargs['settingsFile']!r}")
 			
 		self.settings |= kwargs.get("settings", {})
 
-		self.Lib = DirectoryLibrary(organism, query, settings=kwargs.get("settings"), hooks=self.hooks)
+		self.Lib = DirectoryLibrary(organism, query, settings=self.settings, hooks=self.hooks)
 
 		self.LOG = self.LOG.getChild(f"[{self.Lib.queryName}]")
 
 		self.organism = organism
 
 	def setOrganism(self, organism : str):
-		self.Lib.organism = organism
+		self.Lib.organism = self.organism = organism
 		
 	def setDatabase(self, databaseName : str=None):
 		"""databaseName Defaults to `{organism}.db`"""
@@ -213,7 +215,8 @@ class MetaCanSNPer:
 			raise FileNotFoundError("References not set. Can be set with MetaCanSNPer.setReferences")
 		
 		self.LOG.info("Loading SNPs from database.")
-		self.Lib.setTargetSNPs()
+		from MetaCanSNPer.modules.CanSNP2VCF import CanSNP2VCF
+		CanSNP2VCF(self.Lib)
 		self.LOG.info(f"Loaded a total of {len(self.database.SNPs)} SNPs.")
 		
 		self.runSoftware(SNPCallerType, outputDict=self.Lib.resultSNPs, flags=flags)
@@ -231,7 +234,7 @@ class MetaCanSNPer:
 		'''Depth-first tree search.'''
 		self.LOG.info(f"Traversing tree to get genotype called.")
 		rootNode = self.database.tree
-		paths : list[list[Branch]] = []
+		paths = []
 		nodeScores = {rootNode.node : 0}
 
 		award = (1, -1, 0)

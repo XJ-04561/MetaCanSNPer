@@ -14,10 +14,10 @@ LOGGER = createLogger(__name__)
 _NOT_FOUND = object()
 
 class HashCachedProperty:
-	__cache : dict
+	_cache : dict
 	attrname : str = None
 	def __init__(self, *watch):
-		self.__cache = {}
+		self._cache = {}
 		self.watch = watch
 
 	def __set_name__(self, owner, name):
@@ -38,7 +38,7 @@ class HashCachedProperty:
 			if (key := tuple(map(instance.__getattribute__, self.watch))) in self._cache:
 				return self._cache[key]
 			else:
-				self.__cache[key] = out = self.func(instance)
+				self._cache[key] = out = self.func(instance)
 				return out
 		except TypeError: # Unhashable
 			LOGGER.error("Attempted to fetch cached value for property with \
@@ -157,10 +157,14 @@ class Indicator:
 		self.shortKeys = [textwrap.shorten(name, self.length, placeholder="..") for name in self.names]
 		self.N = len(self.names)
 		self.entries = list(map(lambda _:" "*self.innerLength, range(self.N)))
-		self.createRowTemplate(os.get_terminal_size()[0])
+		try:
+			self.createRowTemplate(os.get_terminal_size()[0])
+		except OSError as e:
+			e.add_note(f"This likely occurred because something is capturing the stdout of {SOFTWARE_NAME}, try running it in silent mode.")
+			raise e
 		self.finishedThreads.intersection_update(self._threads)
 
-	def __init__(self, threads : HitchableDict, symbols : tuple[str], length : int=1, message : str="", sep : str=" ", borders : tuple[str,str]=("[", "]"), crashSymbol=None, finishSymbol="\u2588", out=stdout, preColor : str=None, partition : str=None, crashColor : str=None, skippedColor : str=None, finishColor : str=None, postColor : str=None, progColor : str=None):
+	def __init__(self, threads : HitchableDict, symbols : tuple[str], length : int=10, message : str="", sep : str=" ", borders : tuple[str,str]=("[", "]"), crashSymbol=None, finishSymbol="\u2588", out=stdout, preColor : str=None, partition : str=None, crashColor : str=None, skippedColor : str=None, finishColor : str=None, postColor : str=None, progColor : str=None):
 		
 		self.preColor		= preColor or ("\u001b[33;40m" if supportsColor() else "")
 		self.progColor		= progColor or ("\u001b[35;40m" if supportsColor() else "")

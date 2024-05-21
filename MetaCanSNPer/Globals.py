@@ -47,6 +47,7 @@ LOGGER_FILEHANDLER.setFormatter(logging.Formatter("[%(name)s] %(asctime)s - %(le
 LOGGER = logging.Logger("MetaCanSNPer")
 LOGGER.addHandler(LOGGER_FILEHANDLER)
 
+ISATTY = sys.stdout.isatty()
 
 ## Default .toml
 

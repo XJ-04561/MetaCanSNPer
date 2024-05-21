@@ -14,11 +14,13 @@ from MetaCanSNPer.Globals import __version__
 import MetaCanSNPer.core.LogKeeper as LogKeeper
 from MetaCanSNPer.core.MetaCanSNPer import MetaCanSNPer
 from MetaCanSNPer.core.TerminalUpdater import TerminalUpdater, Spinner, LoadingBar, TextProgress
+if not ISATTY:
+	TerminalUpdater = lambda *args, **kwargs: open(os.devnull, "r")
 import MetaCanSNPer.Globals as Globals
 import MetaCanSNPer as package
 
 LOGGER = LogKeeper.createLogger(__name__)
-
+	
 
 def separateCommands(argv : list[str]) -> dict[str,list[str]]:
 	order = [(0, "args")]
@@ -145,22 +147,19 @@ def handleOptions(args : argparse.Namespace):
 		import PseudoPathy.Globals
 		PseudoPathy.Globals.PROGRAM_DIRECTORY = args.installDir
 
-	if args.silent:
+	if args.silent or not ISATTY:
 		global TerminalUpdater
 		TerminalUpdater = lambda *args, **kwargs: open(os.devnull, "r")
 
 def initializeMainObject(args):
 
 	from MetaCanSNPer.modules.Database import ReferencesTable
-	mObj = MetaCanSNPer(settings=vars(args), settingsFile=args.settingsFile)
-	
-	if not args.silent: print(f"Checking query {args.query}")
-	mObj.setQuery(args.query)
+	mObj = MetaCanSNPer(args.organism, args.query, settings=vars(args), settingsFile=args.settingsFile)
 
-	mObj.setOrganism(args.organism)
+	database = args.database or mObj.databaseName
 
-	with TerminalUpdater(f"Checking database {args.database}:", category="DownloadDatabase", hooks=mObj.hooks, threadNames=[os.path.basename(args.database)], printer=LoadingBar):
-		mObj.setDatabase(args.database)
+	with TerminalUpdater(f"Checking database {database}:", category="DownloadDatabase", hooks=mObj.hooks, threadNames=[database], printer=LoadingBar):
+		mObj.setDatabase(database)
 
 	if args.sessionName is not None: mObj.setSessionName(args.sessionName)
 
@@ -225,7 +224,7 @@ def main():
 		for exc in mObj.exceptions:
 			print(f"{type(exc).__name__}: {exc}", file=sys.stderr)
 
-		if not args.silent: print(f"{SOFTWARE_NAME} ended before completing query. ", end="")
+		if not args.silent or not ISATTY: print(f"{SOFTWARE_NAME} ended before completing query. ", end="")
 		print("Exception occurred: \n", file=sys.stderr)
 
 		if args.debug:
@@ -236,5 +235,5 @@ def main():
 			print(f"{type(e).__name__}: "+str(e), file=sys.stderr)
 		exit(1)
 	else:
-		if not args.silent:
+		if not args.silent or not ISATTY:
 			print(f"{SOFTWARE_NAME} finished in {timer() - startTime:.3f} seconds! Results exported to: {mObj.Lib.resultDir}")

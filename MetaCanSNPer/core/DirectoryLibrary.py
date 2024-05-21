@@ -26,15 +26,33 @@ class DirectoryLibrary(SoftwareLibrary):
 	organism : str
 
 	database : MetaCanSNPerDatabase
-	settings : dict = cached_property(lambda self : defaultdict(lambda : NotSet))
+	settings : dict = cached_property(lambda self : dict())
 	hooks : Hooks = cached_property(lambda self : Hooks())
 
-	query : PathList[FilePath] = NotSet
+	query : PathList[FilePath]
 	"""The data file being queried. Can be multiple files in the case of Illumina and other datasets split into parts."""
-	queryName : str = cached_property(lambda self : self.query.nameAlign)
+	queryName : str = cached_property(lambda self : self.query.name)
 	"""Defaults to a sequence alignment of the query files involved."""
 	sessionName : str = cached_property(lambda self : f"Sample-{self.queryName}-{time.strftime('%Y-%m-%d_%H-%M-%S', time.localtime())}")
 	"""Defaults to 'Sample-[QUERY_NAME]-[CURRENT_DATE]'"""
+
+	@property
+	def query(self):
+		try:
+			return self.__dict__["query"]
+		except:
+			raise AttributeError("Attribute not yet set 'query'")
+	@query.setter
+	def query(self, value : str|list):
+		if isinstance(value, str):
+			value = [value]
+
+		queryList = [self.targetDir.find(q) for q in value]
+		
+		if None in queryList:
+			raise FileNotFoundError(f"Query files not found: {', '.join(filter(lambda x:x not in self.targetDir, value))}")
+		
+		self.__dict__["query"] = PathList(queryList)
 
 	@Default["workDir", "userDir"]
 	def targetDir(self) -> PathGroup:
@@ -103,43 +121,25 @@ class DirectoryLibrary(SoftwareLibrary):
 
 		self.LOG.info("Creating DirectoryLibrary object.")
 		
-		if isinstance(query, str):
-			query = [query]
-
-		queryList = [self.targetDir.find(q) for q in query]
-		
-		if None in queryList:
-			raise FileNotFoundError(f"Query files not found: {', '.join(filter(lambda x:x not in self.targetDir, query))}")
-		
-		self.query = PathList(queryList)
-		self.LOG = self.LOG.getChild(f"[{self.queryName}]")
-		
+		self.query = query
 		self.organism = organism
 		self.settings |= settings
 
 		super().__init__(**kwargs)
+		self.LOG = self.LOG.getChild(f"[{self.sessionName}]")
+
+	def __getattribute__(self, name):
+		super().__getattribute__("LOG").debug(f"[0x{id(self):0>16X}] Getting {name!r}")
+		ret = super().__getattribute__(name)
+		if hasattr(ret, "__str__"):
+			super().__getattribute__("LOG").debug(f"[0x{id(self):0>16X}] Got {name!r} as {ret} ({ret!r})")
+		else:
+			super().__getattribute__("LOG").debug(f"[0x{id(self):0>16X}] Got {name!r} as {ret!r}")
+		return ret
 
 	def __setattr__(self, name, value):
-		self.LOG.debug(f"Setting {name!r} to: {value!r}")
+		if hasattr(value, "__str__"):
+			super().__getattribute__("LOG").debug(f"[0x{id(self):0>16X}] Setting {name!r} to: {value}({value!r})")
+		else:
+			super().__getattribute__("LOG").debug(f"[0x{id(self):0>16X}] Setting {name!r} to: {value!r}")
 		super().__setattr__(name, value)
-	
-	def createTargetSNPs(self, force : bool=False):
-		from MetaCanSNPer.modules.Database import Chromosome, Position, GenomeID
-		for genomeID, genome, refPath, SNPPath in map(lambda genomeID, genome, *_ : (genomeID, genome, self.references[genome], self.targetSNPs[genome]), self.database.references):
-			if SNPPath is not None:
-				continue
-			
-			filename = f"{genome}.vcf"
-			path = self.SNPDir.writable
-
-			if path is None:
-				raise PermissionError("Path(s) are not writable, so no `.VCF`-file can be created.\n" f"Path: {self.SNPDir!r}")
-			if not os.path.exists(refPath):
-				raise FileNotFoundError(f"Could not find file for reference genome {genome!r}. Either the file has not been downloaded or the path to the file is not correct. Path to file was {refPath!r}")
-
-			filePath = path / filename
-			
-			with openVCF(filePath, mode="w", referenceFile=refPath) as vcfFile:
-				for chromosome, pos in self.database[Chromosome, Position, GenomeID == genomeID]:
-					vcfFile.add(CHROM=chromosome, POS=pos, REF="N", ALT="A,T,C,G")
-				self.targetSNPs[genome] = filePath

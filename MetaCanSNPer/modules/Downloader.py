@@ -69,7 +69,10 @@ class ThreadFunction(ThreadDescriptor):
 	func : FunctionType
 	
 	def __get__(self, instance, owner=None):
-		return ThreadMethod(self.func.__get__(instance, owner=owner))
+		if instance is not None:
+			return ThreadMethod(self.func.__get__(instance))
+		else:
+			return ThreadMethod(self.func.__get__(owner))
 	def __set_name__(self, instance, name):
 		if hasattr(self.func, "__set_name__"):
 			self.func.__set_name__(self, instance, name)
@@ -201,7 +204,7 @@ class Downloader:
 		self.jobs = []
 		
 		self._queueConnection = sqlite3.connect(self.directory / self.database)
-		self._queueConnection.execute("CREATE TABLE IF NOT EXISTS queueTable (name TEXT UNIQUE, progress DECIMAL default -1.0, modified INTEGER DEFAULT julianday(CURRENT_TIMESTAMP));")
+		self._queueConnection.execute("CREATE TABLE IF NOT EXISTS queueTable (name TEXT UNIQUE, progress DECIMAL default -1.0, modified DECIMAL DEFAULT (julianday(CURRENT_TIMESTAMP)));")
 		if logger is not None:
 			self.LOGGER = logger
 		if reportHook is not None:
