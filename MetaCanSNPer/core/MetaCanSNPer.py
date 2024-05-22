@@ -31,7 +31,7 @@ class MetaCanSNPer:
 
 	settings : dict = DEFAULT_SETTINGS.copy()
 	Lib : DirectoryLibrary
-	database : MetaCanSNPerDatabase = NotSet
+	database : MetaCanSNPerDatabase
 
 	databasePath : Path
 	databaseName : str = Default["organism"](lambda self:f"{self.organism}.db")
@@ -45,7 +45,6 @@ class MetaCanSNPer:
 	
 	SNPresults : dict = Default["Lib.query"](lambda self:dict())
 	exceptions : list[Exception]
-
 
 	@overload
 	def __init__(self, /, organism : str, query : list[str]|str, *, lib : DirectoryLibrary=None, database : str=None,
@@ -84,11 +83,14 @@ class MetaCanSNPer:
 		
 		for directory in self.Lib.databaseDir:
 			if databaseName in directory:
-				if MetaCanSNPerDatabase(directory / databaseName, "r", organism=self.organism).valid is True:
-					self.LOG.debug(f"Found {databaseName} in directory {directory}")
+				self.LOG.debug(f"{databaseName} in {directory}")
+				if MetaCanSNPerDatabase(directory / databaseName, "r", organism=self.organism).valid:
+					self.LOG.debug(f"{directory / databaseName} is valid")
 					self.hooks.trigger("DatabaseDownloaderProgress", {"name" : databaseName, "progress" : int(1)})
 					self.databasePath = directory / databaseName
 					break
+			else:
+				self.LOG.debug(f"{databaseName} not in {directory}")
 		else:
 			self.LOG.info(f"No valid database={databaseName} found. Looking for writeable versions or directories that can be updated or downloaded to, respectively.")
 			RH = DownloaderReportHook("DatabaseDownloader", self.hooks, databaseName)
@@ -100,12 +102,12 @@ class MetaCanSNPer:
 			
 			DD.wait()
 		
-		self.database = MetaCanSNPerDatabase(self.databasePath, "r", organism=self.organism)
+		self.Lib.database = self.database = MetaCanSNPerDatabase(self.databasePath, "r", organism=self.organism)
 		self.LOG.info(f"Database {self.databaseName} loaded from: {self.databasePath}!")
 	
-	def setReferenceFiles(self, references : Iterable[tuple[int,str,str,str,str,str]]=database.references):
+	def setReferenceFiles(self, references : Iterable[tuple[int,str,str,str,str,str]]=None):
 
-		if references is NotSet:
+		if references is None:
 			assert hasattr(self, "database"), "Database not yet set. Setting references requires either a table of references as an argument or that a database is connected."
 			references = self.database.references
 
@@ -123,11 +125,11 @@ class MetaCanSNPer:
 
 	'''MetaCanSNPer set directories'''
 	
-	def setTargetDir(self, path : str):		setattr(self.Lib, "setTargetDir", path)
-	def setRefDir(self, path : str):		setattr(self.Lib, "setRefDir", path)
-	def setDatabaseDir(self, path : str):	setattr(self.Lib, "setDatabaseDir", path)
-	def setTmpDir(self, path : str):		setattr(self.Lib, "setTmpDir", path)
-	def setOutDir(self, path : str):		setattr(self.Lib, "setOutDir", path)
+	def setTargetDir(self, path : str):		setattr(self.Lib, "targetDir", path)
+	def setRefDir(self, path : str):		setattr(self.Lib, "refDir", path)
+	def setDatabaseDir(self, path : str):	setattr(self.Lib, "databaseDir", path)
+	def setTmpDir(self, path : str):		setattr(self.Lib, "tmpDir", path)
+	def setOutDir(self, path : str):		setattr(self.Lib, "outDir", path)
 	"""
 	`path` can be relative or absolute. Check the docstring for the DirectoryLibrary to see where the relative
 	path will start from.
@@ -233,7 +235,7 @@ class MetaCanSNPer:
 	
 	def traverseTree(self):
 		'''Depth-first tree search.'''
-		self.LOG.info(f"Traversing tree to get genotype called.")
+		self.LOG.info(f"Traversing tree to get Genotype called.")
 		rootNode = self.database.tree
 		paths = []
 		nodeScores = {rootNode.node : 0}
@@ -267,11 +269,11 @@ class MetaCanSNPer:
 		with open((dst or self.Lib.resultDir.writable) / self.Lib.queryName+"_final.tsv", "w") as finalFile:
 			(finalNodeID, score), scores = self.traverseTree()
 			
-			finalFile.write("{:<20}{score}\n".format(*self.database[GenoType, NodeID == finalNodeID], score=score))
+			finalFile.write("{:<20}{score}\n".format(*self.database[Genotype, NodeID == finalNodeID], score=score))
 			if self.settings.get("debug"):
 				finalFile.write("\n")
 				for nodeID in scores:
-					finalFile.write("{:<20}{score}\n".format(*self.database[GenoType, NodeID == nodeID], score=scores[nodeID]))
+					finalFile.write("{:<20}{score}\n".format(*self.database[Genotype, NodeID == nodeID], score=scores[nodeID]))
 
 	def saveSNPdata(self, dst : str=None):
 		""""""

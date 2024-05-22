@@ -33,6 +33,9 @@ class GenbankID(Column):					type=VARCHAR(30)
 class RefseqID(Column):						type=VARCHAR(30)
 class AssemblyName(Column):					type=VARCHAR(30)
 
+class NodeMinus1(Column, name="node_id-1"): pass
+class ParentMinus1(Column, name="parent-1"): pass
+
 class NodesTable(Table, name="nodes"): pass
 class TreeTable(Table, name="tree"): pass
 class ReferencesTable(Table, name="snp_references"): pass
@@ -45,6 +48,8 @@ class TreeTable(Table, name="tree"):
 	Parent = Parent
 	Child = Child
 	RankI = RankI
+	ParentMinus1 = ParentMinus1
+	NodeMinus1 = NodeMinus1
 class ReferencesTable(Table, name="snp_references"):
 	ID = ID
 	Genome = Genome

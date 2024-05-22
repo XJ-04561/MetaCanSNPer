@@ -4,7 +4,7 @@ import MetaCanSNPer.Globals as Globals
 import MetaCanSNPer.core.Hooks as Hooks
 from MetaCanSNPer.core.LogKeeper import createLogger
 from collections import defaultdict
-from threading import Thread, _DummyThread, Lock, Semaphore, Condition
+from threading import Thread, _DummyThread, Lock, Semaphore, Condition, current_thread
 import sqlite3
 from queue import Queue, Empty as EmptyQueueException
 
@@ -128,7 +128,7 @@ class ThreadDescriptor:
 		self.thread = Thread(target=self._funcWrapper, args=args, kwargs=kwargs, daemon=True)
 		self.threads[id(getattr(self.func, "__self__", self))].append(self.thread)
 		self.thread.start()
-		return self
+		return self.thread
 	def __repr__(self):
 		return f"<{self.__class__.__name__}({self.func}) at {hex(id(self))}>"
 	
@@ -138,10 +138,12 @@ class ThreadDescriptor:
 		except Exception as e:
 			e.add_note(f"This exception occured in a thread running the following function call: {printCall(self.func, args, kwargs)}")
 			LOGGER.exception(e)
-			self.func.__self__
+			current_thread().exception = e
 
 	def wait(self):
 		self.thread.join()
+		if hasattr(self.thread, "exception"):
+			raise self.thread.exception
 	
 class ThreadMethod(ThreadDescriptor):
 
@@ -236,7 +238,7 @@ class Job:
 		else:
 			self.reportHook(1.0)
 	
-	def run(self, sources, postProcess : Callable=None):
+	def run(self, sources, postProcess : Callable=lambda filename:None):
 
 		try:
 			from urllib.request import urlretrieve, HTTPError
@@ -253,8 +255,8 @@ class Job:
 					return outFile, sourceName
 
 				except HTTPError as e:
-					self.LOGGER.info(f"Couldn't download from source={sourceName}, url: {sourceLink.format(query=self.query)}")
-					self.LOGGER.exception(e, stacklevel=logging.DEBUG)
+					self.LOGGER.info(f"Couldn't download from source={sourceName}, url: {sourceLink.format(query=self.query)}, due to {e.args}")
+					# self.LOGGER.exception(e, stacklevel=logging.DEBUG)
 				except Exception as e:
 					e.add_note(f"This occurred while processing {outFile} downloaded from {sourceLink.format(query=self.query)}")
 					self.LOGGER.exception(e)
@@ -312,6 +314,8 @@ class Downloader:
 				self.download.threads[id(self)].remove(t)
 			except:
 				pass
+			if hasattr(t, "exception"):
+				raise t.exception
 	
 	@threadDescriptor
 	def download(self, query, filename : str, reportHook=reportHook) -> None:

@@ -7,6 +7,7 @@ import argparse, sys
 
 from MetaCanSNPer.Globals import *
 from MetaCanSNPer.modules.Downloader import DatabaseDownloader, Downloader, URL, gunzip, DownloaderReportHook
+from copy import deepcopy
 from MetaCanSNPer.core.LogKeeper import createLogger
 
 LOGGER = LOGGER.getChild("Database")
@@ -15,12 +16,12 @@ SOFTWARE_NAME = "MetaCanSNPer"
 
 import logging, os
 
-LEGACY_HASH = "7630f33662e27489b7bb7b3b121ca4ff"
+LEGACY_HASH = 114303753400556555282992836027662767595
 LEGACY_VERSION = 0
 
 
 class Parent(Column):						type=INTEGER
-class GenoType(Column):						type=TEXT
+class Genotype(Column):						type=TEXT
 class NodeID(Column):						type=INTEGER
 class Position(Column):						type=INTEGER
 class AncestralBase(Column):				type=VARCHAR(1)
@@ -36,22 +37,14 @@ class GenbankID(Column):					type=VARCHAR(30)
 class RefseqID(Column):						type=VARCHAR(30)
 class AssemblyName(Column):					type=VARCHAR(30)
 
-class TreeTable(Table, name="tree"): pass
-class ChromosomesTable(Table, name="chromosomes"): pass
-class ReferencesTable(Table, name="snp_references"): pass
-class SNPsTable(Table, name="snp_annotation"): pass
-
 class TreeTable(Table, name="tree"):
 	Parent = Parent
 	Child = NodeID
-	GenoType = GenoType
-	options = (
+	Genotype = Genotype
+	constraints = (
 		PRIMARY - KEY (Child),
-		UNIQUE (Parent, Child),
-		UNIQUE (Child),
-		NOT - NULL (Parent),
-		NOT - NULL (GenoType)
 	)
+NewTreeTable = type(Table)("NewTreeTable", (Table,), dict(vars(TreeTable)))
 class ReferencesTable(Table, name="snp_references"):
 	GenomeID = GenomeID
 	Genome = Genome
@@ -59,22 +52,20 @@ class ReferencesTable(Table, name="snp_references"):
 	GenbankID = GenbankID
 	RefseqID = RefseqID
 	AssemblyName = AssemblyName
-	options = (
-		PRIMARY - KEY (ChromosomeID, Position, NodeID),
-		FOREIGN - KEY (ChromosomeID) - REFERENCES (ChromosomesTable, ChromosomeID),
-		FOREIGN - KEY (NodeID) - REFERENCES (TreeTable, NodeID),
-		UNIQUE (Position)
+	constraints = (
+		PRIMARY - KEY (GenomeID),
+		UNIQUE (GenbankID),
+		UNIQUE (RefseqID),
+		UNIQUE (AssemblyName)
 	)
+NewReferencesTable = type(Table)("NewReferencesTable", (Table,), dict(vars(ReferencesTable)))
 class ChromosomesTable(Table, name="chromosomes"):
 	ChromosomeID = ChromosomeID
 	Chromosome = Chromosome
 	GenomeID = GenomeID
-	options = (
-		PRIMARY - KEY (ChromosomeID, GenomeID),
-		FOREIGN - KEY (GenomeID) - REFERENCES (ReferencesTable, GenomeID),
-		UNIQUE (ChromosomeID),
-		NOT - NULL (Chromosome),
-		NOT - NULL (GenomeID)
+	constraints = (
+		PRIMARY - KEY (ChromosomeID),
+		# FOREIGN - KEY (GenomeID) - REFERENCES (ReferencesTable, GenomeID)
 	)
 class SNPsTable(Table, name="snp_annotation"):
 	NodeID = NodeID
@@ -84,12 +75,12 @@ class SNPsTable(Table, name="snp_annotation"):
 	Citation = Citation
 	Date = Date
 	ChromosomeID = ChromosomeID
-	options = (
-		PRIMARY - KEY (GenomeID),
-		UNIQUE (GenbankID),
-		UNIQUE (RefseqID),
-		UNIQUE (AssemblyName)
+	constraints = (
+		PRIMARY - KEY (Position),
+		# FOREIGN - KEY (ChromosomeID) - REFERENCES (ChromosomesTable, ChromosomeID),
+		# FOREIGN - KEY (NodeID) - REFERENCES (TreeTable, NodeID)
 	)
+NewSNPsTable = type(Table)("NewSNPsTable", (Table,), dict(vars(SNPsTable)))
 
 """Indexes"""
 
@@ -121,8 +112,6 @@ class CanSNPDatabaseError(DatabaseError): pass
 class IsLegacyCanSNPer2(CanSNPDatabaseError): pass
 class NoTreeConnectedToRoot(CanSNPDatabaseError): pass
 
-import  MetaCanSNPer.modules.LegacyDatabase as Legacy
-
 class NotLegacyCanSNPer2(Assertion):
 	legacyObjects = {}
 	@classmethod
@@ -134,90 +123,78 @@ class NotLegacyCanSNPer2(Assertion):
 	@classmethod
 	def rectify(self, database : "MetaCanSNPerDatabase") -> None:
 		import appdirs
-		import LegacyDatabase as LO
+		import MetaCanSNPer.modules.LegacyDatabase as LO
 		from json import loads
 		from subprocess import check_output as getOutput
-
-		class NodeMinus1(Column, name="node_id-1"): pass
-		class ParentMinus1(Column, name="parent-1"): pass
-
-		class TempTable(Table):
-			
-			class NodeMinus1(Column, name="node_id-1"): pass
-			class ParentMinus1(Column, name="parent-1"): pass
-			Child = LO.Child
 		
 		refDir = PathGroup(appdirs.user_data_dir(SOFTWARE_NAME), appdirs.site_data_dir(SOFTWARE_NAME)) / "References" / database.organism
 		
+		database(BEGIN - TRANSACTION)
+
 		# References
 		LOGGER.info("Updating 'References'-table")
-		database(BEGIN - TRANSACTION)
-		database(ALTER - TABLE (LO.ReferencesTable) - RENAME - TO - TempTable)
-		database(COMMIT)
-		database(BEGIN - TRANSACTION)
-		database(CREATE - TABLE - sql(ReferencesTable))
-		database(INSERT - INTO - ReferencesTable - SELECT * FROM (TempTable))
-		database(DROP - TABLE (TempTable))
-		database(COMMIT)
+		database(CREATE - TABLE - sql(NewReferencesTable))
+		database(INSERT - INTO (NewReferencesTable) - SELECT(ALL) - FROM (LO.ReferencesTable))
 
 		# Chromosomes
 		LOGGER.info("Updating 'Chromosomes'-table")
-		database(BEGIN - TRANSACTION)
 		database(CREATE - TABLE - sql(ChromosomesTable) )
-		for i, GenbankID, assembly in database(SELECT (LO.GenomeID, LO.GenbankID, LO.AssemblyName) - FROM (LO.ReferencesTable)):
+		j = 0
+		ref2chromLookup = {}
+		for i, genbankID, assembly in database(SELECT (LO.ReferencesTable.ID, LO.GenbankID, LO.AssemblyName) - FROM (LO.ReferencesTable)):
+			ref2chromLookup[i] = []
 			try:
-				chromosome = loads(getOutput("".split()))["assemblies"][0]["assembly"]["biosample"]["sample_ids"][0]["value"]
-				assert len(chromosome) != 0, "No genbank entry found"
-				database(INSERT - INTO - ChromosomesTable - VALUES (i, chromosome, i))
+				chromosomes = tuple(map(*this["value"], loads(getOutput(f"datasets summary genome accession {genbankID} --as-json-lines".split()))["assembly_info"]["biosample"]["sample_ids"]))
+				assert len(chromosomes) != 0, "No genbank entry found"
+				
+				for chromosome in chromosomes:
+					database(INSERT - INTO (ChromosomesTable) - (ChromosomeID, Chromosome, GenomeID) - VALUES (j, chromosome, i))
+					ref2chromLookup[i].append(j)
+					j += 1
+					
 			except (AssertionError, KeyError) as e:
 				LOGGER.exception(e)
 				try:
-					chromosome = open(refDir.find(f"{assembly}.fna"), "r").readline()[1:].split()[0]
+					for chromosome in map(*this[1:].split()[0], filter(*this.startswith(">"), open(refDir.find(f"{assembly}.fna"), "r").readline())):
+						database(INSERT - INTO (ChromosomesTable) - (ChromosomeID, Chromosome, GenomeID) - VALUES (j, chromosome, i))
+						ref2chromLookup[i].append(j)
+						j += 1
 				except FileNotFoundError:
 					LOGGER.warning(f"Couldn't find genome with {GenbankID=} either online or in {refDir!r}.")
 					raise UnableToDefineChromosomes(f"Could not find naming for chromosomes in entry with {i=}, {GenbankID=}, and {assembly=}.")
-			finally:
-				database(INSERT - INTO - ChromosomesTable - VALUES (i, chromosome, i))
 					
-		database(COMMIT)
 		
-
 		# SNPs
+		# TODO : Get the real chromosome ID based on the position of the SNP and the lengths of the chromosomes
 		LOGGER.info("Updating 'SNP'-table")
-		database(BEGIN - TRANSACTION)
-		database(ALTER - TABLE - SNPsTable - RENAME - TO - TempTable)
-		database(COMMIT)
-		database(BEGIN - TRANSACTION)
-		database(CREATE - TABLE (sql(SNPsTable)))
-		database(INSERT - INTO - SNPsTable - (NodeID, Position, AncestralBase, DerivedBase, Citation, Date, ChromosomeID) - SELECT (NodeMinus1, LO.Position, LO.AncestralBase, LO.DerivedBase, LO.Citation, LO.Date, LO.GenomeID) - FROM (TempTable))
-		database(DROP - TABLE - TempTable)
-		database(COMMIT)
+		database(CREATE - TABLE - sql(NewSNPsTable))
+		database(INSERT - INTO (NewSNPsTable) - (NodeID, Position, AncestralBase, DerivedBase, Citation, Date, ChromosomeID) - SELECT (LO.NodeMinus1, LO.Position, LO.AncestralBase, LO.DerivedBase, LO.Citation, LO.Date, LO.SNPsTable.GenomeID) - FROM (LO.SNPsTable))
 
 		
 		# Tree
 		LOGGER.info("Updating 'Tree'-table")
-		database(BEGIN - TRANSACTION)
-		database(ALTER - TABLE - TreeTable - RENAME - TO - TempTable)
-		database(COMMIT)
-		database(BEGIN - TRANSACTION)
-		database(CREATE - TABLE - sql(TreeTable))
-		database(COMMIT)
-		database(BEGIN - TRANSACTION)
-		database(INSERT - INTO - TreeTable - (Parent, NodeID, GenoType) - SELECT (TempTable.ParentMinus1, NULL, LO.NodesTable.Name) - FROM (TempTable, LO.NodesTable) - WHERE (TempTable.Child == LO.NodesTable.ID, TempTable.Child > 1) - ORDER - BY - (TempTable.Child - ASC))
-		database(COMMIT)
-		database(BEGIN - TRANSACTION)
-		database(UPDATE - TreeTable - SET (Parent == 0) - WHERE (NodeID == 1))
-		database(DROP - TABLE - LO.NodesTable)
-		database(DROP - TABLE - TempTable)
+		database(CREATE - TABLE - sql(NewTreeTable))
+		database(INSERT - INTO (NewTreeTable) - (Parent, NodeID, Genotype) - SELECT (LO.TreeTable.ParentMinus1, NULL, LO.NodesTable.Name) - FROM (LO.TreeTable, LO.NodesTable) - WHERE (LO.TreeTable.Child == LO.NodesTable.ID, LO.TreeTable.Child > 1) - ORDER - BY (LO.TreeTable.Child - ASC))
+		database(UPDATE (NewTreeTable) - SET (parent = 0) - WHERE (NodeID == 1))
 
-		LOGGER.info("Dropping 'genomes'- and 'rank'-tables")
 
 		class Genomes(Table): pass
 		class Rank(Table): pass
-
-		database(DROP - TABLE - Genomes)
-		database(DROP - TABLE - Rank)
+		database(DROP - TABLE (LO.ReferencesTable))
+		database(DROP - TABLE (LO.TreeTable))
+		database(DROP - TABLE (LO.NodesTable))
+		database(DROP - TABLE (LO.SNPsTable))
+		database(DROP - TABLE (Genomes))
+		database(DROP - TABLE (Rank))
 		
+		database(ALTER - TABLE (NewTreeTable) - RENAME - TO (TreeTable))
+		database(ALTER - TABLE (NewSNPsTable) - RENAME - TO (SNPsTable))
+		database(ALTER - TABLE (NewReferencesTable) - RENAME - TO (ReferencesTable))
+
+		database(DROP - TABLE - IF - EXISTS (NewTreeTable))
+		database(DROP - TABLE - IF - EXISTS (NewSNPsTable))
+		database(DROP - TABLE - IF - EXISTS (NewReferencesTable))
+
 		for index in database.indexes:
 			database.createIndex(index)
 
@@ -230,20 +207,34 @@ class CanSNPNode(Branch):
 	childCol : Column = NodeID
 
 class MetaCanSNPerDatabase(Database):
-	assertions = (NotLegacyCanSNPer2, *Globals.ASSERTIONS)
 
 	LOGGER = createLogger(__name__)
+	CURRENT_VERSION = 2
 	DATABASE_VERSIONS = {
 		LEGACY_HASH	: LEGACY_VERSION, # Legacy CanSNPer
 	}
-
-	CURRENT_VERSION = 2
-
+	assertions = (NotLegacyCanSNPer2, *Globals.ASSERTIONS)
 	organism : str
+
+	TreeTable = TreeTable
+	ReferencesTable = ReferencesTable
+	ChromosomesTable = ChromosomesTable
+	SNPsTable = SNPsTable
+
+	TreeTableByParent = TreeTableByParent
+	SNPsTableByPosition = SNPsTableByPosition
+	SNPsTableByNodeID = SNPsTableByNodeID
+	SNPsTableByChromID = SNPsTableByChromID
+	ReferencesTableByGenome = ReferencesTableByGenome
+	ReferencesTableByAssembly = ReferencesTableByAssembly
 
 	def __init__(self, filename: str, mode: Globals.Mode, organism : str=None):
 		self.organism = organism or pName(filename)
 		super().__init__(filename, mode)
+		print(f"My hash is: {self.tablesHash=}")
+		print(f"My hash should be: {self.CURRENT_TABLES_HASH=}")
+		print(f"My hash is: {self.indexesHash=}")
+		print(f"My hash should be: {self.CURRENT_INDEXES_HASH=}")
 
 	@property
 	def tree(self):
@@ -311,14 +302,14 @@ def loadFromTreeFile(database : Database, file : TextIO):
 	database(INSERT - INTO - TreeTable - VALUES (0, None, file.readline().strip()))
 	for row in file:
 		*_, parent, child = row.rstrip(file.newlines).rsplit("\t", 2)
-		database(INSERT - INTO - TreeTable - VALUES (SELECT (NodeID) - FROM (TreeTable) - WHERE (GenoType == parent), None, child))
+		database(INSERT - INTO - TreeTable - VALUES (SELECT (NodeID) - FROM (TreeTable) - WHERE (Genotype == parent), None, child))
 
 def loadFromSNPFile(database : Database, file : TextIO):
 	file.seek(0)
 	if "snp_id	strain	reference	genome	position	derived_base	ancestral_base" == file.readline().strip():
 		for row in file:
 			nodeName, strain, reference, genome, position, ancestral, derived = row.rstrip(file.newlines).split("\t")
-			database(INSERT - INTO - SNPsTable - VALUES (SELECT (NodeID) - FROM (TreeTable) - WHERE (GenoType == nodeName), position, ancestral, derived, reference, None, SELECT (ChromosomeID) - FROM (ChromosomesTable) - WHERE (Genome == genome)))
+			database(INSERT - INTO - SNPsTable - VALUES (SELECT (NodeID) - FROM (TreeTable) - WHERE (Genotype == nodeName), position, ancestral, derived, reference, None, SELECT (ChromosomeID) - FROM (ChromosomesTable) - WHERE (Genome == genome)))
 	else:
 		ValueError("File is not of accepted format.")
 

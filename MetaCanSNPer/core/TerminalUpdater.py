@@ -296,7 +296,7 @@ class Indicator:
 		
 		if None in self.threads.values():
 			print(self.backspaces, end=self.rowTemplate.format(time=f"{h:0>2.0f}:{m:0>2.0f}:{s:0>2.0f},{ms:0<3.0f} Failed!", names=self.names, bars=self.entries), flush=True, file=self.out)
-		elif all(map((1).__eq__, self.threads.values())):
+		elif all(map(*this == 1, self.threads.values())):
 			print(self.backspaces, end=self.rowTemplate.format(time=f"{h:0>2.0f}:{m:0>2.0f}:{s:0>2.0f},{ms:0<3.0f} Done!", names=self.names, bars=self.entries), flush=True, file=self.out)
 		else:
 			print(self.backspaces, end=self.rowTemplate.format(time=f"{h:0>2.0f}:{m:0>2.0f}:{s:0>2.0f},{ms:0<3.0f} Interrupted!", names=self.names, bars=self.entries), flush=True, file=self.out)
