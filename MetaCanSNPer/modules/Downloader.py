@@ -7,6 +7,7 @@ from collections import defaultdict
 from threading import Thread, _DummyThread, Lock, Semaphore, Condition, current_thread
 import sqlite3
 from queue import Queue, Empty as EmptyQueueException
+from urllib.request import urlretrieve, HTTPError
 
 LOGGER = Globals.LOGGER.getChild("Downloader")
 
@@ -83,6 +84,7 @@ class DatabaseThread:
 			for _ in range(self.queue.unfinished_tasks):
 				string, params, lock = self.queue.get(timeout=15)
 				lock.release()
+		self._connection.close()
 
 	def execute(self, string : str, params : list=[]):
 		lock = Lock()
@@ -116,18 +118,25 @@ class DatabaseThread:
 
 class ThreadDescriptor:
 
+	LOG : logging.Logger = LOGGER.getChild("ThreadDescriptor")
+
 	threads : dict[int,Thread] = defaultdict(list)
 	func : FunctionType | MethodType
 	thread : Thread = _DummyThread()
 	threads : defaultdict[int,list[Thread]]
-	def __init__(self, func):
+	owner : Any
+	def __init__(self, func, threads : defaultdict=None, owner=None):
 		self.func = func
-		self.threads = defaultdict(list)
+		self.threads = threads or defaultdict(list)
+		self.owner = owner
 	
 	def __call__(self, *args, **kwargs):
+		self.LOG.info(f"Starting thread for {printCall(self.func, args, kwargs)}")
 		self.thread = Thread(target=self._funcWrapper, args=args, kwargs=kwargs, daemon=True)
-		self.threads[id(getattr(self.func, "__self__", self))].append(self.thread)
+		self.threads[id(self.owner)].append(self.thread)
+		self.LOG.info(f"Thread stored with key {id(self.owner):0>16X}")
 		self.thread.start()
+		self.LOG.info(f"Started thread for {printCall(self.func, args, kwargs)}")
 		return self.thread
 	def __repr__(self):
 		return f"<{self.__class__.__name__}({self.func}) at {hex(id(self))}>"
@@ -136,9 +145,9 @@ class ThreadDescriptor:
 		try:
 			self.func(*args, **kwargs)
 		except Exception as e:
-			e.add_note(f"This exception occured in a thread running the following function call: {printCall(self.func, args, kwargs)}")
-			LOGGER.exception(e)
 			current_thread().exception = e
+			e.add_note(f"This exception occured in a thread running the following function call: {printCall(self.func, args, kwargs)}")
+			self.LOG.exception(e)
 
 	def wait(self):
 		self.thread.join()
@@ -155,14 +164,15 @@ class ThreadFunction(ThreadDescriptor):
 	
 	def __get__(self, instance, owner=None):
 		if instance is not None:
-			return ThreadMethod(self.func.__get__(instance))
+			return ThreadMethod(self.func.__get__(instance), self.threads, instance)
 		else:
-			return ThreadMethod(self.func.__get__(owner))
-	def __set_name__(self, instance, name):
+			return ThreadMethod(self.func.__get__(owner), self.threads, owner)
+	def __set_name__(self, owner, name):
 		if hasattr(self.func, "__set_name__"):
-			self.func.__set_name__(self, instance, name)
+			self.func.__set_name__(self, owner, name)
 		elif hasattr(type(self.func), "__set_name__"):
-			type(self.func).__set_name__(instance, name)
+			type(self.func).__set_name__(owner, name)
+		self.owner = owner
 
 def threadDescriptor(func):
 	"""The actual decorator to use."""
@@ -215,10 +225,10 @@ class Job:
 	def isPostProcess(self):
 		return self._queueConnection.execute("SELECT CASE WHEN EXISTS(SELECT 1 FROM queueTable WHERE name = ? AND progress > 1.0) THEN TRUE ELSE FALSE;", [self.filename])[0][0]
 	def isDead(self):
-		return self._queueConnection.execute("SELECT CASE WHEN EXISTS(SELECT 1 FROM queueTable WHERE name = ? AND timestamp + 10.0 < julianday(CURRENT_TIMESTAMP)) THEN TRUE ELSE FALSE;", [self.filename])[0][0]
+		return self._queueConnection.execute("SELECT CASE WHEN EXISTS(SELECT 1 FROM queueTable WHERE name = ? AND modified + 10.0 < julianday()) THEN TRUE ELSE FALSE;", [self.filename])[0][0]
 	
-	def updateProgress(self, name, prog : float):
-		self._queueConnection.execute("UPDATE queueTable SET progress = ?, timestamp = julianday(CURRENT_TIMESTAMP) WHERE name = ?;", [prog, name])
+	def updateProgress(self, prog : float):
+		self._queueConnection.execute("UPDATE queueTable SET progress = ?, modified = julianday() WHERE name = ?;", [prog, self.filename])
 		self.reportHook(prog)
 
 	def getProgress(self):
@@ -241,16 +251,15 @@ class Job:
 	def run(self, sources, postProcess : Callable=lambda filename:None):
 
 		try:
-			from urllib.request import urlretrieve, HTTPError
 
-			reportHook = ReportHook(self.reportHook)
+			reportHook = ReportHook(self.updateProgress)
 			outFile = "N/A"
 			for sourceName, sourceLink in sources:
 				try:
 					(outFile, msg) = urlretrieve(sourceLink.format(query=self.query), filename=self.out / self.filename, reporthook=reportHook) # Throws error if 404
 
 					if postProcess is not None:
-						self.reportHook(2.0)
+						self.updateProgress(2.0)
 						postProcess(outFile)
 					return outFile, sourceName
 
@@ -261,17 +270,19 @@ class Job:
 					e.add_note(f"This occurred while processing {outFile} downloaded from {sourceLink.format(query=self.query)}")
 					self.LOGGER.exception(e)
 					raise e
-			self.reportHook(None)
+			self.updateProgress(None)
 			self.LOGGER.error(f"No database named {self.filename!r} found online. Sources tried: {', '.join(map(*this[0] + ': ' + this[1], sources))}")
-			return None, None
+			raise e
 		except Exception as e:
-			self.reportHook(None)
+			self.updateProgress(None)
 			raise e
 
 class Downloader:
 
-	directory : DirectoryPath = DirectoryPath(".")
+	LOG : logging.Logger = LOGGER.getChild("Downloader")
 	SOURCES : tuple[tuple[str]] = ()
+
+	directory : DirectoryPath = DirectoryPath(".")
 	reportHook : Callable = lambda prog : None
 	postProcess : Callable=None
 	"""Function that takes arguments: block, blockSize, totalSize"""
@@ -282,7 +293,6 @@ class Downloader:
 
 	_queueConnection : DatabaseThread
 	_threads : list[Thread]= []
-	LOGGER : logging.Logger = NULL_LOGGER
 
 	def __init__(self, directory=directory, *, reportHook=None, logger=None):
 
@@ -296,11 +306,12 @@ class Downloader:
 		self.jobs = []
 		
 		self._queueConnection = DatabaseThread(self.directory / self.database)
-		self._queueConnection.execute("CREATE TABLE IF NOT EXISTS queueTable (name TEXT UNIQUE, progress DECIMAL default -1.0, modified DECIMAL DEFAULT (julianday(CURRENT_TIMESTAMP)));")
+		self._queueConnection.execute("CREATE TABLE IF NOT EXISTS queueTable (name TEXT UNIQUE, progress DECIMAL default -1.0, modified DECIMAL DEFAULT (julianday()));")
 		if logger is not None:
-			self.LOGGER = logger
+			self.LOG = logger
 		if reportHook is not None:
 			self.reportHook = reportHook
+		self.LOG.info(f"Created {type(self)} object at 0x{id(self):0>16X}")
 
 	def addSources(self, *sources : str):
 		self.SOURCES = self.SOURCES + sources
@@ -318,9 +329,9 @@ class Downloader:
 				raise t.exception
 	
 	@threadDescriptor
-	def download(self, query, filename : str, reportHook=reportHook) -> None:
+	def download(self, query, filename : str, reportHook=None) -> None:
 		
-		job = Job(query, filename, reportHook=reportHook, out=self.directory, conn=self._queueConnection, logger=self.LOGGER)
+		job = Job(query, filename, reportHook=reportHook or self.reportHook, out=self.directory, conn=self._queueConnection, logger=self.LOGGER)
 		self.jobs.append(job)
 		if job.reserveQueue():
 			job.run(self.SOURCES, postProcess=self.postProcess)
@@ -353,8 +364,8 @@ class DownloaderReportHook:
 class NCBI_URL(URL):
 	string = "ftp://ftp.ncbi.nlm.nih.gov/genomes/all/{idHead}/{id1_3}/{id4_6}/{id7_9}/{genome_id}_{assembly}/{genome_id}_{assembly}_genomic.fna.gz"
 	patterns = [
-		re.compile(r"(?P<idHead>\w{3})_(?P<id1_3>\d{3})(?P<id4_6>\d{3})(?P<id7_9>\d{3})"),
-		re.compile(".*")
+		re.compile(r"(?P<genome_id>(?P<idHead>\w{3})_(?P<id1_3>\d{3})(?P<id4_6>\d{3})(?P<id7_9>\d{3}).*)"),
+		re.compile(r"(?P<assembly>.*)")
 	]
 
 class DatabaseDownloader(Downloader):
@@ -362,11 +373,11 @@ class DatabaseDownloader(Downloader):
 		("MetaCanSNPer-data", "https://github.com/XJ-04561/MetaCanSNPer-data/raw/master/database/{query}"), # MetaCanSNPer
 		("CanSNPer2-data", "https://github.com/FOI-Bioinformatics/CanSNPer2-data/raw/master/database/{query}") # Legacy CanSNPer
 	]
-	LOGGER = LOGGER.getChild("DatabaseDownloader")
+	LOG = LOGGER.getChild("DatabaseDownloader")
 
 class ReferenceDownloader(Downloader):
 	SOURCES = [
 		("NCBI", NCBI_URL)
 	]
-	LOGGER = LOGGER.getChild("ReferenceDownloader")
-	postProcess = gunzip
+	LOG = LOGGER.getChild("ReferenceDownloader")
+	postProcess = staticmethod(gunzip)

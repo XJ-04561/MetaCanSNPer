@@ -7,17 +7,9 @@ import argparse, sys
 
 from MetaCanSNPer.Globals import *
 from MetaCanSNPer.modules.Downloader import DatabaseDownloader, Downloader, URL, gunzip, DownloaderReportHook
-from copy import deepcopy
 from MetaCanSNPer.core.LogKeeper import createLogger
 
-LOGGER = LOGGER.getChild("Database")
-
-SOFTWARE_NAME = "MetaCanSNPer"
-
-import logging, os
-
-LEGACY_HASH = 114303753400556555282992836027662767595
-LEGACY_VERSION = 0
+LOGGER = LOGGER.getChild(__name__.split(".")[-1])
 
 
 class Parent(Column):						type=INTEGER
@@ -67,6 +59,7 @@ class ChromosomesTable(Table, name="chromosomes"):
 		PRIMARY - KEY (ChromosomeID),
 		# FOREIGN - KEY (GenomeID) - REFERENCES (ReferencesTable, GenomeID)
 	)
+NewChromosomesTable = type(Table)("NewChromosomesTable", (Table,), dict(vars(ChromosomesTable)))
 class SNPsTable(Table, name="snp_annotation"):
 	NodeID = NodeID
 	Position = Position
@@ -109,21 +102,33 @@ class ReferencesTableByAssembly(Index):
 	AssemblyName = AssemblyName
 
 class CanSNPDatabaseError(DatabaseError): pass
-class IsLegacyCanSNPer2(CanSNPDatabaseError): pass
 class NoTreeConnectedToRoot(CanSNPDatabaseError): pass
+class IsLegacyCanSNPer2(CanSNPDatabaseError): pass
+class NoChromosomesInDatabase(CanSNPDatabaseError): pass
 
-class NotLegacyCanSNPer2(Assertion):
-	legacyObjects = {}
+class CanSNPNode(Branch):
+	table : Table = TreeTable
+	parentCol : Column = Parent
+	childCol : Column = NodeID
+
+from MetaCanSNPer.modules.LegacyDatabase import NotLegacyCanSNPer2, LEGACY_HASH, LEGACY_VERSION
+
+class HasChromosomes(Assertion):
+
+	LOG = LOGGER
+
 	@classmethod
 	def exception(self, database : "MetaCanSNPerDatabase"=None) -> Exception:
-		return IsLegacyCanSNPer2("Database is Legacy CanSNPer2 schema.")
+		return NoChromosomesInDatabase("Database is Legacy CanSNPer2 schema.")
 	@classmethod
 	def condition(self, database : "MetaCanSNPerDatabase") -> bool:
-		return database.tablesHash != LEGACY_HASH
+		try:
+			return database(SELECT (COUNT(ALL)) - FROM (ChromosomesTable) - WHERE (Chromosome == NULL)) == 0
+		except:
+			return False
 	@classmethod
 	def rectify(self, database : "MetaCanSNPerDatabase") -> None:
 		import appdirs
-		import MetaCanSNPer.modules.LegacyDatabase as LO
 		from json import loads
 		from subprocess import check_output as getOutput
 		
@@ -131,89 +136,41 @@ class NotLegacyCanSNPer2(Assertion):
 		
 		database(BEGIN - TRANSACTION)
 
-		# References
-		LOGGER.info("Updating 'References'-table")
-		database(CREATE - TABLE - sql(NewReferencesTable))
-		database(INSERT - INTO (NewReferencesTable) - SELECT(ALL) - FROM (LO.ReferencesTable))
-
 		# Chromosomes
-		LOGGER.info("Updating 'Chromosomes'-table")
-		database(CREATE - TABLE - sql(ChromosomesTable) )
+		self.LOG.info("Updating 'Chromosomes'-table")
+		database(DELETE - FROM (ChromosomesTable) )
 		j = 0
 		ref2chromLookup = {}
-		for i, genbankID, assembly in database(SELECT (LO.ReferencesTable.ID, LO.GenbankID, LO.AssemblyName) - FROM (LO.ReferencesTable)):
+		for i, genbankID, assembly in database(SELECT (GenomeID, GenbankID, AssemblyName) - FROM (ReferencesTable)):
 			ref2chromLookup[i] = []
-			try:
+			chromosomes = ()
+			assemblyFile = refDir.find(f"{assembly}.fna") or Path("?")
+
+			if shutil.which("datasets"):
 				chromosomes = tuple(map(*this["value"], loads(getOutput(f"datasets summary genome accession {genbankID} --as-json-lines".split()))["assembly_info"]["biosample"]["sample_ids"]))
-				assert len(chromosomes) != 0, "No genbank entry found"
-				
-				for chromosome in chromosomes:
-					database(INSERT - INTO (ChromosomesTable) - (ChromosomeID, Chromosome, GenomeID) - VALUES (j, chromosome, i))
-					ref2chromLookup[i].append(j)
-					j += 1
-					
-			except (AssertionError, KeyError) as e:
-				LOGGER.exception(e)
-				try:
-					for chromosome in map(*this[1:].split()[0], filter(*this.startswith(">"), open(refDir.find(f"{assembly}.fna"), "r").readline())):
-						database(INSERT - INTO (ChromosomesTable) - (ChromosomeID, Chromosome, GenomeID) - VALUES (j, chromosome, i))
-						ref2chromLookup[i].append(j)
-						j += 1
-				except FileNotFoundError:
-					LOGGER.warning(f"Couldn't find genome with {GenbankID=} either online or in {refDir!r}.")
-					raise UnableToDefineChromosomes(f"Could not find naming for chromosomes in entry with {i=}, {GenbankID=}, and {assembly=}.")
-					
-		
-		# SNPs
-		# TODO : Get the real chromosome ID based on the position of the SNP and the lengths of the chromosomes
-		LOGGER.info("Updating 'SNP'-table")
-		database(CREATE - TABLE - sql(NewSNPsTable))
-		database(INSERT - INTO (NewSNPsTable) - (NodeID, Position, AncestralBase, DerivedBase, Citation, Date, ChromosomeID) - SELECT (LO.NodeMinus1, LO.Position, LO.AncestralBase, LO.DerivedBase, LO.Citation, LO.Date, LO.SNPsTable.GenomeID) - FROM (LO.SNPsTable))
+			
+			if len(chromosomes) != 0 and assemblyFile.exists:
+				# No genbank entry found
+				chromosomes = map(*this[1:].split()[0], filter(*this.startswith(">"), open(assemblyFile, "r").readline()))
+			else:
+				self.LOG.exception(UnableToDefineChromosomes(f"Could not find naming for chromosomes in entry with {i=}, {GenbankID=}, and {assembly=}."))
+				self.LOG.warning(f"Couldn't find genome with {GenbankID=} either online or in {refDir!r}.")
+				chromosomes = (NULL,)
 
-		
-		# Tree
-		LOGGER.info("Updating 'Tree'-table")
-		database(CREATE - TABLE - sql(NewTreeTable))
-		database(INSERT - INTO (NewTreeTable) - (Parent, NodeID, Genotype) - SELECT (LO.TreeTable.ParentMinus1, NULL, LO.NodesTable.Name) - FROM (LO.TreeTable, LO.NodesTable) - WHERE (LO.TreeTable.Child == LO.NodesTable.ID, LO.TreeTable.Child > 1) - ORDER - BY (LO.TreeTable.Child - ASC))
-		database(UPDATE (NewTreeTable) - SET (parent = 0) - WHERE (NodeID == 1))
-
-
-		class Genomes(Table): pass
-		class Rank(Table): pass
-		database(DROP - TABLE (LO.ReferencesTable))
-		database(DROP - TABLE (LO.TreeTable))
-		database(DROP - TABLE (LO.NodesTable))
-		database(DROP - TABLE (LO.SNPsTable))
-		database(DROP - TABLE (Genomes))
-		database(DROP - TABLE (Rank))
-		
-		database(ALTER - TABLE (NewTreeTable) - RENAME - TO (TreeTable))
-		database(ALTER - TABLE (NewSNPsTable) - RENAME - TO (SNPsTable))
-		database(ALTER - TABLE (NewReferencesTable) - RENAME - TO (ReferencesTable))
-
-		database(DROP - TABLE - IF - EXISTS (NewTreeTable))
-		database(DROP - TABLE - IF - EXISTS (NewSNPsTable))
-		database(DROP - TABLE - IF - EXISTS (NewReferencesTable))
-
-		for index in database.indexes:
-			database.createIndex(index)
-
-		database(PRAGMA (user_version = database.CURRENT_VERSION))
+			for chromosome in chromosomes:
+				database(INSERT - INTO (ChromosomesTable) - (ChromosomeID, Chromosome, GenomeID) - VALUES (j, chromosome, i))
+				ref2chromLookup[i].append(j)
+				j += 1
 		database(COMMIT)
-
-class CanSNPNode(Branch):
-	table : Table = TreeTable
-	parentCol : Column = Parent
-	childCol : Column = NodeID
 
 class MetaCanSNPerDatabase(Database):
 
-	LOGGER = createLogger(__name__)
+	LOG = LOGGER
 	CURRENT_VERSION = 2
 	DATABASE_VERSIONS = {
 		LEGACY_HASH	: LEGACY_VERSION, # Legacy CanSNPer
 	}
-	assertions = (NotLegacyCanSNPer2, *Globals.ASSERTIONS)
+	assertions = (NotLegacyCanSNPer2, *Globals.ASSERTIONS, HasChromosomes)
 	organism : str
 
 	TreeTable = TreeTable
@@ -268,8 +225,9 @@ def correctDatabase(filename):
 	database.fix()
 	if not database.valid:
 		e = database.exception
-		e.add_note(f"Tables hash: {database.tablesHash}\nIndexes Hash: {database.indexesHash}")
-		raise e
+		if not isinstance(e, NoChromosomesInDatabase):
+			e.add_note(f"Tables hash: {database.tablesHash}\nIndexes Hash: {database.indexesHash}")
+			raise e
 	database.close()
 
 DatabaseDownloader.postProcess = staticmethod(correctDatabase)

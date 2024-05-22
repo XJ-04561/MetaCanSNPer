@@ -96,9 +96,9 @@ class MetaCanSNPer:
 			RH = DownloaderReportHook("DatabaseDownloader", self.hooks, databaseName)
 			
 			self.databasePath = self.Lib.databaseDir.writable / databaseName
-			DD = DatabaseDownloader(self.Lib.databaseDir.writable)
+			DD = DatabaseDownloader(self.Lib.databaseDir.writable, reportHook=RH)
 
-			DD.download(databaseName, databaseName, reportHook=RH)
+			DD.download(databaseName, databaseName)
 			
 			DD.wait()
 		
@@ -117,11 +117,18 @@ class MetaCanSNPer:
 		self.Lib.references.clear()
 
 		for genomeID, genome, strain, genbankID, refseqID, assemblyName in references:
-			DD.download((genbankID, assemblyName), f"{assemblyName}.fna", reportHook=DownloaderReportHook("ReferenceDownloader", self.hooks, genome))
+			DD.download((genbankID, assemblyName), f"{assemblyName}.fna", reportHook=DownloaderReportHook("ReferenceDownloader", self.hooks, f"{assemblyName}.fna"))
 			
 			self.Lib.references[genome] = directory / f"{assemblyName}.fna"
 			self.Lib.references[assemblyName] = directory / f"{assemblyName}.fna"
 		DD.wait()
+
+		if not self.database.valid:
+			self.database.reopen("w")
+			self.database.fix()
+			if not self.database.valid:
+				raise self.database.exception
+			self.database.reopen("r")
 
 	'''MetaCanSNPer set directories'''
 	

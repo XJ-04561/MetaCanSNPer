@@ -12,7 +12,7 @@ def test_database():
 	assert ReferencesTable.Genome == Genome
 	assert ReferencesTable.GenomeID == GenomeID
 
-# import pytest
+import pytest
 # @pytest.mark.skip
 def test_database_download():
 
@@ -21,16 +21,16 @@ def test_database_download():
 	databaseName = f"{organism}.db"
 	hooks = Lib.hooks
 
-	from urllib.request import urlretrieve, HTTPError
-	for sourceName, sourceLink in DatabaseDownloader.SOURCES:
-		try:
-			(outFile, msg) = urlretrieve(sourceLink.format(query=databaseName), filename=Lib.databaseDir.writable / databaseName) # Throws error if 404
-			print(f"Success from {sourceName}!", outFile)
-			break
-		except Exception as e:
-			pass
-	else:
-		raise FileNotFoundError()
+	# from urllib.request import urlretrieve, HTTPError
+	# for sourceName, sourceLink in DatabaseDownloader.SOURCES:
+	# 	try:
+	# 		(outFile, msg) = urlretrieve(sourceLink.format(query=databaseName), filename=Lib.databaseDir.writable / databaseName) # Throws error if 404
+	# 		print(f"Success from {sourceName}!", outFile)
+	# 		break
+	# 	except Exception as e:
+	# 		pass
+	# else:
+	# 	raise FileNotFoundError()
 
 	for directory in Lib.databaseDir:
 		if databaseName in directory:
@@ -63,18 +63,3 @@ def test_database_download():
 
 	assert database.valid
 
-# def test_init():
-	
-# 	class NameSpace:
-# 		settingsFile = None
-# 		silent = True
-# 		query = ["FSC458.fq"]
-# 		organism = "francisella_tularensis"
-# 		database = None
-# 		sessionName = None
-
-# 	mObj : MetaCanSNPer = initializeMainObject(NameSpace)
-# 	assert mObj.databasePath is not None
-
-if __name__ == "__main__":
-	test_database_download()
