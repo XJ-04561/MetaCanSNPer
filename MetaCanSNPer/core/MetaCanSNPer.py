@@ -241,6 +241,8 @@ class MetaCanSNPer:
 		self.LOG.info(f"Result of SNPCalling in: {self.Lib.resultSNPs}")
 
 		for genome, filePath in self.Lib.resultSNPs.items():
+			if Globals.DRY_RUN:
+				continue
 			for pos, (ref, *_) in getSNPdata(filePath, values=["REF"]):
 				nodeID = self.database[NodeID, Position==pos]
 				if nodeID not in self.SNPresults:
@@ -282,8 +284,10 @@ class MetaCanSNPer:
 	'''Functions'''
 
 	def saveResults(self, dst : str=None):
-		self.LOG.debug(f"open({dst or self.Lib.resultDir.writable!r} / {self.Lib.queryName!r}+'_final.tsv', 'w')")
-		with open((dst or self.Lib.resultDir.writable) / self.Lib.queryName+"_final.tsv", "w") as finalFile:
+		
+		outDir = dst or self.Lib.resultDir.writable
+		self.LOG.debug(f"open({outDir!r} / {self.Lib.queryName!r}+'_final.tsv', 'w')")
+		with open((outDir) / self.Lib.queryName+"_final.tsv", "w") as finalFile:
 			(finalNodeID, score), scores = self.traverseTree()
 			res = self.database[Genotype, TreeTable, NodeID == finalNodeID]
 			
@@ -292,31 +296,33 @@ class MetaCanSNPer:
 				finalFile.write("\n")
 				for nodeID in scores:
 					finalFile.write("{:<20}{score}\n".format(self.database[Genotype, TreeTable, NodeID == nodeID], score=scores[nodeID]))
+		return outDir
 
 	def saveSNPdata(self, dst : str=None):
 		""""""
 
+		outDir = dst or self.Lib.resultDir.writable
 		header = "Name\tReference\tChromosome\tPosition\tAncestral base\tDerived base\tTarget base\n"
 
 		if self.settings.get("debug"):
-			self.LOG.debug(f"open({dst or self.Lib.resultDir.writable!r} / {self.Lib.queryName!r}+'_snps.tsv', 'w')")
-			self.LOG.debug(f"open({dst or self.Lib.resultDir.writable!r} / {self.Lib.queryName!r}+'_not_called.tsv', 'w')")
-			self.LOG.debug(f"open({dst or self.Lib.resultDir.writable!r} / {self.Lib.queryName!r}+'_no_coverage.tsv', 'w')")
-			self.LOG.debug(f"open({dst or self.Lib.resultDir.writable!r} / {self.Lib.queryName!r}+'_unique.tsv', 'w')")
-			called = open((dst or self.Lib.resultDir.writable) / self.Lib.queryName+"_snps.tsv", "w")
-			notCalled = open((dst or self.Lib.resultDir.writable) / self.Lib.queryName+"_not_called.tsv", "w")
-			noCoverage = open((dst or self.Lib.resultDir.writable) / self.Lib.queryName+"_no_coverage.tsv", "w")
-			unique = open((dst or self.Lib.resultDir.writable) / self.Lib.queryName+"_unique.tsv", "w")
+			self.LOG.debug(f"open({outDir!r} / {self.Lib.queryName!r}+'_snps.tsv', 'w')")
+			self.LOG.debug(f"open({outDir!r} / {self.Lib.queryName!r}+'_not_called.tsv', 'w')")
+			self.LOG.debug(f"open({outDir!r} / {self.Lib.queryName!r}+'_no_coverage.tsv', 'w')")
+			self.LOG.debug(f"open({outDir!r} / {self.Lib.queryName!r}+'_unique.tsv', 'w')")
+			called = open((outDir) / self.Lib.queryName+"_snps.tsv", "w")
+			notCalled = open((outDir) / self.Lib.queryName+"_not_called.tsv", "w")
+			noCoverage = open((outDir) / self.Lib.queryName+"_no_coverage.tsv", "w")
+			unique = open((outDir) / self.Lib.queryName+"_unique.tsv", "w")
 			
 			called.write(header)
 			notCalled.write(header)
 			noCoverage.write(header)
 			unique.write(header)
 		else:
-			self.LOG.debug(f"open({dst or self.Lib.resultDir.writable!r} / {self.Lib.queryName!r}+'_snps.tsv', 'w')")
-			self.LOG.debug(f"open({dst or self.Lib.resultDir.writable!r} / {self.Lib.queryName!r}+'_not_called.tsv', 'w')")
-			called = open((dst or self.Lib.resultDir.writable) / self.Lib.queryName+"_snps.tsv", "w")
-			noCoverage = unique = notCalled = open((dst or self.Lib.resultDir.writable) / self.Lib.queryName+"_not_called.tsv", "w")
+			self.LOG.debug(f"open({outDir!r} / {self.Lib.queryName!r}+'_snps.tsv', 'w')")
+			self.LOG.debug(f"open({outDir!r} / {self.Lib.queryName!r}+'_not_called.tsv', 'w')")
+			called = open((outDir) / self.Lib.queryName+"_snps.tsv", "w")
+			noCoverage = unique = notCalled = open((outDir) / self.Lib.queryName+"_not_called.tsv", "w")
 			
 			called.write(header)
 			noCoverage.write(header)
@@ -343,4 +349,4 @@ class MetaCanSNPer:
 			unique.close()
 		except:
 			pass
-	
+		return outDir

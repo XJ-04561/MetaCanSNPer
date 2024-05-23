@@ -235,8 +235,9 @@ def saveResults(mObj : MetaCanSNPer, args : argparse.Namespace):
 
 	with TerminalUpdater(f"Saving Results:", category="SavingResults", hooks=mObj.hooks, threadNames=[mObj.queryName], printer=Spinner, out=sys.stdout if ISATTY else DEV_NULL):
 		mObj.saveSNPdata()
-		mObj.saveResults()
+		outDir = mObj.saveResults()
 		mObj.hooks.trigger("SavingResultsFinished", {"name" : mObj.queryName})
+	return outDir
 
 def main(argVector : list[str]=sys.argv) -> int:
 	
@@ -258,7 +259,7 @@ def main(argVector : list[str]=sys.argv) -> int:
 
 		runJob(mObj, args, argsDict)
 
-		saveResults(mObj, args)
+		outDir = saveResults(mObj, args)
 	except Exception as e:
 		LOGGER.exception(e)
 
@@ -278,6 +279,6 @@ def main(argVector : list[str]=sys.argv) -> int:
 		exit(1)
 	else:
 		if not args.silent or not ISATTY:
-			print(f"{SOFTWARE_NAME} finished in {timer() - startTime:.3f} seconds! Results exported to: {mObj.Lib.resultDir}")
+			print(f"{SOFTWARE_NAME} finished in {timer() - startTime:.3f} seconds! Results exported to: {outDir}")
 	
 	return 0

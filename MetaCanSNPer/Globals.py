@@ -213,7 +213,7 @@ class Default:
 		dependent on other attributes of the same object. When getting the same attribute repeatedly, new attribute
 		value instances will not be created, the first one is returned until one of the dependency attributes are
 		changed."""
-		return cls(deps=deps)
+		return cls(deps=deps if isinstance(deps, tuple) else (deps, ))
 	
 	def __set_name__(self, owner, name):
 		self.name = name

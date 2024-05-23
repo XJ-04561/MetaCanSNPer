@@ -170,7 +170,7 @@ class Indicator:
 	def threads(self, threads : HitchableDict[str,float]):
 		self._threads = threads
 		self.names = sorted(threads.keys())
-		self.shortKeys = [textwrap.shorten(name, self.length, placeholder="..") for name in self.names]
+		self.shortKeys = [name if len(name) < self.length else name[:self.length-2]+"..." for name in self.names]
 		self.N = len(self.names)
 		self.entries = list(map(lambda _:" "*self.innerLength, range(self.N)))
 		try:
@@ -180,7 +180,7 @@ class Indicator:
 			raise e
 		self.finishedThreads.intersection_update(self._threads)
 
-	def __init__(self, threads : HitchableDict, symbols : tuple[str], length : int=10, message : str="", sep : str=" ", borders : tuple[str,str]=("[", "]"), crashSymbol="X", finishSymbol=SQUARE, out=stdout, preColor : str=None, partition : str=None, crashColor : str=None, skippedColor : str=None, finishColor : str=None, postColor : str=None, progColor : str=None):
+	def __init__(self, threads : HitchableDict, symbols : tuple[str], length : int=15, message : str="", sep : str=" ", borders : tuple[str,str]=("[", "]"), crashSymbol="X", finishSymbol=SQUARE, out=stdout, preColor : str=None, partition : str=None, crashColor : str=None, skippedColor : str=None, finishColor : str=None, postColor : str=None, progColor : str=None):
 		
 		self.preColor		= preColor or ("\u001b[33;40m" if supportsColor() else "")
 		self.progColor		= progColor or ("\u001b[35;40m" if supportsColor() else "")
@@ -251,13 +251,16 @@ class Indicator:
 		namesList = textwrap.wrap(whiteSep.join(map(lambda i: f"{'{'}names[{i}]{'}'}", range(self.N))), width)
 		barsList = textwrap.wrap(whiteSep.join(map(lambda i: f"{self.borders[0]}{'{'}bars[{i}]{'}'}{self.borders[1]}", range(self.N))), width)
 		
+		rows = 0
 		for namesRow, barsRow in zip(namesList, barsList):
 			rowTemplate.append(namesRow.center(width))
 			rowTemplate.append(barsRow.center(width).replace(*sepReplace))
 			rowTemplate.append(spacerRow)
+			rows += 3
 		rowTemplate = firstRow + "".join(rowTemplate)
+		rows += 1
 		
-		backspaces = "\b" * len(rowTemplate)
+		backspaces = "\b" * (rows*width)
 		whitespaces = " " * len(backspaces)
 		
 		return backspaces, whitespaces, rowTemplate
@@ -291,15 +294,18 @@ class Indicator:
 			h, m, s, ms = s // 3600, (s % 3600) // 60, s % 60, s % 1
 			if all(p is None or p == 1 for p in self.threads.values()):
 				break
-			print(self.backspaces, end=self.rowTemplate.format(time=f"{h:0>2.0f}:{m:0>2.0f}:{s:0>2.0f},{ms:0<3.0f}", names=self.names, bars=self.entries), flush=True, file=self.out)
-			self.condition.acquire(timeout=0.2)
+			print(self.rowTemplate.format(time=f"{h:0>2.0f}:{m:0>2.0f}:{s:0>2.0f},{ms:0<3.0f}", names=self.shortKeys, bars=self.entries), end=self.backspaces, flush=True, file=self.out)
+			try:
+				self.condition.acquire(timeout=0.2)
+			except:
+				pass
 		
 		if None in self.threads.values():
-			print(self.backspaces, end=self.rowTemplate.format(time=f"{h:0>2.0f}:{m:0>2.0f}:{s:0>2.0f},{ms:0<3.0f} Failed!", names=self.names, bars=self.entries), flush=True, file=self.out)
+			print(self.backspaces, end=self.rowTemplate.format(time=f"{h:0>2.0f}:{m:0>2.0f}:{s:0>2.0f},{ms:0<3.0f} Failed!", names=self.shortKeys, bars=self.entries), flush=True, file=self.out)
 		elif all(map(*this == 1, self.threads.values())):
-			print(self.backspaces, end=self.rowTemplate.format(time=f"{h:0>2.0f}:{m:0>2.0f}:{s:0>2.0f},{ms:0<3.0f} Done!", names=self.names, bars=self.entries), flush=True, file=self.out)
+			print(self.backspaces, end=self.rowTemplate.format(time=f"{h:0>2.0f}:{m:0>2.0f}:{s:0>2.0f},{ms:0<3.0f} Done!", names=self.shortKeys, bars=self.entries), flush=True, file=self.out)
 		else:
-			print(self.backspaces, end=self.rowTemplate.format(time=f"{h:0>2.0f}:{m:0>2.0f}:{s:0>2.0f},{ms:0<3.0f} Interrupted!", names=self.names, bars=self.entries), flush=True, file=self.out)
+			print(self.backspaces, end=self.rowTemplate.format(time=f"{h:0>2.0f}:{m:0>2.0f}:{s:0>2.0f},{ms:0<3.0f} Interrupted!", names=self.shortKeys, bars=self.entries), flush=True, file=self.out)
 		print(flush=True, file=self.out)
 	
 	def checkDone(self):
@@ -315,8 +321,8 @@ class Indicator:
 
 class LoadingBar(Indicator):
 
-	def __init__(self, threads, length=10, fill=SQUARE, halfFill=HALF_SQUARE, background=" ", **kwargs):
-		super().__init__(threads, [fill, halfFill, background], **kwargs)
+	def __init__(self, threads, length=15, fill=SQUARE, halfFill=HALF_SQUARE, background=" ", **kwargs):
+		super().__init__(threads, [fill, halfFill, background], length=length, **kwargs)
 		self.innerLength = length - self.borderLength
 
 	def rowGenerator(self) -> Generator[str,None,None]:
