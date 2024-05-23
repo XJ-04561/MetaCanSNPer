@@ -6,8 +6,7 @@ from SQLOOP.core import *
 import argparse, sys
 
 from MetaCanSNPer.Globals import *
-from MetaCanSNPer.modules.Downloader import DatabaseDownloader, Downloader, URL, gunzip, DownloaderReportHook
-from MetaCanSNPer.core.LogKeeper import createLogger
+from MetaCanSNPer.modules.Downloader import DatabaseDownloader
 
 LOGGER = LOGGER.getChild(__name__.split(".")[-1])
 
@@ -139,17 +138,18 @@ class HasChromosomes(Assertion):
 		# Chromosomes
 		self.LOG.info("Updating 'Chromosomes'-table")
 		database(DELETE - FROM (ChromosomesTable) )
+		commandName = f"datasets{'.exe' if os.name == 'nt' else ''}"
 		j = 0
 		ref2chromLookup = {}
 		for i, genbankID, assembly in database(SELECT (GenomeID, GenbankID, AssemblyName) - FROM (ReferencesTable)):
 			ref2chromLookup[i] = []
 			chromosomes = ()
 			assemblyFile = refDir.find(f"{assembly}.fna") or Path("?")
-
-			if shutil.which("datasets"):
-				chromosomes = tuple(map(*this["value"], loads(getOutput(f"datasets summary genome accession {genbankID} --as-json-lines".split()))["assembly_info"]["biosample"]["sample_ids"]))
 			
-			if len(chromosomes) != 0 and assemblyFile.exists:
+			if shutil.which(commandName):
+				chromosomes = tuple(map(*this["value"], loads(getOutput(f"{commandName} summary genome accession {genbankID} --as-json-lines".split()))["assembly_info"]["biosample"]["sample_ids"]))
+			
+			if len(chromosomes) == 0 and assemblyFile.exists:
 				# No genbank entry found
 				chromosomes = map(*this[1:].split()[0], filter(*this.startswith(">"), open(assemblyFile, "r").readline()))
 			else:
@@ -188,15 +188,11 @@ class MetaCanSNPerDatabase(Database):
 	def __init__(self, filename: str, mode: Globals.Mode, organism : str=None):
 		self.organism = organism or pName(filename)
 		super().__init__(filename, mode)
-		print(f"My hash is: {self.tablesHash=}")
-		print(f"My hash should be: {self.CURRENT_TABLES_HASH=}")
-		print(f"My hash is: {self.indexesHash=}")
-		print(f"My hash should be: {self.CURRENT_INDEXES_HASH=}")
 
 	@property
 	def tree(self):
 		try:
-			return CanSNPNode(self, next(self()))
+			return CanSNPNode(self, first(self[NodeID, TreeTable, Parent == 0]))
 		except StopIteration:
 			raise NoTreeConnectedToRoot(f"In database {self.filename!r}")
 	
@@ -219,18 +215,6 @@ class MetaCanSNPerDatabase(Database):
 	@cached_property
 	def SNPsByNode(self):
 		return {nodeID:tuple(self[ALL, SNPsTable, NodeID == nodeID]) for nodeID in self[NodeID, TreeTable]}
-
-def correctDatabase(filename):
-	database = MetaCanSNPerDatabase(filename, "w")
-	database.fix()
-	if not database.valid:
-		e = database.exception
-		if not isinstance(e, NoChromosomesInDatabase):
-			e.add_note(f"Tables hash: {database.tablesHash}\nIndexes Hash: {database.indexesHash}")
-			raise e
-	database.close()
-
-DatabaseDownloader.postProcess = staticmethod(correctDatabase)
 
 def loadFromReferenceFile(database : Database, file : TextIO, refDir : str="."):
 	file.seek(0)

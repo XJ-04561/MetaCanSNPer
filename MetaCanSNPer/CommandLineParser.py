@@ -190,11 +190,11 @@ def handleOptions(args : NameSpace):
 		Globals.PPGlobals.DISPOSE = False # Don't dispose of temporary directories/files.
 	
 	if args.debug:
-		Globals.LOGGER_FILEHANDLER.setLevel(logging.DEBUG)
+		logging.basicConfig(level=logging.DEBUG)
 	elif args.verbose:
-		Globals.LOGGER_FILEHANDLER.setLevel(logging.INFO)
+		logging.basicConfig(level=logging.INFO)
 	elif args.suppress:
-		Globals.LOGGER_FILEHANDLER.setLevel(logging.ERROR)
+		logging.basicConfig(level=logging.ERROR)
 	else:
 		pass # The default logging level for the logging package is logging.WARNING
 
@@ -205,12 +205,12 @@ def initializeMainObject(args : NameSpace) -> MetaCanSNPer:
 
 	database = args.database or mObj.databaseName
 
-	with TerminalUpdater(f"Checking database {database}:", category="DownloadDatabase", hooks=mObj.hooks, threadNames=[database], printer=LoadingBar, out=sys.stdout if ISATTY else DEV_NULL):
-		mObj.setDatabase(database)
+	with TerminalUpdater(f"Checking database {database}:", category="DatabaseDownloader", hooks=mObj.hooks, threadNames=[database], printer=LoadingBar, out=sys.stdout if ISATTY else DEV_NULL):
+		mObj.setDatabase(args.database)
 
 	if args.sessionName is not None: mObj.setSessionName(args.sessionName)
 
-	with TerminalUpdater(f"Checking Reference Genomes:", category="DownloadReferences", hooks=mObj.hooks, threadNames=list(mObj.database[ReferencesTable.Genome]), printer=LoadingBar, out=sys.stdout if ISATTY else DEV_NULL):
+	with TerminalUpdater(f"Checking Reference Genomes:", category="ReferenceDownloader", hooks=mObj.hooks, threadNames=list(map(lambda a:f"{a}.fna", mObj.database[ReferencesTable.AssemblyName])), printer=LoadingBar, out=sys.stdout if ISATTY else DEV_NULL):
 		mObj.setReferenceFiles()
 	
 	return mObj
@@ -271,7 +271,7 @@ def main(argVector : list[str]=sys.argv) -> int:
 
 		if args.debug:
 			pattern = re.compile(r"(\[[\w.]+\] \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3} - ERROR: .*?)(?:\[[\w.]+\] \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3} - \w+?:|\$)", flags=re.DOTALL+re.MULTILINE)
-			for i, err in enumerate(pattern.finditer(open(LOGGER_FILEHANDLER.baseFilename, "r").read())):
+			for i, err in enumerate(pattern.finditer(open(LOGGING_FILEPATH, "r").read())):
 				print(f"Exception [{i}]\n{err.group(1)}", file=sys.stderr)
 		else:
 			print(f"{type(e).__name__}: "+str(e), file=sys.stderr)

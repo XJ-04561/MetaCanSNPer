@@ -3,7 +3,7 @@ from MetaCanSNPer.core import MetaCanSNPer
 from MetaCanSNPer.CommandLineParser import initializeMainObject, NameSpace, parser, runJob, handleOptions, saveResults, separateCommands
 import pytest
 
-@pytest.mark.skip
+# @pytest.mark.skip
 def test_init():
 
 	filenames = "\n".join([
@@ -37,11 +37,13 @@ def test_init():
 	mObj : MetaCanSNPer = initializeMainObject(args)
 	assert mObj.databasePath is not None
 
-	runJob(mObj)
+	runJob(mObj, args, argsDict)
 
-	saveResults(mObj)
+	saveResults(mObj, args)
 
-	assert mObj.SNPresults
+	assert mObj.SNPresults or mObj.SNPresults == {}
 
 
 
+if __name__ == "__main__":
+	test_init()

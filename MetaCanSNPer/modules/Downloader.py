@@ -11,21 +11,30 @@ from urllib.request import urlretrieve, HTTPError
 
 LOGGER = Globals.LOGGER.getChild("Downloader")
 
-NULL_LOGGER = logging.Logger("NULL_LOGGER", 100)
+def correctDatabase(filename, finalFilename):
+	from MetaCanSNPer.modules.Database import MetaCanSNPerDatabase, NoChromosomesInDatabase
+	database = MetaCanSNPerDatabase(filename, "w")
+	database.fix()
+	if not database.valid:
+		e = database.exception
+		if not isinstance(e, NoChromosomesInDatabase):
+			e.add_note(f"Tables hash: {database.tablesHash}\nIndexes Hash: {database.indexesHash}")
+			raise e
+	database.close()
+	os.rename(filename, finalFilename)
 
-def gunzip(filepath : str):
+def gunzip(filepath : str, outfile : str):
 	'''gunzip's given file. Only necessary for software that requires non-zipped data.'''
 	import gzip
-	outFile = open(filepath.rstrip(".gz"), "wb")
-
-	outFile.write(gzip.decompress(open(filepath, "rb").read()))
-	outFile.close()
+	open(outfile, "wb").write(
+		gzip.decompress(open(filepath, "rb").read())
+	)
 
 class URL:
 	string : str
 	patterns : tuple[re.Pattern]
 	@classmethod
-	def format(self, query : str|tuple[str]=None):
+	def format(self, query : str|tuple[str]=None) -> str:
 		if isinstance(query, tuple):
 			query = {name:value for pat, q in zip(self.patterns, query) for name, value in pat.match(q).groupdict().items()}
 		else:
@@ -57,23 +66,20 @@ class DatabaseThread:
 
 	def mainLoop(self):
 		try:
-			self._connection = sqlite3.connect(self.filename)
+			self._connection = sqlite3.connect(self.filename, autocommit=True)
 			while self.running:
 				try:
 					string, params, lock, results = self.queue.get(timeout=15)
-					results.extend(self._connection.execute(string, params).fetchall())
+					try:
+						results.extend(self._connection.execute(string, params).fetchall())
+					except Exception as e:
+						results.append(e)
 					lock.release()
 					self.queue.task_done()
 				except EmptyQueueException:
 					pass
 				except Exception as e:
 					self.LOG.exception(e)
-					try:
-						results.append(e)
-						lock.release()
-					except:
-						pass
-
 		except Exception as e:
 			self.LOG.exception(e)
 			try:
@@ -82,7 +88,7 @@ class DatabaseThread:
 			except:
 				pass
 			for _ in range(self.queue.unfinished_tasks):
-				string, params, lock = self.queue.get(timeout=15)
+				string, params, lock, results = self.queue.get(timeout=15)
 				lock.release()
 		self._connection.close()
 
@@ -111,36 +117,43 @@ class DatabaseThread:
 			self.queue.put([*statements[-1], lock, results[-1]])
 		lock.acquire()
 		
-		if results and isinstance(results[-1], Exception):
-			raise results[-1]
+		if any(r and isinstance(r[-1], Exception) for r in results):
+			raise next(filter(lambda r:r and isinstance(r[-1], Exception), results))[-1]
 		
 		return results
+
+	def __del__(self):
+		self.running = False
 
 class ThreadDescriptor:
 
 	LOG : logging.Logger = LOGGER.getChild("ThreadDescriptor")
 
-	threads : dict[int,Thread] = defaultdict(list)
 	func : FunctionType | MethodType
-	thread : Thread = _DummyThread()
-	threads : defaultdict[int,list[Thread]]
-	owner : Any
-	def __init__(self, func, threads : defaultdict=None, owner=None):
+	owner : "Downloader"
+	def __init__(self, func, owner=None):
 		self.func = func
-		self.threads = threads or defaultdict(list)
 		self.owner = owner
 	
 	def __call__(self, *args, **kwargs):
+		
 		self.LOG.info(f"Starting thread for {printCall(self.func, args, kwargs)}")
-		self.thread = Thread(target=self._funcWrapper, args=args, kwargs=kwargs, daemon=True)
-		self.threads[id(self.owner)].append(self.thread)
-		self.LOG.info(f"Thread stored with key {id(self.owner):0>16X}")
-		self.thread.start()
+
+		thread = Thread(target=self._funcWrapper, args=args, kwargs=kwargs, daemon=True)
+		self.owner._threads.append(thread)
+		thread.start()
+
 		self.LOG.info(f"Started thread for {printCall(self.func, args, kwargs)}")
-		return self.thread
+		return thread
 	def __repr__(self):
 		return f"<{self.__class__.__name__}({self.func}) at {hex(id(self))}>"
 	
+	def __set_name__(self, owner, name):
+		if hasattr(self.func, "__set_name__"):
+			self.func.__set_name__(self, owner, name)
+		self.__name__ = name
+		self.owner = owner
+
 	def _funcWrapper(self, *args, **kwargs):
 		try:
 			self.func(*args, **kwargs)
@@ -150,9 +163,7 @@ class ThreadDescriptor:
 			self.LOG.exception(e)
 
 	def wait(self):
-		self.thread.join()
-		if hasattr(self.thread, "exception"):
-			raise self.thread.exception
+		self.owner.wait()
 	
 class ThreadMethod(ThreadDescriptor):
 
@@ -164,15 +175,9 @@ class ThreadFunction(ThreadDescriptor):
 	
 	def __get__(self, instance, owner=None):
 		if instance is not None:
-			return ThreadMethod(self.func.__get__(instance), self.threads, instance)
+			return ThreadMethod(self.func.__get__(instance), instance)
 		else:
-			return ThreadMethod(self.func.__get__(owner), self.threads, owner)
-	def __set_name__(self, owner, name):
-		if hasattr(self.func, "__set_name__"):
-			self.func.__set_name__(self, owner, name)
-		elif hasattr(type(self.func), "__set_name__"):
-			type(self.func).__set_name__(owner, name)
-		self.owner = owner
+			return ThreadMethod(self.func.__get__(owner), owner)
 
 def threadDescriptor(func):
 	"""The actual decorator to use."""
@@ -192,19 +197,27 @@ class ReportHook:
 
 class Job:
 
+	LOG : logging.Logger = LOGGER.getChild("Job")
+
+	_queueConnection : DatabaseThread
+
 	query : Any|Iterable
 	filename : str
-	out : Path
-	reportHook : Callable = lambda prog : None
-	_queueConnection : DatabaseThread
-	LOGGER : logging.Logger = NULL_LOGGER
-	def __init__(self, query, filename, reportHook=None, out=Path("."), conn=None, *, logger=LOGGER):
+	out : Path = Path(".")
+	reportHook : Callable = None
+
+	def __init__(self, query, filename, conn, reportHook=None, out=None, *, logger=None):
+		
+		if logger is not None:
+			self.LOG = logger
+		self._queueConnection = conn
+
 		self.query = query
 		self.filename = filename
-		self.reportHook = reportHook or self.reportHook
-		self.out = out
-		self._queueConnection = conn
-		self.LOGGER = logger
+		if reportHook:
+			self.reportHook = reportHook
+		if out:
+			self.out = out
 	
 	def reserveQueue(self):
 		try:
@@ -215,27 +228,28 @@ class Job:
 			return True
 
 	def isListed(self):
-		return self._queueConnection.execute("SELECT CASE WHEN EXISTS(SELECT 1 FROM queueTable WHERE name = ?) THEN TRUE ELSE FALSE;", [self.filename])[0][0]
+		return self._queueConnection.execute("SELECT CASE WHEN EXISTS(SELECT 1 FROM queueTable WHERE name = ?) THEN TRUE ELSE FALSE END;", [self.filename])[0][0]
 	def isQueued(self):
-		return self._queueConnection.execute("SELECT CASE WHEN EXISTS(SELECT 1 FROM queueTable WHERE name = ? AND progress < 0.0) THEN TRUE ELSE FALSE;", [self.filename])[0][0]
+		return self._queueConnection.execute("SELECT CASE WHEN EXISTS(SELECT 1 FROM queueTable WHERE name = ? AND progress < 0.0) THEN TRUE ELSE FALSE END;", [self.filename])[0][0]
 	def isDownloading(self):
-		return self._queueConnection.execute("SELECT CASE WHEN EXISTS(SELECT 1 FROM queueTable WHERE name = ? AND progress >= 0.0 AND progress < 1.0) THEN TRUE ELSE FALSE;", [self.filename])[0][0]
+		return self._queueConnection.execute("SELECT CASE WHEN EXISTS(SELECT 1 FROM queueTable WHERE name = ? AND progress >= 0.0 AND progress < 1.0) THEN TRUE ELSE FALSE END;", [self.filename])[0][0]
 	def isDone(self):
-		return self._queueConnection.execute("SELECT CASE WHEN EXISTS(SELECT 1 FROM queueTable WHERE name = ? AND progress = 1.0) THEN TRUE ELSE FALSE;", [self.filename])[0][0]
+		return self._queueConnection.execute("SELECT CASE WHEN EXISTS(SELECT 1 FROM queueTable WHERE name = ? AND progress = 1.0) THEN TRUE ELSE FALSE END;", [self.filename])[0][0]
 	def isPostProcess(self):
-		return self._queueConnection.execute("SELECT CASE WHEN EXISTS(SELECT 1 FROM queueTable WHERE name = ? AND progress > 1.0) THEN TRUE ELSE FALSE;", [self.filename])[0][0]
+		return self._queueConnection.execute("SELECT CASE WHEN EXISTS(SELECT 1 FROM queueTable WHERE name = ? AND progress > 1.0) THEN TRUE ELSE FALSE END;", [self.filename])[0][0]
 	def isDead(self):
-		return self._queueConnection.execute("SELECT CASE WHEN EXISTS(SELECT 1 FROM queueTable WHERE name = ? AND modified + 10.0 < julianday()) THEN TRUE ELSE FALSE;", [self.filename])[0][0]
+		return self._queueConnection.execute("SELECT CASE WHEN EXISTS(SELECT 1 FROM queueTable WHERE name = ? AND modified + 10.0 < UNIXEPOCH()) THEN TRUE ELSE FALSE END;", [self.filename])[0][0]
 	
 	def updateProgress(self, prog : float):
-		self._queueConnection.execute("UPDATE queueTable SET progress = ?, modified = julianday() WHERE name = ?;", [prog, self.filename])
+		self._queueConnection.execute("UPDATE queueTable SET progress = ?, modified = UNIXEPOCH() WHERE name = ?;", [prog, self.filename])
 		self.reportHook(prog)
 
 	def getProgress(self):
-		if (ret := self._queueConnection.execute("SELECT progress FROM queueTable WHERE name = ?;", [self.filename])[0]) is None:
+		ret = self._queueConnection.execute("SELECT progress FROM queueTable WHERE name = ?;", [self.filename])
+		if not ret:
 			return None
 		else:
-			return ret[0]
+			return ret[0][0]
 	
 	def updateLoop(self, timeStep : float=0.25):
 		
@@ -248,30 +262,34 @@ class Job:
 		else:
 			self.reportHook(1.0)
 	
-	def run(self, sources, postProcess : Callable=lambda filename:None):
+	def run(self, sources : list[tuple[str, type[URL]]], postProcess : Callable=None):
 
 		try:
-
 			reportHook = ReportHook(self.updateProgress)
 			outFile = "N/A"
 			for sourceName, sourceLink in sources:
 				try:
-					(outFile, msg) = urlretrieve(sourceLink.format(query=self.query), filename=self.out / self.filename, reporthook=reportHook) # Throws error if 404
+					link = sourceLink.format(query=self.query)
+					filename = link.rsplit("/")[-1]
+					(outFile, msg) = urlretrieve(link, filename=self.out / filename, reporthook=reportHook) # Throws error if 404
 
 					if postProcess is not None:
 						self.updateProgress(2.0)
-						postProcess(outFile)
+						postProcess(outFile, self.out / self.filename)
+					else:
+						os.rename(outFile, self.out / self.filename)
+					self.updateProgress(1.0)
 					return outFile, sourceName
 
 				except HTTPError as e:
-					self.LOGGER.info(f"Couldn't download from source={sourceName}, url: {sourceLink.format(query=self.query)}, due to {e.args}")
-					# self.LOGGER.exception(e, stacklevel=logging.DEBUG)
+					self.LOG.info(f"Couldn't download from source={sourceName}, url: {sourceLink.format(query=self.query)}, due to {e.args}")
+					# self.LOG.exception(e, stacklevel=logging.DEBUG)
 				except Exception as e:
 					e.add_note(f"This occurred while processing {outFile} downloaded from {sourceLink.format(query=self.query)}")
-					self.LOGGER.exception(e)
+					self.LOG.exception(e)
 					raise e
 			self.updateProgress(None)
-			self.LOGGER.error(f"No database named {self.filename!r} found online. Sources tried: {', '.join(map(*this[0] + ': ' + this[1], sources))}")
+			self.LOG.error(f"No database named {self.filename!r} found online. Sources tried: {', '.join(map(*this[0] + ': ' + this[1], sources))}")
 			raise e
 		except Exception as e:
 			self.updateProgress(None)
@@ -283,18 +301,18 @@ class Downloader:
 	SOURCES : tuple[tuple[str]] = ()
 
 	directory : DirectoryPath = DirectoryPath(".")
-	reportHook : Callable = lambda prog : None
+	reportHook : Callable=None
 	postProcess : Callable=None
 	"""Function that takes arguments: block, blockSize, totalSize"""
 	timeStep : float = 0.2
-	database : Path
+	database : Path = f"{__module__}_QUEUE.db"
 	jobs : list
-	
+	hooks : Hooks = cached_property(lambda self:Hooks())
 
 	_queueConnection : DatabaseThread
 	_threads : list[Thread]= []
 
-	def __init__(self, directory=directory, *, reportHook=None, logger=None):
+	def __init__(self, directory=directory, *, reportHook=None, logger=None, hooks=None, threads=None):
 
 		if pAccess(directory, "rw"):
 			self.directory = directory
@@ -302,37 +320,49 @@ class Downloader:
 			self.directory = directory
 		else:
 			raise PermissionError(f"Missing read and/or write permissions in directory: {directory}")
-		self.database = f"{self.__module__}_QUEUE.db"
 		self.jobs = []
 		
 		self._queueConnection = DatabaseThread(self.directory / self.database)
-		self._queueConnection.execute("CREATE TABLE IF NOT EXISTS queueTable (name TEXT UNIQUE, progress DECIMAL default -1.0, modified DECIMAL DEFAULT (julianday()));")
-		if logger is not None:
+		self._queueConnection.execute("CREATE TABLE IF NOT EXISTS queueTable (name TEXT UNIQUE, progress DECIMAL DEFAULT -1.0, modified INTEGER DEFAULT (UNIXEPOCH()));")
+		if logger:
 			self.LOG = logger
-		if reportHook is not None:
+		if reportHook:
 			self.reportHook = reportHook
+		if hooks:
+			self.hooks = hooks
+		self._threads = threads if threads is not None else []
 		self.LOG.info(f"Created {type(self)} object at 0x{id(self):0>16X}")
+
+	def __del__(self):
+		del self._queueConnection
 
 	def addSources(self, *sources : str):
 		self.SOURCES = self.SOURCES + sources
 
 	def wait(self):
-		threadList = self.download.threads[id(self)]
-		threadSet = set(threadList)
-		for t in threadSet:
+		threads = self._threads.copy()
+		for t in threads:
 			try:
 				t.join()
-				self.download.threads[id(self)].remove(t)
+				self._threads.remove(t)
 			except:
 				pass
 			if hasattr(t, "exception"):
 				raise t.exception
 	
 	@threadDescriptor
-	def download(self, query, filename : str, reportHook=None) -> None:
+	def download(self, query, filename : str, reportHook : "DownloaderReportHook"=None) -> None:
 		
-		job = Job(query, filename, reportHook=reportHook or self.reportHook, out=self.directory, conn=self._queueConnection, logger=self.LOGGER)
+		if reportHook:
+			pass
+		elif self.reportHook:
+			reportHook = self.reportHook
+		else:
+			reportHook = DownloaderReportHook(getattr(self, "__name__", getattr(self.__class__, "__name__")), self.hooks, filename)
+		
+		job = Job(query, filename, conn=self._queueConnection, reportHook=reportHook, out=self.directory, logger=self.LOG)
 		self.jobs.append(job)
+
 		if job.reserveQueue():
 			job.run(self.SOURCES, postProcess=self.postProcess)
 		elif job.isDone():
@@ -340,7 +370,7 @@ class Downloader:
 		else:
 			while not job.reserveQueue():
 				job.updateLoop(timeStep=self.timeStep)
-				if job.reserveQueue():
+				if job.isDone():
 					break
 			else:
 				job.run(self.SOURCES, postProcess=self.postProcess)
@@ -374,6 +404,7 @@ class DatabaseDownloader(Downloader):
 		("CanSNPer2-data", "https://github.com/FOI-Bioinformatics/CanSNPer2-data/raw/master/database/{query}") # Legacy CanSNPer
 	]
 	LOG = LOGGER.getChild("DatabaseDownloader")
+	postProcess = staticmethod(correctDatabase)
 
 class ReferenceDownloader(Downloader):
 	SOURCES = [

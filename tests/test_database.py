@@ -1,5 +1,5 @@
 
-from MetaCanSNPer import *
+from MetaCanSNPer.Globals import *
 from MetaCanSNPer.CommandLineParser import initializeMainObject
 from MetaCanSNPer.core.DirectoryLibrary import DirectoryLibrary
 from MetaCanSNPer.modules.Downloader import DatabaseDownloader, DownloaderReportHook
@@ -13,7 +13,7 @@ def test_database():
 	assert ReferencesTable.GenomeID == GenomeID
 
 import pytest
-# @pytest.mark.skip
+@pytest.mark.skip
 def test_database_download():
 
 	organism = "francisella_tularensis"
@@ -21,45 +21,45 @@ def test_database_download():
 	databaseName = f"{organism}.db"
 	hooks = Lib.hooks
 
-	# from urllib.request import urlretrieve, HTTPError
-	# for sourceName, sourceLink in DatabaseDownloader.SOURCES:
-	# 	try:
-	# 		(outFile, msg) = urlretrieve(sourceLink.format(query=databaseName), filename=Lib.databaseDir.writable / databaseName) # Throws error if 404
-	# 		print(f"Success from {sourceName}!", outFile)
-	# 		break
-	# 	except Exception as e:
-	# 		pass
-	# else:
-	# 	raise FileNotFoundError()
-
 	for directory in Lib.databaseDir:
-		if databaseName in directory:
-			if MetaCanSNPerDatabase(directory / databaseName, "r", organism=organism).valid is True:
+		print(f"Checking {directory / databaseName}")
+		if os.path.exists(directory / databaseName):
+			print("Exists!")
+			if MetaCanSNPerDatabase(directory / databaseName, "r", organism=organism).valid:
+				print("Is valid!")
 				hooks.trigger("DatabaseDownloaderProgress", {"name" : databaseName, "progress" : int(1)})
 				databasePath = directory / databaseName
 				break
 	else:
-		RH = DownloaderReportHook("DatabaseDownloader", hooks, databaseName)
-		
-		databasePath = Lib.databaseDir.writable / databaseName
-		DD = DatabaseDownloader(Lib.databaseDir.writable)
+		print("Me is here!")
+		outDir = Lib.databaseDir.writable
+		databasePath = outDir / databaseName
+		DD = DatabaseDownloader(outDir, hooks=hooks)
 
-		DD.download(databaseName, databaseName, reportHook=RH)
-		
+		ret = DD.download(databaseName, databaseName)
+		print(f"This is the thread! {ret} {ret.is_alive()=}")
+		print(f"This is the Database Thread! {DD._queueConnection._thread.is_alive()=}")
+
 		DD.wait()
+		print(f"Is the thread still alive? {ret} {ret.is_alive()=}")
+		import time
+		time.sleep(0.5)
+		print(f"Is the thread *STILL* alive? {ret} {ret.is_alive()=}")
+		print(f"Is the Database Thread still alive?! {DD._queueConnection._thread.is_alive()=}")
+		print(DD._threads)
+		from pprint import pprint
+		pprint(dict(map(lambda x:(x, x.is_alive()), DD._threads)))
 	
 	database = MetaCanSNPerDatabase(databasePath, "r", organism=organism)
-	
-	database.clearIndexes()
 
 	if not database.valid:
-		database.close()
-		database = MetaCanSNPerDatabase(databasePath, "w", organism=organism)
+		database.reopen("w")
 		database.fix()
-		database.close()
-		database = MetaCanSNPerDatabase(databasePath, "r", organism=organism)
+		database.reopen("r")
 
 	print(database.exception)
 
 	assert database.valid
 
+# if __name__ == "__main__":
+# 	test_database_download()

@@ -69,7 +69,7 @@ class HitchableDict(dict):
 		self.onSet = onSet
 
 	def __setitem__(self, key, value):
-		dict.__setitem__(key, value)
+		super().__setitem__(key, value)
 		if self.onSet is not None:
 			self.onSet()
 
@@ -357,6 +357,17 @@ class Spinner(Indicator):
 
 	symbols : list[str] = ["|", "/", "-", "\\"]
 
+	@overload
+	def __init__(self, threads: HitchableDict, symbols: tuple[str]=["|", "/", "-", "\\"], length: int = 10,
+			  message: str = "", sep: str = " ", borders: tuple[str, str] = ("[", "]"), crashSymbol="X",
+			  finishSymbol=SQUARE, out=stdout, preColor: str = None, partition: str = None,
+			  crashColor: str = None, skippedColor: str = None, finishColor: str = None,
+			  postColor: str = None, progColor: str = None): ...
+	def __init__(self, *args, **kwargs):
+		if len(args) < 2 and "symbols" not in kwargs:
+			args = (*args, self.symbols)
+		super().__init__(*args, **kwargs)
+
 	def rowGenerator(self) -> Generator[tuple[int,str],None,None]:
 		"""Progress special cases:
 		None	-	Service crashed
@@ -390,6 +401,20 @@ class Spinner(Indicator):
 			n = (n+1) % NSymbols
 
 class TextProgress(Indicator):
+	
+	symbols : tuple[str]=[".", ",", ":", "|", "I", "H", "#"]
+
+	@overload
+	def __init__(self, threads: HitchableDict, symbols: tuple[str]=[".", ",", ":", "|", "I", "H", "#"], length: int = 3,
+			  message: str = "", sep: str = " ", borders: tuple[str, str] = ("[", "]"), crashSymbol="X",
+			  finishSymbol=SQUARE, out=stdout, preColor: str = None, partition: str = None,
+			  crashColor: str = None, skippedColor: str = None, finishColor: str = None,
+			  postColor: str = None, progColor: str = None): ...
+	def __init__(self, *args, **kwargs):
+		if len(args) < 2 and "symbols" not in kwargs:
+			args = (*args, self.symbols)
+		super().__init__(*args, **kwargs)
+
 	def rowGenerator(self) -> Generator[tuple[int,str],None,None]:
 		"""Progress special cases:
 		None	-	Service crashed

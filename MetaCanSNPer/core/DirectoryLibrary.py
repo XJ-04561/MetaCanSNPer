@@ -1,7 +1,5 @@
 
 
-from PseudoPathy.Functions import createTemp
-
 from MetaCanSNPer.Globals import *
 import MetaCanSNPer.Globals as Globals
 from MetaCanSNPer.core.Hooks import Hooks
@@ -10,7 +8,6 @@ from MetaCanSNPer.modules.Database import MetaCanSNPerDatabase
 from MetaCanSNPer.modules.Downloader import ReferenceDownloader, DatabaseDownloader
 
 import MetaCanSNPer.core.LogKeeper as LogKeeper
-import PseudoPathy.Globals
 		
 
 '''Container and handler of directories and files'''
@@ -44,6 +41,9 @@ class DirectoryLibrary(SoftwareLibrary):
 	outDir : PathGroup
 	resultDir : DirectoryPath
 	logDir : DirectoryPath
+
+	targetSNPs : dict[str,Path]
+	references : dict[str,Path]
 	
 	@property
 	def query(self):
@@ -56,12 +56,12 @@ class DirectoryLibrary(SoftwareLibrary):
 		if isinstance(value, str):
 			value = [value]
 
-		queryList = [self.targetDir.find(q) for q in value]
+		queryList = [FilePath(self.targetDir.find(q)) for q in value]
 		
 		if None in queryList:
 			raise FileNotFoundError(f"Query files not found: {', '.join(filter(lambda x:x not in self.targetDir, value))}")
 		
-		self.__dict__["query"] = PathList(queryList)
+		self.__dict__["query"] = FileList(queryList)
 
 	@Default["workDir", "userDir"]
 	def targetDir(self) -> PathGroup:
@@ -106,12 +106,12 @@ class DirectoryLibrary(SoftwareLibrary):
 	@Default["refDir", "database"]
 	def targetSNPs(self) -> dict[str,Path]:
 		"""{GENOME_NAME : TARGET_SNPS_FILE_PATH}"""
-		return {genome:self.SNPDir.find(f"{genome}.vcf") for genomeID, genome, *_ in self.database.references}
+		return {genome:self.SNPDir.find(f"{genome}.vcf") for _, genome, *_ in self.database.references}
 	
 	@Default["refDir", "database"]
 	def references(self) -> dict[str,Path]:
 		"""{GENOME_NAME : REFERENCE_GENOME_FILE_PATH}"""
-		return {genome:self.refDir.find(f"{genome}.fna") or self.refDir.find(f"{genome}.fasta") for genomeID, genome, *_ in self.database.references}
+		return {genome:self.refDir.find(f"{genome}.fna") or self.refDir.find(f"{genome}.fasta") for _, genome, *_ in self.database.references}
 	
 	maps : dict[str,Path]			= cached_property(lambda self : dict())
 	"""{GENOME_NAME : MAPPED_QUERY_FILE_PATH}"""

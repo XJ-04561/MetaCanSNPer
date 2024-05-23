@@ -3,19 +3,19 @@ from MetaCanSNPer.core.DirectoryLibrary import DirectoryLibrary
 
 def test_filename_alignment():
     """Testing alignment scenarios."""
-    from MetaCanSNPer.core.DirectoryLibrary import PathList
+    from MetaCanSNPer.core.DirectoryLibrary import FileList
     
-    aligned1 = PathList("FSC458_R1.fq", "FSC458_R2.fq")
+    aligned1 = FileList("FSC458_R1.fq", "FSC458_R2.fq")
 
-    assert "FSC458" == aligned1.name, '"FSC458" == PathList("FSC458_R1.fq", "FSC458_R2.fq").name'
+    assert "FSC458" == aligned1.name
 
-    aligned2 = PathList("FSC458.fq", "FSC458(1).fq")
+    aligned2 = FileList("FSC458.fq", "FSC458(1).fq")
 
-    assert "FSC458" == aligned2.name, '"FSC458" == PathList("FSC458.fq", "FSC458(1).fq").name'
+    assert "FSC458" == aligned2.name
     
-    aligned3 = PathList("FSC458.fna", "FSC658-[FSC458_R1].fq", "FSC567-[FSC458_R2].fq")
+    aligned3 = FileList("FSC458.fna", "FSC658-[FSC458_R1].fq", "FSC567-[FSC458_R2].fq")
 
-    assert "FSC458" == aligned3.name, 'PathList("FSC458.fna", "FSC658-[FSC458_R1].fq", "FSC567-[FSC458_R2].fq")'
+    assert "FSC458" == aligned3.name
 
 def test_appdir_mirroring():
     

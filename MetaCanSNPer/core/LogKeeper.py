@@ -1,9 +1,5 @@
 
 
 def createLogger(name):
-    import logging
-    from MetaCanSNPer.Globals import LOGGER_FILEHANDLER
-    logger = logging.Logger("MetaCanSNPer."+name)
-    logger.addHandler(LOGGER_FILEHANDLER)
-
-    return logger
+    from MetaCanSNPer.Globals import LOGGER
+    return LOGGER.getChild(name.split(".")[-1])

@@ -17,19 +17,19 @@ import MetaCanSNPer.core.Mappers as Mappers
 import MetaCanSNPer.core.SNPCallers as SNPCallers
 from MetaCanSNPer.core.TerminalUpdater import TerminalUpdater
 
-from MetaCanSNPer.modules.Database import *
+from MetaCanSNPer.modules.Database import MetaCanSNPerDatabase, TreeTable, NodeID, Position, GenomeID, AncestralBase, DerivedBase, Chromosome, Genotype
 from MetaCanSNPer.modules.Downloader import DatabaseDownloader, DownloaderReportHook, ReferenceDownloader
 
 
 class MetaCanSNPer:
 	
-	LOG : logging.Logger = LOGGER
-	hooks = Hooks()
+	LOG : logging.Logger = Globals.LOGGER.getChild(__name__.split(".")[-1])
+	hooks = cached_property(lambda self:Hooks())
 
 	outputTemplate = "{refName}_{queryName}.{outFormat}"
 	organism : str
 
-	settings : dict = DEFAULT_SETTINGS.copy()
+	settings : dict = cached_property(lambda self:DEFAULT_SETTINGS.copy())
 	Lib : DirectoryLibrary
 	database : MetaCanSNPerDatabase
 
@@ -39,7 +39,7 @@ class MetaCanSNPer:
 	referenceFiles = property(lambda self:self.Lib.references)
 	references = property(lambda self:self.database.references, doc="""Fetch names of reference genomes in connected database.""")
 
-	query = property(lambda self:self.Lib.query, lambda self, value:setattr(self.Lib, "query", value))
+	query = property(lambda self:self.Lib.query, lambda self, value:setattr(self.Lib, "query", value), lambda self:delattr(self.Lib, "query"), DirectoryLibrary.query.__doc__)
 	queryName : str = Default["Lib.query"](lambda self:self.Lib.queryName)
 	sessionName : str = Default["Lib.query"](lambda self:self.Lib.sessionName)
 	
@@ -76,13 +76,15 @@ class MetaCanSNPer:
 	def setDatabase(self, databaseName : str=None):
 		"""databaseName Defaults to `{organism}.db`"""
 
-		if databaseName is None:
-			self.databaseName = databaseName = f"{self.organism}.db"
+		if databaseName is not None:
+			self.databaseName = databaseName
+		else:
+			databaseName = self.databaseName
 		
 		self.LOG.debug(f"Setting database to:{databaseName}")
 		
 		for directory in self.Lib.databaseDir:
-			if databaseName in directory:
+			if os.path.exists(directory / databaseName):
 				self.LOG.debug(f"{databaseName} in {directory}")
 				if MetaCanSNPerDatabase(directory / databaseName, "r", organism=self.organism).valid:
 					self.LOG.debug(f"{directory / databaseName} is valid")
@@ -93,10 +95,10 @@ class MetaCanSNPer:
 				self.LOG.debug(f"{databaseName} not in {directory}")
 		else:
 			self.LOG.info(f"No valid database={databaseName} found. Looking for writeable versions or directories that can be updated or downloaded to, respectively.")
-			RH = DownloaderReportHook("DatabaseDownloader", self.hooks, databaseName)
 			
-			self.databasePath = self.Lib.databaseDir.writable / databaseName
-			DD = DatabaseDownloader(self.Lib.databaseDir.writable, reportHook=RH)
+			outDir = self.Lib.databaseDir.writable
+			self.databasePath = outDir / databaseName
+			DD = DatabaseDownloader(outDir, hooks=self.hooks)
 
 			DD.download(databaseName, databaseName)
 			
@@ -112,15 +114,22 @@ class MetaCanSNPer:
 			references = self.database.references
 
 		directory = self.Lib.refDir.writable
-		DD = ReferenceDownloader(directory)
+		DD = ReferenceDownloader(directory, hooks=self.hooks)
 
 		self.Lib.references.clear()
 
 		for genomeID, genome, strain, genbankID, refseqID, assemblyName in references:
-			DD.download((genbankID, assemblyName), f"{assemblyName}.fna", reportHook=DownloaderReportHook("ReferenceDownloader", self.hooks, f"{assemblyName}.fna"))
+			filename = f"{assemblyName}.fna"
+			if filename in self.Lib.refDir:
+				self.Lib.references[genome] = self.Lib.references[assemblyName] = self.Lib.refDir.find(filename)
+				self.hooks.trigger("ReferenceDownloaderProgress", {"name" : filename, "progress" : int(1)})
+				continue
 			
-			self.Lib.references[genome] = directory / f"{assemblyName}.fna"
-			self.Lib.references[assemblyName] = directory / f"{assemblyName}.fna"
+			DD.download((genbankID, assemblyName), filename)
+			
+			self.Lib.references[genome] = directory / filename
+			self.Lib.references[assemblyName] = directory / filename
+		
 		DD.wait()
 
 		if not self.database.valid:
@@ -234,9 +243,9 @@ class MetaCanSNPer:
 		self.LOG.info(f"Result of SNPCalling in: {self.Lib.resultSNPs}")
 
 		for genome, filePath in self.Lib.resultSNPs:
-			for pos, (chromosome, ref) in getSNPdata(filePath, values=["CHROM", "REF"]):
-				(nodeID,) = self.database[NodeID, Position==pos, Chromosome==chromosome]
-				if (pos, genome) not in self.SNPresults:
+			for pos, (ref, *_) in getSNPdata(filePath, values=["REF"]):
+				nodeID = self.database[NodeID, Position==pos]
+				if nodeID not in self.SNPresults:
 					self.SNPresults[nodeID] = {}
 				self.SNPresults[nodeID][pos] = ref
 	
@@ -255,14 +264,14 @@ class MetaCanSNPer:
 			for parent in paths[-2]:
 				for child in parent.children:
 					nodeScores[child.node] = nodeScores[parent.node]
-					for childSNPID, pos, anc, der, *_ in self.database.SNPsByNode[child.node]:
-						(called, *_) = self.SNPresults[childSNPID]
-						if der == called:
-							nodeScores[child.node] += award[0]
-						elif anc == called:
-							nodeScores[child.node] += award[1]
-						else:
-							nodeScores[child.node] += award[2]
+					for nodeID, pos, anc, der, *_ in self.database.SNPsByNode[child.node]:
+						for pos, base in self.SNPresults[nodeID].items():
+							if der == base:
+								nodeScores[child.node] += award[0]
+							elif anc == base:
+								nodeScores[child.node] += award[1]
+							else:
+								nodeScores[child.node] += award[2]
 					paths[-1].append(child)
 		
 		paths = paths[:-1]
@@ -275,12 +284,13 @@ class MetaCanSNPer:
 		self.LOG.debug(f"open({dst or self.Lib.resultDir.writable!r} / {self.Lib.queryName!r}+'_final.tsv', 'w')")
 		with open((dst or self.Lib.resultDir.writable) / self.Lib.queryName+"_final.tsv", "w") as finalFile:
 			(finalNodeID, score), scores = self.traverseTree()
+			res = self.database[Genotype, TreeTable, NodeID == finalNodeID]
 			
-			finalFile.write("{:<20}{score}\n".format(*self.database[Genotype, NodeID == finalNodeID], score=score))
+			finalFile.write("{:<20}{score}\n".format(res, score=score))
 			if self.settings.get("debug"):
 				finalFile.write("\n")
 				for nodeID in scores:
-					finalFile.write("{:<20}{score}\n".format(*self.database[Genotype, NodeID == nodeID], score=scores[nodeID]))
+					finalFile.write("{:<20}{score}\n".format(*self.database[Genotype, TreeTable, NodeID == nodeID], score=scores[nodeID]))
 
 	def saveSNPdata(self, dst : str=None):
 		""""""

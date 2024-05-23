@@ -3,7 +3,7 @@ import os
 def CanSNP2VCF(lib : "DirectoryLibrary", force : bool=False):
 	from MetaCanSNPer.modules.Database import Chromosome, Position, GenomeID
 	from VariantCallFixer import openVCF
-	for genomeID, genome, refPath, SNPPath in map(lambda genomeID, genome, *_ : (genomeID, genome, lib.references[genome], lib.targetSNPs[genome]), lib.database.references):
+	for genomeID, genome, refPath, SNPPath in map(lambda x: (x[0], x[1], lib.references[x[1]], lib.targetSNPs[x[1]]), lib.database.references):
 		if SNPPath is not None and not force:
 			continue
 		

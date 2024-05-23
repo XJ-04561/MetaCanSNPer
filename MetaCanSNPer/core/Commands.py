@@ -13,11 +13,11 @@ from MetaCanSNPer.Globals import *
 def bPrint(*strings, sep=b" ", end=b"\n", file : BinaryIO=None, encoding : str="utf-8"):
 	file.write(sep.join(map(lambda s : s.encode("utf-8"), strings)) + end)
 
-parallelPattern = re.compile("\s*[&]\s*")
-sequentialPattern = re.compile("\s*([;])\s*|\s*([&][&])\s*|\s*([|][|])\s*")
-pipePattern = re.compile("\s*[|]\s*")
-dumpPattern = re.compile("\s*[>]\s*")
-whitePattern = re.compile("\s*")
+parallelPattern = re.compile(r"\s*[&]\s*")
+sequentialPattern = re.compile(r"\s*([;])\s*|\s*([&][&])\s*|\s*([|][|])\s*")
+pipePattern = re.compile(r"\s*[|]\s*")
+dumpPattern = re.compile(r"\s*[>]\s*")
+whitePattern = re.compile(r"\s*")
 argsPattern = re.compile(r"(['][^']*?['])|([\"][^\"]*?[\"])|(\S+)", flags=re.MULTILINE+re.DOTALL)
 quotePattern = re.compile(r"['\" ]*")
 illegalPattern = re.compile(r"[^\w_ \-\.]")
@@ -30,7 +30,7 @@ class Commands: pass
 
 
 class Command:
-	"""Triggers the event `f"{self.category}ProcessFinished"` on each finished parallel command"""
+	"""Triggers the event `f"{self.category}Finished"` on each finished parallel command"""
 
 
 	commands : ParallelCommands
@@ -49,7 +49,7 @@ class Command:
 						for name in self.commands:
 							if eventInfo["object"] is self.commands[name]:
 								self.returncodes[name] = None if len(eventInfo["object"].returncodes) == 0 else eventInfo["object"].returncodes[-1]
-								self.hooks.trigger(f"{self.category}ProcessFinished", {"threadN" : name, "Command" : self})
+								self.hooks.trigger(f"{self.category}Finished", {"name" : name, "Command" : self})
 								return
 					except Exception as e:
 						e.add_note("'parallelFinished' event exception.")

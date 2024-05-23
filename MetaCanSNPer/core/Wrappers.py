@@ -68,13 +68,13 @@ class ProcessWrapper:
 				self.outputs[name] = outFile
 				self.skip.add(name)
 
-				self.hooks.trigger(f"{self.category}Progress", {"threadN" : name, "progress" : 1.0})
-				self.hooks.trigger(f"{self.category}Finished", {"threadN" : name})
+				self.hooks.trigger(f"{self.category}Progress", {"name" : name, "progress" : 1.0})
+				self.hooks.trigger(f"{self.category}Finished", {"name" : name})
 
 				names.pop(i), commands.pop(i), outputs.pop(i)
 			
-		self.hooks.removeHook(f"{self.category}ProcessFinished", self._hooksList.get("ProcessFinished"))
-		self._hooksList["ProcessFinished"] = self.hooks.addHook(f"{self.category}ProcessFinished", target=self.updateOutput, args=[dict(outputs)])
+		self.hooks.removeHook(f"{self.category}Finished", self._hooksList.get("Finished"))
+		self._hooksList["ProcessFinished"] = self.hooks.addHook(f"{self.category}Finished", target=self.updateOutput, args=[dict(outputs)])
 
 		self.command = Command(commands, self.category, self.hooks, logDir=self.Lib.resultDir.create("SoftwareLogs"), names=names)
 
@@ -212,8 +212,8 @@ class IndexingWrapper(ProcessWrapper):
 	def updateOutput(self, eventInfo, outputs: dict[str, str]):
 		
 		try:
-			genome = eventInfo["threadN"]
-			assert self.command is eventInfo["Command"]
+			genome = eventInfo["name"]
+			assert self.command is eventInfo.get("Command")
 			self.semaphore.release()
 			if self.command.returncodes[genome] not in self.solutions:
 				if self.command.returncodes[genome] == 0:
@@ -230,8 +230,8 @@ class IndexingWrapper(ProcessWrapper):
 								pass
 
 					self.outputs[genome] = outFile
-					self.hooks.trigger(f"{self.category}Progress", {"threadN" : genome, "progress" : 1.0})
-					self.hooks.trigger(f"{self.category}Finished", {"threadN" : genome})
+					self.hooks.trigger(f"{self.category}Progress", {"name" : genome, "progress" : 1.0})
+					self.hooks.trigger(f"{self.category}Finished", {"name" : genome})
 				else:
 					if self.settings.get("saveTemp") is True:
 						outFile = outputs[genome]
@@ -241,10 +241,10 @@ class IndexingWrapper(ProcessWrapper):
 									shutil.rmtree(dPath, ignore_errors=True)
 								except:
 									pass
-					self.hooks.trigger(f"{self.category}Progress", {"threadN" : genome, "progress" : None})
-					self.hooks.trigger(f"{self.category}Finished", {"threadN" : genome})
+					self.hooks.trigger(f"{self.category}Progress", {"name" : genome, "progress" : None})
+					self.hooks.trigger(f"{self.category}Finished", {"name" : genome})
 		except (AssertionError) as e:
-			e.add_note(f'<{self.command!r} is {eventInfo["Command"]!r} = {self.command is eventInfo["Command"]}>')
+			e.add_note(f'<{self.command is eventInfo.get("Command") =}>')
 			LOGGER.exception(e, stacklevel=logging.DEBUG)
 		except Exception as e:
 			LOGGER.exception(e, stacklevel=logging.DEBUG)
@@ -268,17 +268,17 @@ class IndexingWrapper(ProcessWrapper):
 		names = []
 		commands = []
 		outputs = []
-		for _, refName, _, _, _ in self.database.references:
+		for _, refName, *_ in self.database.references:
 			if refName in self.skip: continue
 
 			"""Not every command needs all information, but the format function is supplied with a dictionary that has
 			everything that could ever be needed."""
 
 			self.formatDict["refName"] = refName
-			self.formatDict["refPath"] = self.Lib.references[refName]
-			self.formatDict["mapPath"] = self.Lib.maps[refName]
-			self.formatDict["alignmentPath"] = self.Lib.alignments[refName]
-			self.formatDict["targetSNPs"] = self.Lib.targetSNPs[refName]
+			self.formatDict["refPath"] = self.Lib.references.get(refName)
+			self.formatDict["mapPath"] = self.Lib.maps.get(refName)
+			self.formatDict["alignmentPath"] = self.Lib.alignments.get(refName)
+			self.formatDict["targetSNPs"] = self.Lib.targetSNPs.get(refName)
 			
 			output = outDirTmp.create(illegalPattern.sub("-", refName), purpose="w") / self.outputTemplate.format(**self.formatDict)
 
