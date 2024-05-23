@@ -111,7 +111,7 @@ class DirectoryLibrary(SoftwareLibrary):
 	@Default["refDir", "database"]
 	def references(self) -> dict[str,Path]:
 		"""{GENOME_NAME : REFERENCE_GENOME_FILE_PATH}"""
-		return {genome:self.refDir.find(f"{genome}.fna") or self.refDir.find(f"{genome}.fasta") for _, genome, *_ in self.database.references}
+		return {genome:self.refDir.find(f"{assemblyName}.fna") or self.refDir.find(f"{assemblyName}.fasta") for _, genome, strain, genbankID, refseqID, assemblyName in self.database.references}
 	
 	maps : dict[str,Path]			= cached_property(lambda self : dict())
 	"""{GENOME_NAME : MAPPED_QUERY_FILE_PATH}"""

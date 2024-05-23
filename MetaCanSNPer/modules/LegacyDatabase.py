@@ -89,7 +89,7 @@ class NotLegacyCanSNPer2(Assertion):
 			RefseqID, AssemblyName
 		)
 		
-		refDir = PathGroup(appdirs.user_data_dir(SOFTWARE_NAME), appdirs.site_data_dir(SOFTWARE_NAME)) / "References" / database.organism
+		refDir = PathGroup(appdirs.user_data_dir(SOFTWARE_NAME), *appdirs.site_data_dir(SOFTWARE_NAME, multipath=True).split(os.pathsep)) / "References" / database.organism
 		
 		database(BEGIN - TRANSACTION)
 
@@ -107,11 +107,14 @@ class NotLegacyCanSNPer2(Assertion):
 			ref2chromLookup[i] = []
 			chromosomes = ()
 			assemblyFile = refDir.find(f"{assembly}.fna") or Path("?")
+			commandName = f"datasets{'.exe' if os.name == 'nt' else ''}"
 			
-			if shutil.which(f"datasets{'.exe' if os.name == 'nt' else ''}"):
-				chromosomes = tuple(map(*this["value"], loads(getOutput(f"datasets summary genome accession {genbankID} --as-json-lines".split()))["assembly_info"]["biosample"]["sample_ids"]))
+			if shutil.which(commandName):
+				chromosomes = tuple(map(*this["value"].strip("\"'"), loads(getOutput(f"{commandName} summary genome accession {genbankID} --as-json-lines".split()))["assembly_info"]["biosample"]["sample_ids"]))
 			
-			if len(chromosomes) != 0 and assemblyFile.exists:
+			if len(chromosomes) > 0:
+				pass # genbank entry found
+			elif assemblyFile.exists:
 				# No genbank entry found
 				chromosomes = map(*this[1:].split()[0], filter(*this.startswith(">"), open(assemblyFile, "r").readline()))
 			else:
@@ -120,9 +123,10 @@ class NotLegacyCanSNPer2(Assertion):
 				chromosomes = (NULL,)
 
 			for chromosome in chromosomes:
-				database(INSERT - INTO (ChromosomesTable) - (ChromosomeID, Chromosome, GenomeID) - VALUES (j, chromosome, i))
+				database(INSERT - OR - REPLACE - INTO (ChromosomesTable) - (ChromosomeID, Chromosome, GenomeID) - VALUES (j, chromosome, i))
 				ref2chromLookup[i].append(j)
 				j += 1
+				break # FOR NOW
 		
 		# SNPs
 		# TODO : Get the real chromosome ID based on the position of the SNP and the lengths of the chromosomes

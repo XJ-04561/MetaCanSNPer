@@ -109,26 +109,24 @@ class MetaCanSNPer:
 	
 	def setReferenceFiles(self, references : Iterable[tuple[int,str,str,str,str,str]]=None):
 
-		if references is None:
+		if not references:
 			assert hasattr(self, "database"), "Database not yet set. Setting references requires either a table of references as an argument or that a database is connected."
 			references = self.database.references
 
 		directory = self.Lib.refDir.writable
 		DD = ReferenceDownloader(directory, hooks=self.hooks)
 
-		self.Lib.references.clear()
-
+		del self.Lib.references
+		
 		for genomeID, genome, strain, genbankID, refseqID, assemblyName in references:
 			filename = f"{assemblyName}.fna"
-			if filename in self.Lib.refDir:
-				self.Lib.references[genome] = self.Lib.references[assemblyName] = self.Lib.refDir.find(filename)
-				self.hooks.trigger("ReferenceDownloaderProgress", {"name" : filename, "progress" : int(1)})
+			if self.Lib.references[genome]:
+				self.hooks.trigger("ReferenceDownloaderProgress", {"name" : self.Lib.references[genome], "progress" : int(1)})
 				continue
 			
 			DD.download((genbankID, assemblyName), filename)
 			
 			self.Lib.references[genome] = directory / filename
-			self.Lib.references[assemblyName] = directory / filename
 		
 		DD.wait()
 
@@ -242,7 +240,7 @@ class MetaCanSNPer:
 
 		self.LOG.info(f"Result of SNPCalling in: {self.Lib.resultSNPs}")
 
-		for genome, filePath in self.Lib.resultSNPs:
+		for genome, filePath in self.Lib.resultSNPs.items():
 			for pos, (ref, *_) in getSNPdata(filePath, values=["REF"]):
 				nodeID = self.database[NodeID, Position==pos]
 				if nodeID not in self.SNPresults:
@@ -263,6 +261,9 @@ class MetaCanSNPer:
 			paths.append([])
 			for parent in paths[-2]:
 				for child in parent.children:
+					if Globals.DRY_RUN:
+						continue
+					
 					nodeScores[child.node] = nodeScores[parent.node]
 					for nodeID, pos, anc, der, *_ in self.database.SNPsByNode[child.node]:
 						for pos, base in self.SNPresults[nodeID].items():
@@ -290,7 +291,7 @@ class MetaCanSNPer:
 			if self.settings.get("debug"):
 				finalFile.write("\n")
 				for nodeID in scores:
-					finalFile.write("{:<20}{score}\n".format(*self.database[Genotype, TreeTable, NodeID == nodeID], score=scores[nodeID]))
+					finalFile.write("{:<20}{score}\n".format(self.database[Genotype, TreeTable, NodeID == nodeID], score=scores[nodeID]))
 
 	def saveSNPdata(self, dst : str=None):
 		""""""
@@ -320,10 +321,12 @@ class MetaCanSNPer:
 			called.write(header)
 			noCoverage.write(header)
 
-		for genomeID, genome, genbankID, refseqID, assemblyName in self.database.references:
+		for genomeID, genome, strain, genbankID, refseqID, assemblyName in self.database.references:
 			'''Print SNPs to tab separated file'''
 			for nodeID, position, ancestral, derived, chromosome in self.database[NodeID, Position, AncestralBase, DerivedBase, Chromosome, GenomeID == genomeID]:
-				N, *args = self.SNPresults[position, chromosome]
+				if Globals.DRY_RUN:
+					continue
+				N = self.SNPresults[nodeID][position]
 				entry = f"{nodeID}\t{genome}\t{chromosome}\t{position}\t{ancestral}\t{derived}\t{N}\n"
 				if derived == N:
 					called.write(entry)

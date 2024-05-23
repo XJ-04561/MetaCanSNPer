@@ -228,7 +228,7 @@ def runJob(mObj : MetaCanSNPer, args : NameSpace, argsDict : dict):
 		with TerminalUpdater(f"Creating Alignments:", category="Aligners", hooks=mObj.hooks, threadNames=genomes, printer=Spinner, out=sys.stdout if ISATTY else DEV_NULL):
 			mObj.createAlignment(softwareName=args.aligner, flags=argsDict.get("--alignerOptions", {}))
 	
-	with TerminalUpdater(f"Creating Alignments:", category="Aligners", hooks=mObj.hooks, threadNames=genomes, printer=Spinner, out=sys.stdout if ISATTY else DEV_NULL):
+	with TerminalUpdater(f"Calling SNPs:", category="SNPCallers", hooks=mObj.hooks, threadNames=genomes, printer=Spinner, out=sys.stdout if ISATTY else DEV_NULL):
 		mObj.callSNPs(softwareName=args.snpCaller, flags=argsDict.get("--snpCallerOptions", {}))
 
 def saveResults(mObj : MetaCanSNPer, args : argparse.Namespace):

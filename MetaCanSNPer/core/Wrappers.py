@@ -213,7 +213,9 @@ class IndexingWrapper(ProcessWrapper):
 		
 		try:
 			genome = eventInfo["name"]
-			assert self.command is eventInfo.get("Command")
+			if self.command is not eventInfo.get("Command"):
+				LOGGER.debug(f'{self.command is not eventInfo.get("Command") =}')
+				return
 			self.semaphore.release()
 			if self.command.returncodes[genome] not in self.solutions:
 				if self.command.returncodes[genome] == 0:
@@ -243,9 +245,6 @@ class IndexingWrapper(ProcessWrapper):
 									pass
 					self.hooks.trigger(f"{self.category}Progress", {"name" : genome, "progress" : None})
 					self.hooks.trigger(f"{self.category}Finished", {"name" : genome})
-		except (AssertionError) as e:
-			e.add_note(f'<{self.command is eventInfo.get("Command") =}>')
-			LOGGER.exception(e, stacklevel=logging.DEBUG)
 		except Exception as e:
 			LOGGER.exception(e, stacklevel=logging.DEBUG)
 

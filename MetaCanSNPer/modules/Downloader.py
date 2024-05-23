@@ -28,8 +28,8 @@ def gunzip(filepath : str, outfile : str):
 	'''gunzip's given file. Only necessary for software that requires non-zipped data.'''
 	import gzip
 	
-	with gzip.open(filepath, "r") as zipped:
-		rawfile = open(outfile, "w")
+	with gzip.open(filepath, "rb") as zipped:
+		rawfile = open(outfile, "wb")
 		for row in zipped:
 			rawfile.write(row)
 		rawfile.close()
@@ -47,6 +47,22 @@ class URL:
 
 		return self.string.format(**query)
 
+class CursorLike:
+	def __init__(self, data : list):
+		self.data = data
+		self.dataIterator = iter(data)
+	def __iter__(self):
+		for row in self.data:
+			yield row
+	def __next__(self):
+		return next(self.dataIterator)
+	def fetchone(self):
+		if self.data:
+			return self.data[0]
+		else:
+			return None
+	def fetchall(self):
+		return self.data
 
 class DatabaseThread:
 
@@ -60,18 +76,19 @@ class DatabaseThread:
 	_thread : Thread
 	_connection : sqlite3.Connection
 
-	def __init__(self, filename : str):
+	def __init__(self, filename : str, factory=sqlite3.Connection):
 		self.running = True
 		self.queue = Queue()
 		self.queueLock = Lock()
 		self.queueLock.acquire()
 		self.filename = filename
+		self._factory = factory
 		self._thread = Thread(target=self.mainLoop, daemon=True)
 		self._thread.start()
 
 	def mainLoop(self):
 		try:
-			self._connection = sqlite3.connect(self.filename, autocommit=True)
+			self._connection = sqlite3.connect(self.filename, autocommit=True, factory=self._factory)
 			while self.running:
 				try:
 					string, params, lock, results = self.queue.get(timeout=15)
@@ -107,7 +124,7 @@ class DatabaseThread:
 		if results and isinstance(results[-1], Exception):
 			raise results[-1]
 		
-		return results
+		return CursorLike(results)
 	
 	def executemany(self, *statements : tuple[str, list]):
 		fakeLock = lambda :None
@@ -233,28 +250,28 @@ class Job:
 			return True
 
 	def isListed(self):
-		return self._queueConnection.execute("SELECT CASE WHEN EXISTS(SELECT 1 FROM queueTable WHERE name = ?) THEN TRUE ELSE FALSE END;", [self.filename])[0][0]
+		return self._queueConnection.execute("SELECT CASE WHEN EXISTS(SELECT 1 FROM queueTable WHERE name = ?) THEN TRUE ELSE FALSE END;", [self.filename]).fetchone()[0]
 	def isQueued(self):
-		return self._queueConnection.execute("SELECT CASE WHEN EXISTS(SELECT 1 FROM queueTable WHERE name = ? AND progress < 0.0) THEN TRUE ELSE FALSE END;", [self.filename])[0][0]
+		return self._queueConnection.execute("SELECT CASE WHEN EXISTS(SELECT 1 FROM queueTable WHERE name = ? AND progress < 0.0) THEN TRUE ELSE FALSE END;", [self.filename]).fetchone()[0]
 	def isDownloading(self):
-		return self._queueConnection.execute("SELECT CASE WHEN EXISTS(SELECT 1 FROM queueTable WHERE name = ? AND progress >= 0.0 AND progress < 1.0) THEN TRUE ELSE FALSE END;", [self.filename])[0][0]
+		return self._queueConnection.execute("SELECT CASE WHEN EXISTS(SELECT 1 FROM queueTable WHERE name = ? AND progress >= 0.0 AND progress < 1.0) THEN TRUE ELSE FALSE END;", [self.filename]).fetchone()[0]
 	def isDone(self):
-		return self._queueConnection.execute("SELECT CASE WHEN EXISTS(SELECT 1 FROM queueTable WHERE name = ? AND progress = 1.0) THEN TRUE ELSE FALSE END;", [self.filename])[0][0]
+		return self._queueConnection.execute("SELECT CASE WHEN EXISTS(SELECT 1 FROM queueTable WHERE name = ? AND progress = 1.0) THEN TRUE ELSE FALSE END;", [self.filename]).fetchone()[0]
 	def isPostProcess(self):
-		return self._queueConnection.execute("SELECT CASE WHEN EXISTS(SELECT 1 FROM queueTable WHERE name = ? AND progress > 1.0) THEN TRUE ELSE FALSE END;", [self.filename])[0][0]
+		return self._queueConnection.execute("SELECT CASE WHEN EXISTS(SELECT 1 FROM queueTable WHERE name = ? AND progress > 1.0) THEN TRUE ELSE FALSE END;", [self.filename]).fetchone()[0]
 	def isDead(self):
-		return self._queueConnection.execute("SELECT CASE WHEN EXISTS(SELECT 1 FROM queueTable WHERE name = ? AND modified + 10.0 < UNIXEPOCH()) THEN TRUE ELSE FALSE END;", [self.filename])[0][0]
+		return self._queueConnection.execute("SELECT CASE WHEN EXISTS(SELECT 1 FROM queueTable WHERE name = ? AND modified + 10.0 < UNIXEPOCH()) THEN TRUE ELSE FALSE END;", [self.filename]).fetchone()[0]
 	
 	def updateProgress(self, prog : float):
 		self._queueConnection.execute("UPDATE queueTable SET progress = ?, modified = UNIXEPOCH() WHERE name = ?;", [prog, self.filename])
 		self.reportHook(prog)
 
 	def getProgress(self):
-		ret = self._queueConnection.execute("SELECT progress FROM queueTable WHERE name = ?;", [self.filename])
+		ret = self._queueConnection.execute("SELECT progress FROM queueTable WHERE name = ?;", [self.filename]).fetchone()
 		if not ret:
 			return None
 		else:
-			return ret[0][0]
+			return ret[0]
 	
 	def updateLoop(self, timeStep : float=0.25):
 		
@@ -280,11 +297,11 @@ class Job:
 
 					if postProcess is not None:
 						self.updateProgress(2.0)
-						postProcess(outFile, self.out / self.filename)
-					elif outFile != (self.out / self.filename):
-						os.rename(outFile, self.out / self.filename)
+						postProcess(self.out / filename, self.out / self.filename)
+					elif self.out / filename != (self.out / self.filename):
+						os.rename(self.out / filename, self.out / self.filename)
 					self.updateProgress(1.0)
-					return outFile, sourceName
+					return self.out / filename, sourceName
 
 				except HTTPError as e:
 					self.LOG.info(f"Couldn't download from source={sourceName}, url: {sourceLink.format(query=self.query)}, due to {e.args}")

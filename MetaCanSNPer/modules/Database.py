@@ -6,7 +6,7 @@ from SQLOOP.core import *
 import argparse, sys
 
 from MetaCanSNPer.Globals import *
-from MetaCanSNPer.modules.Downloader import DatabaseDownloader
+from MetaCanSNPer.modules.Downloader import DatabaseDownloader, DatabaseThread
 
 LOGGER = LOGGER.getChild(__name__.split(".")[-1])
 
@@ -118,11 +118,11 @@ class HasChromosomes(Assertion):
 
 	@classmethod
 	def exception(self, database : "MetaCanSNPerDatabase"=None) -> Exception:
-		return NoChromosomesInDatabase("Database is Legacy CanSNPer2 schema.")
+		return NoChromosomesInDatabase("Database doesn't have chromosomes defined.")
 	@classmethod
 	def condition(self, database : "MetaCanSNPerDatabase") -> bool:
 		try:
-			return database(SELECT (COUNT(ALL)) - FROM (ChromosomesTable) - WHERE (Chromosome == NULL)) == 0
+			return database(SELECT (COUNT(ALL)) - FROM (ChromosomesTable) - WHERE (Chromosome - IS (NULL))) == 0
 		except:
 			return False
 	@classmethod
@@ -131,7 +131,7 @@ class HasChromosomes(Assertion):
 		from json import loads
 		from subprocess import check_output as getOutput
 		
-		refDir = PathGroup(appdirs.user_data_dir(SOFTWARE_NAME), appdirs.site_data_dir(SOFTWARE_NAME)) / "References" / database.organism
+		refDir = PathGroup(appdirs.user_data_dir(SOFTWARE_NAME), *appdirs.site_data_dir(SOFTWARE_NAME, multipath=True).split(os.pathsep)) / "References" / database.organism
 		
 		database(BEGIN - TRANSACTION)
 
@@ -141,26 +141,29 @@ class HasChromosomes(Assertion):
 		commandName = f"datasets{'.exe' if os.name == 'nt' else ''}"
 		j = 0
 		ref2chromLookup = {}
-		for i, genbankID, assembly in database(SELECT (GenomeID, GenbankID, AssemblyName) - FROM (ReferencesTable)):
+		for i, genbankID, assembly in database[GenomeID, GenbankID, AssemblyName, ReferencesTable]:
 			ref2chromLookup[i] = []
 			chromosomes = ()
 			assemblyFile = refDir.find(f"{assembly}.fna") or Path("?")
 			
 			if shutil.which(commandName):
-				chromosomes = tuple(map(*this["value"], loads(getOutput(f"{commandName} summary genome accession {genbankID} --as-json-lines".split()))["assembly_info"]["biosample"]["sample_ids"]))
+				chromosomes = tuple(map(*this["value"].strip("\"'"), loads(getOutput(f"{commandName} summary genome accession {genbankID} --as-json-lines".split()))["assembly_info"]["biosample"]["sample_ids"]))
 			
-			if len(chromosomes) == 0 and assemblyFile.exists:
+			if len(chromosomes) > 0:
+				pass # genbank entry found
+			elif assemblyFile.exists:
 				# No genbank entry found
 				chromosomes = map(*this[1:].split()[0], filter(*this.startswith(">"), open(assemblyFile, "r").readline()))
 			else:
-				self.LOG.exception(UnableToDefineChromosomes(f"Could not find naming for chromosomes in entry with {i=}, {GenbankID=}, and {assembly=}."))
-				self.LOG.warning(f"Couldn't find genome with {GenbankID=} either online or in {refDir!r}.")
+				self.LOG.exception(UnableToDefineChromosomes(f"Could not find naming for chromosomes in entry with {i=}, {genbankID=}, and {assembly=}."))
+				self.LOG.error(f"Couldn't find genome with {genbankID=} either online or in {refDir}.")
 				chromosomes = (NULL,)
 
 			for chromosome in chromosomes:
-				database(INSERT - INTO (ChromosomesTable) - (ChromosomeID, Chromosome, GenomeID) - VALUES (j, chromosome, i))
+				database(INSERT - OR - REPLACE - INTO (ChromosomesTable) - (ChromosomeID, Chromosome, GenomeID) - VALUES (j, chromosome, i))
 				ref2chromLookup[i].append(j)
 				j += 1
+				break # FOR NOW
 		database(COMMIT)
 
 class MetaCanSNPerDatabase(Database):
@@ -187,7 +190,7 @@ class MetaCanSNPerDatabase(Database):
 
 	def __init__(self, filename: str, mode: Globals.Mode, organism : str=None):
 		self.organism = organism or pName(filename)
-		super().__init__(filename, mode)
+		super().__init__(filename, mode, factoryFunc=DatabaseThread)
 
 	@property
 	def tree(self):
@@ -198,7 +201,7 @@ class MetaCanSNPerDatabase(Database):
 	
 	@cached_property
 	def references(self):
-		return tuple(self[ALL, ReferencesTable])
+		return tuple(entry for entry in self[ALL, ReferencesTable])
 	
 	@property
 	def SNPs(self):
@@ -206,15 +209,15 @@ class MetaCanSNPerDatabase(Database):
 	
 	@cached_property
 	def chromosomes(self):
-		return tuple(self[ALL, ChromosomesTable])
+		return tuple(entry for entry in self[ALL, ChromosomesTable])
 	
 	@cached_property
 	def SNPsByReference(self):
-		return {genome:tuple(self[ALL, SNPsTable, GenomeID == genomeID]) for genomeID, genome in self[GenomeID, Genome]}
+		return {genome:tuple(entry for entry in self[ALL, SNPsTable, GenomeID == genomeID]) for genomeID, genome in self[GenomeID, Genome]}
 	
 	@cached_property
 	def SNPsByNode(self):
-		return {nodeID:tuple(self[ALL, SNPsTable, NodeID == nodeID]) for nodeID in self[NodeID, TreeTable]}
+		return {nodeID:tuple(entry for entry in self[ALL, SNPsTable, NodeID == nodeID]) for nodeID in self[NodeID, TreeTable]}
 
 def loadFromReferenceFile(database : Database, file : TextIO, refDir : str="."):
 	file.seek(0)
