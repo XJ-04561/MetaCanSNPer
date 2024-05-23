@@ -21,14 +21,19 @@ def correctDatabase(filename, finalFilename):
 			e.add_note(f"Tables hash: {database.tablesHash}\nIndexes Hash: {database.indexesHash}")
 			raise e
 	database.close()
-	os.rename(filename, finalFilename)
+	if filename != finalFilename:
+		os.rename(filename, finalFilename)
 
 def gunzip(filepath : str, outfile : str):
 	'''gunzip's given file. Only necessary for software that requires non-zipped data.'''
 	import gzip
-	open(outfile, "wb").write(
-		gzip.decompress(open(filepath, "rb").read())
-	)
+	
+	with gzip.open(filepath, "r") as zipped:
+		rawfile = open(outfile, "w")
+		for row in zipped:
+			rawfile.write(row)
+		rawfile.close()
+	
 
 class URL:
 	string : str
@@ -276,7 +281,7 @@ class Job:
 					if postProcess is not None:
 						self.updateProgress(2.0)
 						postProcess(outFile, self.out / self.filename)
-					else:
+					elif outFile != (self.out / self.filename):
 						os.rename(outFile, self.out / self.filename)
 					self.updateProgress(1.0)
 					return outFile, sourceName
