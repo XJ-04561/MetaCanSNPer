@@ -1,10 +1,5 @@
 
-
 from MetaCanSNPer.Globals import *
-
-import MetaCanSNPer.core.LogKeeper as LogKeeper
-LOGGER = LogKeeper.createLogger(__name__)
-
 from MetaCanSNPer.core.Wrappers import Aligner
 
 '''
@@ -57,13 +52,13 @@ class ProgressiveMauve(Aligner):
 
 	def handleRetCode(self, returncode : int, prefix : str=""):
 		if returncode == 0:
-			LOGGER.debug("{prefix}progressiveMauve finished with exitcode 0.".format(prefix=prefix))
+			self.LOG.debug("{prefix}progressiveMauve finished with exitcode 0.".format(prefix=prefix))
 		elif returncode == 11:
-			LOGGER.warning("{prefix}WARNING progressiveMauve finished with a exitcode: {returncode}\nThis progressiveMauve error is showing up for bad genomes containing short repetitive contigs or sequence contains dashes.".format(prefix=prefix, returncode=returncode))
+			self.LOG.warning("{prefix}WARNING progressiveMauve finished with a exitcode: {returncode}\nThis progressiveMauve error is showing up for bad genomes containing short repetitive contigs or sequence contains dashes.".format(prefix=prefix, returncode=returncode))
 		elif returncode == -6:
-			LOGGER.warning("{prefix}Input sequence is not free of gaps, replace gaps with N and retry!!".format(prefix=prefix))
+			self.LOG.warning("{prefix}Input sequence is not free of gaps, replace gaps with N and retry!!".format(prefix=prefix))
 		else:
-			LOGGER.warning("{prefix}WARNING progressiveMauve finished with a non zero exitcode: {returncode}\nThe script will terminate when all processes are finished read {log} for more info".format(prefix=prefix, log=self.logFile,returncode=returncode))
+			self.LOG.warning("{prefix}WARNING progressiveMauve finished with a non zero exitcode: {returncode}\nThe script will terminate when all processes are finished read {log} for more info".format(prefix=prefix, log=self.logFile,returncode=returncode))
 
 def get(softwareName):
 	for c in Aligner.__subclasses__():

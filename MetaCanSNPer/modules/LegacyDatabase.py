@@ -4,7 +4,6 @@ from MetaCanSNPer.Globals import *
 
 LEGACY_HASH = 114303753400556555282992836027662767595
 LEGACY_VERSION = 0
-LOGGER = LOGGER.getChild(__name__.split(".")[-1])
 
 class LO: # NameSpace
 	class Parent(Column):						type=INTEGER
@@ -63,9 +62,7 @@ class LO: # NameSpace
 		class GenomeID(Column, name="genome_i"):	type=INTEGER
 
 
-class NotLegacyCanSNPer2(Assertion):
-
-	LOG = LOGGER
+class NotLegacyCanSNPer2(Assertion, Logged):
 
 	@classmethod
 	def exception(self, database : "MetaCanSNPerDatabase"=None) -> Exception:

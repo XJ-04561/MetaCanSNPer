@@ -8,10 +8,9 @@ from VariantCallFixer.Functions import getSNPdata
 ## import MetaCanSNPer specific modules
 from MetaCanSNPer.Globals import *
 import MetaCanSNPer.Globals as Globals
-import MetaCanSNPer.core.LogKeeper as LogKeeper
 from MetaCanSNPer.core.DirectoryLibrary import DirectoryLibrary
-from MetaCanSNPer.core.Hooks import Hooks, DummyHooks
-from MetaCanSNPer.core.Wrappers import Aligner, Mapper, SNPCaller, IndexingWrapper
+from MetaCanSNPer.core.Hooks import Hooks, DummyHooks, GlobalHooks
+from MetaCanSNPer.core.Wrappers import Aligner, Mapper, SNPCaller, ProcessWrapper
 import MetaCanSNPer.core.Aligners as Aligners
 import MetaCanSNPer.core.Mappers as Mappers
 import MetaCanSNPer.core.SNPCallers as SNPCallers
@@ -21,10 +20,9 @@ from MetaCanSNPer.modules.Database import MetaCanSNPerDatabase, TreeTable, NodeI
 from MetaCanSNPer.modules.Downloader import DatabaseDownloader, DownloaderReportHook, ReferenceDownloader
 
 
-class MetaCanSNPer:
+class MetaCanSNPer(Logged):
 	
-	LOG : logging.Logger = Globals.LOGGER.getChild(__name__.split(".")[-1])
-	hooks = cached_property(lambda self:Hooks())
+	hooks = GlobalHooks
 
 	outputTemplate = "{refName}_{queryName}.{outFormat}"
 	organism : str
@@ -48,12 +46,13 @@ class MetaCanSNPer:
 
 	@overload
 	def __init__(self, /, organism : str, query : list[str]|str, *, lib : DirectoryLibrary=None, database : str=None,
-			  settings : dict={}, settingsFile : str=None, sessionName : str=None): ...
+			  	hooks : Hooks=None, settings : dict={}, settingsFile : str=None, sessionName : str=None): ...
 
 	def __init__(self, /, organism : str, query : list[str]|str, **kwargs):
 
 		self.LOG.info(f"Initializing MetaCanSNPer object at 0x{id(self):0>16X}.")
 		self.exceptions = []
+		self.hooks = kwargs.get("hooks", self.hooks)
 		self.hooks.addHook("ReportError", target=lambda eventInfo : self.exceptions.append(eventInfo["exception"]))
 		self.settings = DEFAULT_SETTINGS.copy()
 		
@@ -88,7 +87,7 @@ class MetaCanSNPer:
 				self.LOG.debug(f"{databaseName} in {directory}")
 				if MetaCanSNPerDatabase(directory / databaseName, "r", organism=self.organism).valid:
 					self.LOG.debug(f"{directory / databaseName} is valid")
-					self.hooks.trigger("DatabaseDownloaderProgress", {"name" : databaseName, "progress" : int(1)})
+					self.hooks.trigger("DatabaseDownloaderProgress", {"name" : databaseName, "value" : int(1)})
 					self.databasePath = directory / databaseName
 					break
 			else:
@@ -121,7 +120,7 @@ class MetaCanSNPer:
 		for genomeID, genome, strain, genbankID, refseqID, assemblyName in references:
 			filename = f"{assemblyName}.fna"
 			if self.Lib.references[genome]:
-				self.hooks.trigger("ReferenceDownloaderProgress", {"name" : self.Lib.references[genome], "progress" : int(1)})
+				self.hooks.trigger("ReferenceDownloaderProgress", {"name" : self.Lib.references[genome], "value" : int(1)})
 				continue
 			
 			DD.download((genbankID, assemblyName), filename)
@@ -152,23 +151,15 @@ class MetaCanSNPer:
 	'''MetaCanSNPer set values'''
 
 	def setSessionName(self, name):
-		self.sessionName = name
-		self.Lib.sessionName = name
-
+		self.Lib.sessionName = self.sessionName = name
 
 	'''Indexing methods'''
 
-	def getSoftwareClass(self, softwareName):
-		for types in [Aligners, Mappers, SNPCallers]:
-			if types.get(softwareName) is not None:
-				return types.get(softwareName)
-		return None
-
-	def runSoftware(self, softwareClass : IndexingWrapper, outputDict : dict={}, flags : list=[]):
+	def runSoftware(self, softwareClass : ProcessWrapper, outputDict : dict={}, flags : list=[]):
 		'''Align sequences using subprocesses.'''
 
 		self.LOG.info(f"Creating software wrapper for {softwareClass.softwareName!r} of type {softwareClass.__name__!r}")
-		software : IndexingWrapper = softwareClass(self.Lib, self.database, self.outputTemplate, out=outputDict, hooks=self.hooks, flags=flags, settings=self.settings)
+		software : ProcessWrapper = softwareClass(self.Lib, self.database, self.outputTemplate, out=outputDict, hooks=self.hooks, flags=flags, settings=self.settings)
 
 		# Check that error did not occur.
 		while software.canRun():
@@ -195,7 +186,7 @@ class MetaCanSNPer:
 	def createMap(self, softwareName : str, flags : list=[]):
 		''''''
 		self.LOG.info(f"Creating map using:{softwareName}")
-		MapperType : Mapper = Mappers.get(softwareName)
+		MapperType : Mapper = Mapper.subclasses.get(softwareName)
 
 		if self.Lib.references is None:
 			self.LOG.error("References not set.")
@@ -210,7 +201,7 @@ class MetaCanSNPer:
 	def createAlignment(self, softwareName : str, flags : list=[]):
 		''''''
 		self.LOG.info(f"Creating alignment using:{softwareName}")
-		AlignerType : Aligner = Aligners.get(softwareName)
+		AlignerType : Aligner = Aligner.subclasses.get(softwareName)
 
 		if self.Lib.references is None:
 			self.LOG.error("References not set.")
@@ -225,7 +216,7 @@ class MetaCanSNPer:
 	def callSNPs(self, softwareName : str, flags : list=[]):
 		''''''
 		self.LOG.info(f"Calling SNPs using:{softwareName}")
-		SNPCallerType : SNPCaller = SNPCallers.get(softwareName)
+		SNPCallerType : SNPCaller = SNPCaller.subclasses.get(softwareName)
 
 		if self.Lib.references is None:
 			self.LOG.error("References not set.")

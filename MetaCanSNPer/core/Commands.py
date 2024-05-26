@@ -4,9 +4,6 @@
 from subprocess import Popen, PIPE, CompletedProcess
 from threading import Thread
 
-from MetaCanSNPer.core.LogKeeper import createLogger
-LOGGER = createLogger(__name__)
-
 from MetaCanSNPer.core.Hooks import Hooks
 from MetaCanSNPer.Globals import *
 
@@ -22,18 +19,11 @@ argsPattern = re.compile(r"(['][^']*?['])|([\"][^\"]*?[\"])|(\S+)", flags=re.MUL
 quotePattern = re.compile(r"['\" ]*")
 illegalPattern = re.compile(r"[^\w_ \-\.]")
 
-class ParallelCommands: pass
-class SequentialCommands: pass
-class PipeCommands: pass
-class DumpCommands: pass
-class Commands: pass
-
-
-class Command:
+class Command(Logged):
 	"""Triggers the event `f"{self.category}Finished"` on each finished parallel command"""
 
 
-	commands : ParallelCommands
+	commands : "ParallelCommands"
 
 	def __init__(self, args : str|list, category=None, hooks : Hooks=None, logDir : Path=Path("."), names : Iterable=None):
 		try:
@@ -53,7 +43,7 @@ class Command:
 								return
 					except Exception as e:
 						e.add_note("'parallelFinished' event exception.")
-						LOGGER.exception(e)
+						self.LOG.exception(e)
 						return
 
 				self._hook = self.hooks.addHook(f"SequentialCommands{self.category}Finished", target=parallelFinished, args=[self])
@@ -64,7 +54,7 @@ class Command:
 			
 		except Exception as e:
 			e.add_note(f"{type(self).__name__} failed to initialize.")
-			LOGGER.exception(e)
+			self.LOG.exception(e)
 			raise e
 	
 	def __len__(self):
@@ -96,14 +86,14 @@ class Command:
 		if self.commands is not None:
 			self.commands.run()
 
-class Commands:
+class Commands(Logged):
 	"""Only meant to be inherited from"""
 
 	pattern : re.Pattern
-	nextType : Commands
+	nextType : "Commands"
 	hooks : Hooks
 	category : str
-	_list : list[Commands]
+	_list : list["Commands"]
 	logFile : TextIO
 	raw : str
 
@@ -116,7 +106,7 @@ class Commands:
 			self.separators = []
 			
 			for c in args:
-				LOGGER.debug(f"{self.pattern}.fullmatch({c}) -> {self.pattern.fullmatch(c)}")
+				self.LOG.debug(f"{self.pattern}.fullmatch({c}) -> {self.pattern.fullmatch(c)}")
 				if c is None:
 					continue
 				elif self.pattern.fullmatch(c):
@@ -134,7 +124,7 @@ class Commands:
 			self._list = [self.nextType(l, category, hooks, logDir=logDir) for l in _list if len(l) > 0]
 		except Exception as e:
 			e.add_note(f"{type(self).__name__} failed to initialize.")
-			LOGGER.exception(e)
+			self.LOG.exception(e)
 			raise e
 	
 	def __iter__(self):
@@ -168,7 +158,7 @@ class DumpCommands(Commands):
 			super().__init__(args, category, hooks, logDir=logDir)
 		
 			self.command = self._list[0]
-			LOGGER.debug(f"{self.command=}")
+			self.LOG.debug(f"{self.command=}")
 			if len(self.command) > 1 and self.command[1].isalnum():
 				logFile = logDir.writable / f"{self.command[0]}_{self.command[1]}_{SOFTWARE_NAME}.log"
 			else:
@@ -177,7 +167,7 @@ class DumpCommands(Commands):
 			try:
 				self.logFile = open(logFile, "wb")
 			except:
-				LOGGER.warning(f"Failed to create {logFile=}")
+				self.LOG.warning(f"Failed to create {logFile=}")
 				self.logFile = open(os.devnull, "wb")
 			
 			self.outFile = None
@@ -185,31 +175,31 @@ class DumpCommands(Commands):
 
 			if len(self._list) == 2:
 				if len(self._list[1]) != 1:
-					LOGGER.exception(ValueError(f"Output can not be dumped to multiple filenames. Filenames given: {self._list[1]}"))
+					self.LOG.exception(ValueError(f"Output can not be dumped to multiple filenames. Filenames given: {self._list[1]}"))
 					raise ValueError(f"Output can not be dumped to multiple filenames. Filenames given: {self._list[1]}")
 				
 				self.outFileName = self._list[1][0]
 				if not os.path.exists(self._list[1][0]):
 					self.outFile = open(self.outFileName+".tmp", "wb")
 			elif len(self._list) > 2:
-				LOGGER.exception(ValueError(f"Output dumped more or less than once using '>' in one command. Command: {'>'.join(map(''.join, self._list))}"))
+				self.LOG.exception(ValueError(f"Output dumped more or less than once using '>' in one command. Command: {'>'.join(map(''.join, self._list))}"))
 				raise ValueError(f"Output dumped more or less than once using '>' in one command. Command: {'>'.join(map(''.join, self._list))}")
-			LOGGER.debug(f"{self.command=}, {self.outFile=}, {self.logFile=}")
+			self.LOG.debug(f"{self.command=}, {self.outFile=}, {self.logFile=}")
 		except Exception as e:
 			e.add_note(f"{type(self).__name__} failed to initialize.")
-			LOGGER.exception(e)
+			self.LOG.exception(e)
 			raise e
 		
 	def run(self, stdin=None, stdout=None, stderr=None, **kwargs) -> Popen:
-		LOGGER.debug(f"Starting {self!r}")
+		self.LOG.debug(f"Starting {self!r}")
 		ex = shutil.which(self.command[0])
 		if ex is None:
-			LOGGER.exception(FileNotFoundError(2, "Could not find command/executable", f"{self.command[0]}"))
+			self.LOG.exception(FileNotFoundError(2, "Could not find command/executable", f"{self.command[0]}"))
 			raise FileNotFoundError(2, "Could not find command/executable", f"{self.command[0]}")
 		else:
 			self.command[0] = ex
 		p : Popen = Popen(self.command, stdin=stdin, stdout=self.outFile or stdout or open(os.devnull, "wb"), stderr=stderr or self.logFile, **kwargs)
-		LOGGER.debug(f"Started {self!r}")
+		self.LOG.debug(f"Started {self!r}")
 		return p
 
 	def __del__(self):
@@ -253,7 +243,7 @@ class PipeCommands(Commands):
 
 		for p in processes[::-1]:
 			if p.returncode is None:
-				LOGGER.error(f"Section of pipe closed. Returncodes of commands in pipe: {[p.returncode for p in processes]}\nPipeCommands in question: {self}")
+				self.LOG.error(f"Section of pipe closed. Returncodes of commands in pipe: {[p.returncode for p in processes]}\nPipeCommands in question: {self}")
 
 		for i, p in enumerate(processes):
 			if p.returncode not in [0, None]:
@@ -284,7 +274,7 @@ class SequentialCommands(Commands):
 	returncodes : list[int]
 	thread : Thread
 
-	def start(self : SequentialCommands) -> None:
+	def start(self : "SequentialCommands") -> None:
 		try:
 			self.returncodes = []
 			def runInSequence(self : SequentialCommands):
@@ -304,15 +294,15 @@ class SequentialCommands(Commands):
 						self.hooks.trigger(f"ReportError", {"exception" : e})
 					try:
 						e.add_note(f"<In Thread running: {self.raw!r}>")
-						LOGGER.exception(e)
+						self.LOG.exception(e)
 					except:
-						LOGGER.exception(e)
+						self.LOG.exception(e)
 					self.hooks.trigger(f"SequentialCommands{self.category}Finished", {"object" : self})
 			self.thread = Thread(target=runInSequence, args=[self], daemon=True)
 			self.thread.start()
 		except Exception as e:
 			e.add_note(f"{type(self).__name__} failed to `.start()`.")
-			LOGGER.exception(e)
+			self.LOG.exception(e)
 			raise e
 
 	def run(self) -> list[CompletedProcess]:
@@ -366,7 +356,7 @@ class ParallelCommands(Commands):
 			self._list = {name:self.nextType(command, category, hooks, logDir=logDir / illegalPattern.sub("-", str(name))) for name, command in _list.items()}
 		except Exception as e:
 			e.add_note(f"{type(self).__name__} failed to initialize.")
-			LOGGER.exception(e)
+			self.LOG.exception(e)
 			raise e
 	
 	def start(self):

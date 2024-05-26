@@ -112,9 +112,7 @@ class CanSNPNode(Branch):
 
 from MetaCanSNPer.modules.LegacyDatabase import NotLegacyCanSNPer2, LEGACY_HASH, LEGACY_VERSION
 
-class HasChromosomes(Assertion):
-
-	LOG = LOGGER
+class HasChromosomes(Assertion, Logged):
 
 	@classmethod
 	def exception(self, database : "MetaCanSNPerDatabase"=None) -> Exception:
@@ -166,9 +164,8 @@ class HasChromosomes(Assertion):
 				break # FOR NOW
 		database(COMMIT)
 
-class MetaCanSNPerDatabase(Database):
+class MetaCanSNPerDatabase(Database, Logged):
 
-	LOG = LOGGER
 	CURRENT_VERSION = 2
 	DATABASE_VERSIONS = {
 		LEGACY_HASH	: LEGACY_VERSION, # Legacy CanSNPer

@@ -2,23 +2,18 @@
 
 from MetaCanSNPer.Globals import *
 import MetaCanSNPer.Globals as Globals
+
 from MetaCanSNPer.core.Hooks import Hooks
-
 from MetaCanSNPer.modules.Database import MetaCanSNPerDatabase
-from MetaCanSNPer.modules.Downloader import ReferenceDownloader, DatabaseDownloader
-
-import MetaCanSNPer.core.LogKeeper as LogKeeper
-		
 
 '''Container and handler of directories and files'''
-class DirectoryLibrary(SoftwareLibrary):
+class DirectoryLibrary(SoftwareLibrary, Logged):
 	'''
 		This structure allows for defining file managing as well and making sure that directory and file path
 		information is simply passed around by handing around the same 'Library'.
 	'''
 
 	SOFTWARE_NAME = SOFTWARE_NAME
-	LOG : logging.Logger = Globals.LOGGER.getChild("DirectoryLibrary")
 	
 	organism : str
 

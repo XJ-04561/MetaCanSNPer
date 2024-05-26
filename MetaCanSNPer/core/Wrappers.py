@@ -3,7 +3,6 @@ import os, shutil, re
 from typing import Any, Iterable, Callable
 from threading import Semaphore, ThreadError
 
-import MetaCanSNPer.core.LogKeeper as LogKeeper
 import MetaCanSNPer.core.ErrorFixes as ErrorFixes
 from MetaCanSNPer.core.DirectoryLibrary import DirectoryLibrary
 from MetaCanSNPer.core.Hooks import Hooks
@@ -12,12 +11,21 @@ from MetaCanSNPer.core.Commands import Command
 from MetaCanSNPer.Globals import *
 import MetaCanSNPer.Globals as Globals
 
-LOGGER = LogKeeper.createLogger(__name__)
-
 illegalPattern = re.compile(r"[^\w_ \-\.]")
 
+class MissingDependancy(Exception): pass
+
 # Aligner and Mapper classes to inherit from
-class ProcessWrapper:
+class ProcessWrapper(Logged):
+	
+	queryName : str
+	commandTemplate : str # Should contain format tags for {target}, {ref}, {output}, can contain more.
+	outFormat : str
+	inFormat : str
+	logFormat : str
+	flags : list[str]
+	format : str
+
 	Lib : DirectoryLibrary
 	database : MetaCanSNPerDatabase
 	hooks : Hooks
@@ -30,9 +38,18 @@ class ProcessWrapper:
 	solutions : ErrorFixes.SolutionContainer
 	skip : set
 	command : Command
+
+	@ClassProperty
+	def subclasses(self):
+		if isinstance(self, type):
+			return {subClass.__name__:subClass for subClass in self.__subclasses__()}
+		else:
+			return {subClass.__name__:subClass for subClass in type(self).__subclasses__()}
+
 	_hooksList : dict
 
-	def __init__(self, lib : DirectoryLibrary, database : MetaCanSNPerDatabase, outputTemplate : str, out : dict[str,str]={}, hooks : Hooks=Hooks(), settings : dict[str,Any]={}):
+	def __init__(self, lib : DirectoryLibrary, database : MetaCanSNPerDatabase, outputTemplate : str, out : dict[str,str], hooks : Hooks=Hooks(), flags : list[str]=[], settings : dict[str,Any]={}):
+		
 		self.Lib = lib
 		self.database = database
 		self.queryName = self.Lib.queryName ## get name of file and remove ending
@@ -44,16 +61,20 @@ class ProcessWrapper:
 		self.skip = set()
 		self.outputs = out
 		self._hooksList = {}
+		self.flags = flags
 		self.settings = settings
+		
+		self.solutions : ErrorFixes.SolutionContainer = ErrorFixes.get(self.softwareName)(self)
 
-	def formatCommands(self, *args, **kwargs):
-		"""Not implemented for the template class, check the wrapper of the
-		specific software you are intending to use."""
-		raise NotImplementedError(f"Called `.formatCommands` on a object of a class which has not implemented it. Object class is `{type(self)}`")
-
-	def updateOutput(self, eventInfo, outputs : dict[int,str]):
-		"""Not Implemented in the base class."""
-		pass
+		self.formatDict = {
+			"tmpDir" : self.Lib.tmpDir.writable,
+			"query" : self.Lib.query,
+			"queryName" : self.queryName,
+			"options" : " ".join(self.flags),
+			"outFormat" : self.outFormat
+		}
+		
+		
 
 	def createCommand(self):
 		""""""
@@ -68,7 +89,7 @@ class ProcessWrapper:
 				self.outputs[name] = outFile
 				self.skip.add(name)
 
-				self.hooks.trigger(f"{self.category}Progress", {"name" : name, "progress" : 1.0})
+				self.hooks.trigger(f"{self.category}Progress", {"name" : name, "value" : 1.0})
 				self.hooks.trigger(f"{self.category}Finished", {"name" : name})
 
 				names.pop(i), commands.pop(i), outputs.pop(i)
@@ -96,7 +117,7 @@ class ProcessWrapper:
 		while not self.finished():
 			self.waitNext(timeout=timeout)
 			if finished < (finished := len(self.command.returncodes)):
-				LOGGER.info(f"Finished running {self.softwareName} {finished}/{len(self.command)}.")
+				self.LOG.info(f"Finished running {self.softwareName} {finished}/{len(self.command)}.")
 		if any(r is None for r in self.command.returncodes.values()):
 			raise ThreadError(f"{self.softwareName!r} crashed/failed to start. Check logs for more details.")
 
@@ -133,14 +154,14 @@ class ProcessWrapper:
 		
 		if len(previousUnsolved) > 0:
 			for name, e in previousUnsolved:
-				LOGGER.error(f"Thread {name} of {self.softwareName} ran command: {self.command.args[name][0]!r} and returned exitcode {self.command.returncodes[name]} even after applying a fix for this exitcode.")
+				self.LOG.error(f"Thread {name} of {self.softwareName} ran command: {self.command.args[name][0]!r} and returned exitcode {self.command.returncodes[name]} even after applying a fix for this exitcode.")
 			raise ChildProcessError(f"{self.softwareName} process(es) returned non-zero value(s). A solution was attempted but the process returned the same exitcode. Check logs for details.")
 
 		failed = [(e,errors[e]) for e in errors if e not in self.solutions and e != 0 and e not in self.ignoredErrors]
 		if len(failed) != 0:
 			for e, threads in failed:
 				for name in threads:
-					LOGGER.error(f"Thread {name} of {self.softwareName} ran command: {self.command.args[name][0]!r} and returned exitcode {self.command.returncodes[name]}.")
+					self.LOG.error(f"Thread {name} of {self.softwareName} ran command: {self.command.args[name][0]!r} and returned exitcode {self.command.returncodes[name]}.")
 			raise ChildProcessError(f"{self.softwareName} process(es) returned non-zero value(s) which do not have an implemented fix. Check logs for details.")
 		
 		for e in errors:
@@ -155,9 +176,9 @@ class ProcessWrapper:
 		'''Not implemented for the template class, check the wrapper of the
 		specific software you are intending to use.'''
 		if returncode == 0:
-			LOGGER.info(f"{prefix} {self.softwareName} finished with exitcode 0.")
+			self.LOG.info(f"{prefix} {self.softwareName} finished with exitcode 0.")
 		else:
-			LOGGER.warning(f"{prefix} {self.softwareName} finished with a non zero exitcode: {returncode}")
+			self.LOG.warning(f"{prefix} {self.softwareName} finished with a non zero exitcode: {returncode}")
 
 	def preProcess(self, *args, **kwargs):
 		'''Not implemented for the template class, check the wrapper of the
@@ -179,42 +200,13 @@ class ProcessWrapper:
 				msg.append(f"{self.Lib.queryName:<30}|{name:<28} = {e:^8}")
 		
 		out("\n".join(msg))
-
-class IndexingWrapper(ProcessWrapper):
-	queryName : str
-	commandTemplate : str # Should contain format tags for {target}, {ref}, {output}, can contain more.
-	outFormat : str
-	inFormat : str
-	logFormat : str
-	flags : list[str]
-	format : str
-
-	outputs : list[tuple[str,str]]
-	"""[((refName, queryName), outputPath), ...]"""
-	solutions : ErrorFixes.SolutionContainer
-
-	
-	def __init__(self, lib : DirectoryLibrary, database : MetaCanSNPerDatabase, outputTemplate : str, out : dict[str,str], hooks : Hooks=Hooks(), flags : list[str]=[], settings : dict[str,Any]={}):
-		super().__init__(lib=lib, database=database, outputTemplate=outputTemplate, out=out, hooks=hooks, settings=settings)
-		
-		self.flags = flags
-		self.command = None
-		self.solutions : ErrorFixes.SolutionContainer = ErrorFixes.get(self.softwareName)(self)
-
-		self.formatDict = {
-			"tmpDir" : self.Lib.tmpDir.writable,
-			"query" : self.Lib.query,
-			"queryName" : self.queryName,
-			"options" : " ".join(self.flags),
-			"outFormat" : self.outFormat
-		}
 	
 	def updateOutput(self, eventInfo, outputs: dict[str, str]):
 		
 		try:
 			genome = eventInfo["name"]
 			if self.command is not eventInfo.get("Command"):
-				LOGGER.debug(f'{self.command is not eventInfo.get("Command") =}')
+				self.LOG.debug(f'{self.command is not eventInfo.get("Command") =}')
 				return
 			self.semaphore.release()
 			if self.command.returncodes[genome] not in self.solutions:
@@ -232,7 +224,7 @@ class IndexingWrapper(ProcessWrapper):
 								pass
 
 					self.outputs[genome] = outFile
-					self.hooks.trigger(f"{self.category}Progress", {"name" : genome, "progress" : 1.0})
+					self.hooks.trigger(f"{self.category}Progress", {"name" : genome, "value" : 1.0})
 					self.hooks.trigger(f"{self.category}Finished", {"name" : genome})
 				else:
 					if self.settings.get("saveTemp") is True:
@@ -243,10 +235,10 @@ class IndexingWrapper(ProcessWrapper):
 									shutil.rmtree(dPath, ignore_errors=True)
 								except:
 									pass
-					self.hooks.trigger(f"{self.category}Progress", {"name" : genome, "progress" : None})
+					self.hooks.trigger(f"{self.category}Progress", {"name" : genome, "value" : None})
 					self.hooks.trigger(f"{self.category}Finished", {"name" : genome})
 		except Exception as e:
-			LOGGER.exception(e, stacklevel=logging.DEBUG)
+			self.LOG.exception(e, stacklevel=logging.DEBUG)
 
 	def formatCommands(self) -> tuple[list[Any], list[str], list[tuple[tuple[str,str],str]]]:
 		
@@ -283,7 +275,7 @@ class IndexingWrapper(ProcessWrapper):
 
 			self.formatDict["output"] = output
 
-			LOGGER.info(f"Created command (if --dry-run has been specified, this will not be the true command ran):\n{self.commandTemplate.format(**self.formatDict)}")
+			self.LOG.info(f"Created command (if --dry-run has been specified, this will not be the true command ran):\n{self.commandTemplate.format(**self.formatDict)}")
 			if not Globals.DRY_RUN:
 				command = self.commandTemplate.format(**self.formatDict)
 			else:
@@ -304,19 +296,19 @@ class IndexingWrapper(ProcessWrapper):
 #	Aligner, Mapper, and SNPCaller classes to inherit from
 #
 
-class Aligner(IndexingWrapper):
+class Aligner(ProcessWrapper):
 	"""All that is needed to create a new implementation is to inherit from the correct software type ('Aligner' in this case) and set
 	the two class attributes accordingly.
 	"""
 	category = "Aligners"
 	
-class Mapper(IndexingWrapper):
+class Mapper(ProcessWrapper):
 	"""All that is needed to create a new implementation is to inherit from the correct software type ('Mapper' in this case) and set
 	the two class attributes accordingly.
 	"""
 	category = "Mappers"
 
-class SNPCaller(IndexingWrapper):
+class SNPCaller(ProcessWrapper):
 	"""All that is needed to create a new implementation is to inherit from the correct software type ('SNPCaller' in this case) and set
 	the two class attributes accordingly.
 	"""

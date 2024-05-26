@@ -38,16 +38,24 @@ from collections import defaultdict, OrderedDict
 import tomllib as toml
 from appdirs import user_log_dir, user_config_dir, site_config_dir
 from tempfile import NamedTemporaryFile
+from threading import Lock
+
+_NOT_SET = object()
 
 LOG_DIR = user_log_dir(SOFTWARE_NAME)
 pMakeDirs(LOG_DIR)
 with NamedTemporaryFile(prefix=time.strftime("MetaCanSNPer-(%Y-%m-%d)-(%H-%M-%S)-[", time.localtime()), suffix="].log", dir=LOG_DIR, delete=False) as f:
 	LOGGING_FILEPATH = f.name
 logging.basicConfig(filename=LOGGING_FILEPATH, format="[%(name)s] %(asctime)s - %(levelname)s: %(message)s", level=logging.DEBUG)
-# LOGGER_FILEHANDLER = logging.FileHandler(LOGGING_FILEPATH)
-# LOGGER_FILEHANDLER.setFormatter(logging.Formatter("[%(name)s] %(asctime)s - %(levelname)s: %(message)s"))
 LOGGER = logging.Logger("MetaCanSNPer", level=logging.DEBUG)
-# LOGGER.addHandler(LOGGER_FILEHANDLER)
+
+class Logged:
+	
+	LOG : logging.Logger = LOGGER
+
+	def __init_subclass__(cls, *args, **kwargs) -> None:
+		super().__init_subclass__(*args, **kwargs)
+		cls.LOG = cls.LOG.getChild(cls.__name__)
 
 DEV_NULL = open(os.devnull, "w")
 ISATTY = sys.stdout.isatty()
@@ -112,6 +120,8 @@ random.seed()
 from tempfile import NamedTemporaryFile
 
 _NULL_KEY = object()
+def formatTimestamp(seconds):
+	return f"{seconds//3600:0>2.0f}:{(seconds//60)%60:0>2.0f}:{seconds%60:0>6.3f}"
 
 class UninitializedError(AttributeError):
 	def __init__(self, obj=None, name=None, **kwargs):
@@ -172,17 +182,75 @@ after the '--snpCallerOptions' flag, only interrupted by the end of the
 command call or the corresponding flag for Mapper or Aligner options.
 """
 
-class MissingDependancy(Exception): pass
+def getAttrChain(obj, key, default=_NOT_SET):
+	if default is _NOT_SET:
+		for name in key.split("."):
+			obj = getattr(obj, name)
+	else:
+		for name in key.split("."):
+			obj = getattr(obj, name, default)
+	return obj
+	
+def forceHash(obj):
+	if hasattr(obj, "__hash__"):
+		try:
+			return hash(obj)
+		except TypeError:
+			pass
+	if isinstance(obj, Iterable):
+		return sum(forceHash(el) for el in obj)
+	else:
+		return id(obj)
 
-## ErrorFixes Globals
-class Aligner: pass
-class Mapper: pass
-class SNPCaller: pass
+class LimitedDict(dict):
+	
+	
+	LIMIT : int = 10000
+	_lock : Lock
 
+	def __init__(self, *args, **kwargs):
+		self._lock = Lock()
+		self.N = 0
+		if args and isinstance(args[0], int):
+			self.LIMIT = args[0]
+		elif "limit" in kwargs:
+			self.LIMIT = kwargs["limit"]
+	
+	def __setitem__(self, key, value):
+		with self._lock:
+			if key not in self:
+				while self.N >= self.LIMIT:
+					self.pop(next(iter(self)))
+				self.N += 1
+			super().__setitem__(key, value)
+	def setdefault(self, key, value):
+		with self._lock:
+			if key not in self:
+				while self.N >= self.LIMIT:
+					self.pop(next(iter(self)))
+				self.N += 1
+				super().setdefault(key, value)
+	
+	def __delitem__(self, key):
+		with self._lock:
+			if key in self:
+				self.N -= 1
+			super().__delitem__(key)
+	def pop(self, key, default=_NOT_SET):
+		with self._lock:
+			if key in self:
+				self.N -= 1
+			
+			if default is _NOT_SET:
+				return super().pop(key)
+			else:
+				return super().pop(key, default)
+	def popitem(self) -> tuple:
+		with self._lock:
+			self.N -= 1
+			return super().popitem()
 
 class Default:
-	
-	SIZE_LIMIT = 10000
 
 	deps : tuple = None
 	data : dict
@@ -192,19 +260,17 @@ class Default:
 	fset : Callable
 	fdel : Callable
 
-	def __init__(self, fget=None, fset=None, fdel=None, doc=None, deps=None):
-		self.data = {}
-		if hasattr(fget, "__annotations__"):
-			self.__annotations__ = fget.__annotations__
+	def __init__(self, fget=None, fset=None, fdel=None, doc=None, deps=(), *, limit : int=10000):
+		if not hasattr(self, "data"):
+			self.data = LimitedDict(limit)
 		self.fget = fget
 		self.fset = fset
 		self.fdel = fdel
 		self.__doc__ = doc or fget.__doc__ or getattr(self, "__doc__", None)
-		if deps is not None:
-			self.deps = deps
+		self.deps = deps
 		
-	def __call__(self, fget=None, fset=None, fdel=None, doc=None):
-		self.__init__(fget, fset, fdel, doc=doc)
+	def __call__(self, fget=None, fset=None, fdel=None, doc=None, *, limit : int=10000):
+		self.__init__(fget, fset, fdel, doc=doc, limit=limit)
 		return self
 	
 	def __class_getitem__(cls, deps):
@@ -216,15 +282,17 @@ class Default:
 		return cls(deps=deps if isinstance(deps, tuple) else (deps, ))
 	
 	def __set_name__(self, owner, name):
+		if hasattr(self.fget, "__annotations__") and hasattr(owner, "__annotations__") and "return" in self.fget.__annotations__:
+			owner.__annotations__[name] = self.fget.__annotations__["return"]
 		self.name = name
 
 	def __get__(self, instance, owner=None):
 		if instance is None:
 			return self
-		if self.name in instance.__dict__:
+		if self.name in getattr(instance, "__dict__", ()):
 			return instance.__dict__[self.name]
 		
-		idSpec = None if self.deps is None else tuple(id(getattr(instance, attrName, None)) for attrName in self.deps)
+		idSpec = None if self.deps is None else forceHash(getAttrChain(instance, attrName, None) for attrName in self.deps)
 		if id(instance) not in self.data:
 			self.data[id(instance)] = (idSpec, self.fget(instance))
 			return self.data[id(instance)][1]
@@ -244,7 +312,8 @@ class Default:
 			if self.fdel is not None:
 				self.fdel(instance)
 			else:
-				instance.__dict__.pop(self.name, None)
+				if self.name in instance.__dict__:
+					del instance.__dict__[self.name]
 				if id(instance) in self.data:
 					del self.data[id(instance)]
 	
@@ -255,3 +324,66 @@ class Default:
 	def deleter(self, fdel):
 		self.fdel = fdel
 		return self
+
+class ClassProperty:
+
+	owner : type
+	name : str
+	fget : Callable
+	fset : Callable
+	fdel : Callable
+
+	def __init__(self, fget, fset=None, fdel=None, doc=None):
+		self.fget = fget
+		self.fset = fset
+		self.fdel = fdel
+		
+		self.__doc__ = doc if doc else fget.__doc__
+	
+	def __get__(self, instance, owner=None):
+		return self.fget(instance or owner)
+	
+	def __set__(self, instance, value):
+		self.fset(instance, value)
+	
+	def __delete__(self, instance):
+		self.fdel(instance)
+	
+	def __set_name__(self, owner, name):
+		self.owner = owner
+		self.name = name
+	
+	def __repr__(self):
+		return f"{object.__repr__(self)[:-1]} name={self.name!r}>"
+
+
+class CachedClassProperty:
+
+	def __init__(self, func):
+		self.func = func
+
+	def __get__(self, instance, owner=None):
+		if instance is None and owner is not None:
+			if self.name in owner.__dict__:
+				return owner.__dict__[self.name]
+			ret = self.func(owner)
+			setattr(owner, self.name, ret)
+			return ret
+		else:
+			if self.name in instance.__dict__:
+				return instance.__dict__[self.name]
+			ret = self.func(instance)
+			setattr(instance, self.name, ret)
+			return ret
+	
+	def __set__(self, instance, value):
+		instance.__dict__ = value
+	
+	def __delete__(self, instance):
+		del instance.__dict__[self.name]
+
+	def __set_name__(self, owner, name):
+		self.name = name
+		
+	def __repr__(self):
+		return f"{object.__repr__(self)[:-1]} name={self.name!r}>"

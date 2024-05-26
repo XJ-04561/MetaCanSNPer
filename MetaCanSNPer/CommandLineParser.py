@@ -11,7 +11,6 @@ import re
 ## import MetaCanSNPer specific modules
 from MetaCanSNPer.Globals import *
 from MetaCanSNPer.Globals import __version__
-import MetaCanSNPer.core.LogKeeper as LogKeeper
 from MetaCanSNPer.core.MetaCanSNPer import MetaCanSNPer
 from MetaCanSNPer.core.TerminalUpdater import TerminalUpdater, Spinner, LoadingBar, TextProgress
 import MetaCanSNPer.Globals as Globals
@@ -204,7 +203,7 @@ def initializeMainObject(args : NameSpace) -> MetaCanSNPer:
 	mObj = MetaCanSNPer(args.organism, args.query, settings=vars(args), settingsFile=args.settingsFile)
 
 	database = args.database or mObj.databaseName
-
+	
 	with TerminalUpdater(f"Checking database {database}:", category="DatabaseDownloader", hooks=mObj.hooks, threadNames=[database], printer=LoadingBar, out=sys.stdout if ISATTY else DEV_NULL):
 		mObj.setDatabase(args.database)
 

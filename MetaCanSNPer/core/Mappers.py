@@ -4,9 +4,6 @@
 '''
 
 from MetaCanSNPer.Globals import *
-import MetaCanSNPer.core.LogKeeper as LogKeeper
-
-LOGGER = LogKeeper.createLogger(__name__)
 
 from MetaCanSNPer.core.Wrappers import Mapper
 
@@ -146,7 +143,7 @@ class Minimap2(Mapper):
 		# # Create bed-file of only the SNP locations + padding
 		# pad = self.settings["RegionPadding"]
 		# for refName, refPath in self.Lib.references.items():
-		# 	LOGGER.debug(f"open({refPath!r}+'.bed', 'w')")
+		# 	self.LOG.debug(f"open({refPath!r}+'.bed', 'w')")
 		# 	f = open(refPath+".bed", "w")
 		# 	# Write a header maybe??
 		# 	for snpID, pos, anc, der in self.database.SNPsByGenome[refName]:
@@ -169,7 +166,7 @@ class Minimap2(Mapper):
 		# 	ava-ont		Oxford Nanopore all-vs-all overlap mapping (-k15 -Xw5 -e0 -m100 -r2k). 
 		# 	'''
 		# else:
-		# 	LOGGER.error("No preset for minimap2 set!")
+		# 	self.LOG.error("No preset for minimap2 set!")
 		# 	raise ValueError("No preset for minimap2 set!")
 		
 

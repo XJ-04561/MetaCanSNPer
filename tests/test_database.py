@@ -27,7 +27,7 @@ def test_database_download():
 			print("Exists!")
 			if MetaCanSNPerDatabase(directory / databaseName, "r", organism=organism).valid:
 				print("Is valid!")
-				hooks.trigger("DatabaseDownloaderProgress", {"name" : databaseName, "progress" : int(1)})
+				hooks.trigger("DatabaseDownloaderProgress", {"name" : databaseName, "value" : int(1)})
 				databasePath = directory / databaseName
 				break
 	else:

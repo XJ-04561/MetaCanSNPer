@@ -2,14 +2,11 @@
 from MetaCanSNPer.Globals import *
 import MetaCanSNPer.Globals as Globals
 import MetaCanSNPer.core.Hooks as Hooks
-from MetaCanSNPer.core.LogKeeper import createLogger
 from collections import defaultdict
 from threading import Thread, _DummyThread, Lock, Semaphore, Condition, current_thread
 import sqlite3
 from queue import Queue, Empty as EmptyQueueException
 from urllib.request import urlretrieve, HTTPError
-
-LOGGER = Globals.LOGGER.getChild("Downloader")
 
 def correctDatabase(filename, finalFilename):
 	from MetaCanSNPer.modules.Database import MetaCanSNPerDatabase, NoChromosomesInDatabase
@@ -64,9 +61,7 @@ class CursorLike:
 	def fetchall(self):
 		return self.data
 
-class DatabaseThread:
-
-	LOG : logging.Logger = LOGGER.getChild("DatabaseThread")
+class DatabaseThread(Logged):
 
 	queue : Queue[list[str,list,Lock, list]]
 	queueLock : Lock
@@ -147,9 +142,7 @@ class DatabaseThread:
 	def __del__(self):
 		self.running = False
 
-class ThreadDescriptor:
-
-	LOG : logging.Logger = LOGGER.getChild("ThreadDescriptor")
+class ThreadDescriptor(Logged):
 
 	func : FunctionType | MethodType
 	owner : "Downloader"
@@ -217,9 +210,7 @@ class ReportHook:
 		
 		self.reportHook(block / self.totalBlocks)
 
-class Job:
-
-	LOG : logging.Logger = LOGGER.getChild("Job")
+class Job(Logged):
 
 	_queueConnection : DatabaseThread
 
@@ -231,7 +222,7 @@ class Job:
 	def __init__(self, query, filename, conn, reportHook=None, out=None, *, logger=None):
 		
 		if logger is not None:
-			self.LOG = logger
+			self.LOG = logger.getChild(type(self).__name__.split(".")[-1])
 		self._queueConnection = conn
 
 		self.query = query
@@ -256,9 +247,9 @@ class Job:
 	def isDownloading(self):
 		return self._queueConnection.execute("SELECT CASE WHEN EXISTS(SELECT 1 FROM queueTable WHERE name = ? AND progress >= 0.0 AND progress < 1.0) THEN TRUE ELSE FALSE END;", [self.filename]).fetchone()[0]
 	def isDone(self):
-		return self._queueConnection.execute("SELECT CASE WHEN EXISTS(SELECT 1 FROM queueTable WHERE name = ? AND progress = 1.0) THEN TRUE ELSE FALSE END;", [self.filename]).fetchone()[0]
+		return self._queueConnection.execute("SELECT CASE WHEN EXISTS(SELECT 1 FROM queueTable WHERE name = ? AND progress >= 2.0) THEN TRUE ELSE FALSE END;", [self.filename]).fetchone()[0]
 	def isPostProcess(self):
-		return self._queueConnection.execute("SELECT CASE WHEN EXISTS(SELECT 1 FROM queueTable WHERE name = ? AND progress > 1.0) THEN TRUE ELSE FALSE END;", [self.filename]).fetchone()[0]
+		return self._queueConnection.execute("SELECT CASE WHEN EXISTS(SELECT 1 FROM queueTable WHERE name = ? AND progress == 1.0) THEN TRUE ELSE FALSE END;", [self.filename]).fetchone()[0]
 	def isDead(self):
 		return self._queueConnection.execute("SELECT CASE WHEN EXISTS(SELECT 1 FROM queueTable WHERE name = ? AND modified + 10.0 < UNIXEPOCH()) THEN TRUE ELSE FALSE END;", [self.filename]).fetchone()[0]
 	
@@ -282,7 +273,7 @@ class Job:
 			self.reportHook(self.getProgress())
 			sleep(timeStep)
 		else:
-			self.reportHook(1.0)
+			self.reportHook(3.0)
 	
 	def run(self, sources : list[tuple[str, type[URL]]], postProcess : Callable=None):
 
@@ -296,37 +287,37 @@ class Job:
 					(outFile, msg) = urlretrieve(link, filename=self.out / filename, reporthook=reportHook) # Throws error if 404
 
 					if postProcess is not None:
-						self.updateProgress(2.0)
-						postProcess(self.out / filename, self.out / self.filename)
+						self.updateProgress(1.0)
+						try:
+							postProcess(self.out / filename, self.out / self.filename)
+						except Exception as e:
+							e.add_note(f"This occurred while processing {outFile} downloaded from {sourceLink.format(query=self.query)}")
+							self.LOG.exception(e)
+							raise e
 					elif self.out / filename != (self.out / self.filename):
 						os.rename(self.out / filename, self.out / self.filename)
-					self.updateProgress(1.0)
+					self.updateProgress(3.0)
 					return self.out / filename, sourceName
-
 				except HTTPError as e:
 					self.LOG.info(f"Couldn't download from source={sourceName}, url: {sourceLink.format(query=self.query)}, due to {e.args}")
-					# self.LOG.exception(e, stacklevel=logging.DEBUG)
 				except Exception as e:
-					e.add_note(f"This occurred while processing {outFile} downloaded from {sourceLink.format(query=self.query)}")
 					self.LOG.exception(e)
 					raise e
-			self.updateProgress(None)
 			self.LOG.error(f"No database named {self.filename!r} found online. Sources tried: {', '.join(map(*this[0] + ': ' + this[1], sources))}")
 			raise e
 		except Exception as e:
 			self.updateProgress(None)
 			raise e
 
-class Downloader:
+class Downloader(Logged):
 
-	LOG : logging.Logger = LOGGER.getChild("Downloader")
 	SOURCES : tuple[tuple[str]] = ()
 
 	directory : DirectoryPath = DirectoryPath(".")
 	reportHook : Callable=None
 	postProcess : Callable=None
 	"""Function that takes arguments: block, blockSize, totalSize"""
-	timeStep : float = 0.2
+	timeStep : float = 0.25
 	database : Path = f"{__module__}_QUEUE.db"
 	jobs : list
 	hooks : Hooks = cached_property(lambda self:Hooks())
@@ -346,8 +337,8 @@ class Downloader:
 		
 		self._queueConnection = DatabaseThread(self.directory / self.database)
 		self._queueConnection.execute("CREATE TABLE IF NOT EXISTS queueTable (name TEXT UNIQUE, progress DECIMAL DEFAULT -1.0, modified INTEGER DEFAULT (UNIXEPOCH()));")
-		if logger:
-			self.LOG = logger
+		if logger is not None:
+			self.LOG = logger.getChild(type(self).__name__.split(".")[-1])
 		if reportHook:
 			self.reportHook = reportHook
 		if hooks:
@@ -411,7 +402,30 @@ class DownloaderReportHook:
 		self.name = name
 
 	def __call__(self, prog):
-		self.hooks.trigger(self.category+"Progress", {"progress" : prog, "name" : self.name})
+		"""
+		None	-	Service crashed
+		2		-	Never ran/skipped
+		3		-	Completed
+		0<->1	-	Running
+		<0		-	Not started
+		1.0		-	Postprocessing
+		"""
+		if prog == None:
+			self.hooks.trigger(self.category+"Failed", {"value" : prog, "name" : self.name})
+		elif prog == 2:
+			self.hooks.trigger(self.category+"Skipped", {"value" : prog, "name" : self.name})
+		elif prog == 3:
+			self.hooks.trigger(self.category+"Finished", {"value" : prog, "name" : self.name})
+		elif 0 <= prog < 1:
+			self.hooks.trigger(self.category+"Progress", {"value" : prog, "name" : self.name})
+		elif prog <0:
+			self.hooks.trigger(self.category+"Starting", {"value" : prog, "name" : self.name})
+		elif prog == 1.0:
+			self.hooks.trigger(self.category+"PostProcess", {"value" : prog, "name" : self.name})
+		else:
+			self.hooks.trigger(self.category+"Failed", {"value" : prog, "name" : self.name})
+			
+		
 
 class NCBI_URL(URL):
 	string = "ftp://ftp.ncbi.nlm.nih.gov/genomes/all/{idHead}/{id1_3}/{id4_6}/{id7_9}/{genome_id}_{assembly}/{genome_id}_{assembly}_genomic.fna.gz"
@@ -425,12 +439,10 @@ class DatabaseDownloader(Downloader):
 		("MetaCanSNPer-data", "https://github.com/XJ-04561/MetaCanSNPer-data/raw/master/database/{query}"), # MetaCanSNPer
 		("CanSNPer2-data", "https://github.com/FOI-Bioinformatics/CanSNPer2-data/raw/master/database/{query}") # Legacy CanSNPer
 	]
-	LOG = LOGGER.getChild("DatabaseDownloader")
 	postProcess = staticmethod(correctDatabase)
 
 class ReferenceDownloader(Downloader):
 	SOURCES = [
 		("NCBI", NCBI_URL)
 	]
-	LOG = LOGGER.getChild("ReferenceDownloader")
 	postProcess = staticmethod(gunzip)

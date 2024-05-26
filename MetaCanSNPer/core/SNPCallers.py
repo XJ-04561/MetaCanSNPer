@@ -1,8 +1,5 @@
 
 from MetaCanSNPer.Globals import *
-import MetaCanSNPer.core.LogKeeper as LogKeeper
-
-LOGGER = LogKeeper.createLogger(__name__)
 
 from MetaCanSNPer.core.Wrappers import SNPCaller
 
