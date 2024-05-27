@@ -22,6 +22,9 @@ HALF_SQUARE = ":"
 class Printer:
 
 	LOCK : Lock = Lock()
+	ANSI_MATCH = re.compile("\u001b.*?m")
+	def ANSI_REMOVE(self, string):
+		return self.ANSI_MATCH.sub("", string)
 
 	def __init__(self, out=sys.stdout):
 		self.out = out
@@ -29,7 +32,7 @@ class Printer:
 	def __call__(self, msg):
 		with self.LOCK:
 			print("\b"*self.last, end=msg, flush=True, file=self.out)
-			self.last = len(msg)
+			self.last = len(self.ANSI_REMOVE(msg))
 	def clear(self):
 		with self.LOCK:
 			print("\b"*self.last+" "*self.last, end="\b"*self.last, flush=True, file=self.out)
