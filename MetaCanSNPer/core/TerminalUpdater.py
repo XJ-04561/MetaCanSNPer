@@ -279,12 +279,11 @@ class Indicator(Logged):
 		with self.rowLock:
 			flushPrint.clear()
 			if None in self.threads.values():
-				flushPrint(self.rowTemplate.format(time=f"{red('Failed!')} {formatTimestamp(timer()-startTime)}", names=self.shortKeys, bars=tuple(self.rowGenerator)))
+				print(self.rowTemplate.format(time=f"{red('Failed!')} {formatTimestamp(timer()-startTime)}", names=self.shortKeys, bars=tuple(self.rowGenerator)), file=self.out)
 			elif self.finishedThreads.issuperset(self.threads):
-				flushPrint(f"{self.message} {green('Done!')} {formatTimestamp(timer()-startTime)}")
+				flushPrint(f"{self.message} {green('Done!')} {formatTimestamp(timer()-startTime)}\n\r", file=self.out)
 			else:
-				flushPrint(self.rowTemplate.format(time=f"{yellow('Interrupted!')} {formatTimestamp(timer()-startTime)}", names=self.shortKeys, bars=tuple(self.rowGenerator)))
-			flushPrint("\n\r")
+				print(self.rowTemplate.format(time=f"{yellow('Interrupted!')} {formatTimestamp(timer()-startTime)}", names=self.shortKeys, bars=tuple(self.rowGenerator)), file=self.out)
 	
 	def checkDone(self):
 		if all(v is None or v == 2 or v == 3 for v in self.threads.values()):
