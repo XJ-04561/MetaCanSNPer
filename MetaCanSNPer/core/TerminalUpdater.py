@@ -52,7 +52,7 @@ class Printer:
 		with self.LOCK:
 			if supportsColor():
 				back = "\r"+"\033[A"*self.last
-				print(back+" "*(self.last+1)*self.terminalWidth, end=back, flush=True, file=self.out)
+				print(back+"\n".join(itertools.repeat(" "*self.terminalWidth, (self.last+1))), end=back, flush=True, file=self.out)
 				self.last = 0
 			else:
 				print("\b"*self.last+" "*self.last, end="\b"*self.last, flush=True, file=self.out)
@@ -195,7 +195,7 @@ class Indicator(Logged):
 
 		self.n = 0
 
-		self.message = message
+		self.message = message.rstrip(":")
 		self.out = out
 
 		self.symbols		= symbols
@@ -303,7 +303,7 @@ class Indicator(Logged):
 					flushPrint((self.rowTemplate+"\n\r").format(time=f"{red('Failed!')} {formatTimestamp(timer()-startTime)}", names=self.shortKeys, bars=tuple(self.rowGenerator)))
 				elif self.finishedThreads.issuperset(self.threads):
 					flushPrint.clear()
-					flushPrint(f"{self.message} {green('Done!')} {formatTimestamp(timer()-startTime)}")
+					flushPrint(f"{self.message}: {green('Done!')} {formatTimestamp(timer()-startTime)}")
 					print("\n\r", flush=True, file=self.out)
 				else:
 					flushPrint((self.rowTemplate+"\n\r").format(time=f"{yellow('Interrupted!')} {formatTimestamp(timer()-startTime)}", names=self.shortKeys, bars=tuple(self.rowGenerator)))
