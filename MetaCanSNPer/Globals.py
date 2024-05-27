@@ -114,7 +114,7 @@ class NoneStr:
 	def __str__(self): return self
 
 def printCall(func, args, kwargs):
-	return f"{getattr(func, '__qualname__', getattr(func, '__name__', func))}({', '.join(itertools.chain(map(str, args), map(lambda keyval : str(keyval[0])+"="+str(keyval[1]), kwargs.items())))})"
+	return f"{getattr(func, '__qualname__', getattr(func, '__name__', func))}({', '.join(itertools.chain(map(str, args), map(lambda keyval : str(keyval[0])+'='+str(keyval[1]), kwargs.items())))})"
 
 random.seed()
 from tempfile import NamedTemporaryFile

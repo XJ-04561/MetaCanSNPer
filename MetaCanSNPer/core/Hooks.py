@@ -23,7 +23,6 @@ class Hook:
 	def __call__(self, eventInfo : dict):
 		self.target(eventInfo, *self.args, **self.kwargs)
 	
-	@cache
 	def __hash__(self):
 		return forceHash((self.target, self.args, self.kwargs))
 	
@@ -74,15 +73,22 @@ class Hooks(Logged):
 	
 	def __del__(self):
 		self.RUNNING = False
-	
+	@overload
+	def addHook(self, eventType : str, hook : Hook) -> Hook: ...
+	@overload
+	def addHook(self, eventType : str, target : Callable, args : tuple=(), kwargs : dict={}) -> Hook: ...
 	def addHook(self, eventType : str, target : Callable, args : tuple=(), kwargs : dict={}) -> Hook:
 		
-		args = args if hasattr(args, "__hash__") else tuple(args)
-		self.LOG.debug(f"Adding Hook to {self}. Hook has: {eventType=}, {target=}, {args=}, {kwargs=}")
+		if isinstance(target, Hook):
+			hook = target
+		else:
+			args = args if hasattr(args, "__hash__") else tuple(args)
+			self.LOG.debug(f"Adding Hook to {self}. Hook has: {eventType=}, {target=}, {args=}, {kwargs=}")
+			
+			hook = Hook(target, args, kwargs)
+		
 		if eventType not in self._hooks:
 			self._hooks[eventType] = set()
-		
-		hook = Hook(target, args, kwargs)
 		self._hooks[eventType].add(hook)
 		
 		return hook
@@ -90,7 +96,7 @@ class Hooks(Logged):
 	def removeHook(self, eventType : str, hook : Hook) -> bool:
 		"""Removes all occurances of the hook in the list of hooks associated with the eventType"""
 		# Essentially a while True: but limited to at least iterations as long as the hooks list.
-		if hook in self._hooks:
+		if hook in self._hooks.get(eventType, set()):
 			self._hooks[eventType].remove(hook)
 			return True
 		else:

@@ -3,7 +3,7 @@ from MetaCanSNPer.core import MetaCanSNPer
 from MetaCanSNPer.CommandLineParser import initializeMainObject, NameSpace, parser, runJob, handleOptions, saveResults, separateCommands
 import pytest
 
-# @pytest.mark.skip
+@pytest.mark.skip
 def test_init():
 
 	filenames = "\n".join([

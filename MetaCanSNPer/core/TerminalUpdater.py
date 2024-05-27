@@ -24,13 +24,10 @@ class Printer:
 		self.out = out
 		self.last = 0
 	def __call__(self, msg):
-		print("\b"*self.last, end="", file=self.out)
-		print(msg, end="", flush=True, file=self.out)
+		print("\b"*self.last, end=msg, flush=True, file=self.out)
 		self.last = len(msg)
 	def clear(self):
-		print("\b"*self.last, end="", file=self.out)
-		print(" "*self.last, end="", file=self.out)
-		print("\b"*self.last, end="", flush=True, file=self.out)
+		print("\b"*self.last+" "*self.last, end="\b"*self.last, flush=True, file=self.out)
 		self.last = 0
 
 class HitchableDict(dict):
