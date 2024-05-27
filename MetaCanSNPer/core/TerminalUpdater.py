@@ -304,7 +304,7 @@ class Indicator(Logged):
 				elif self.finishedThreads.issuperset(self.threads):
 					flushPrint.clear()
 					flushPrint(f"{self.message}: {green('Done!')} {formatTimestamp(timer()-startTime)}")
-					print("\n\r", flush=True, file=self.out)
+					print(flush=True, file=self.out)
 				else:
 					flushPrint((self.rowTemplate+"\n\r").format(time=f"{yellow('Interrupted!')} {formatTimestamp(timer()-startTime)}", names=self.shortKeys, bars=tuple(self.rowGenerator)))
 	
