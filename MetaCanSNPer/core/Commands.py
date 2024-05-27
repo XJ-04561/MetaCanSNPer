@@ -79,10 +79,12 @@ class Command(Logged):
 			pass
 	
 	def start(self):
+		self.LOG.info(f"Starting {self}")
 		if self.commands is not None:
 			self.commands.start()
 
 	def run(self):
+		self.LOG.info(f"Running {self}")
 		if self.commands is not None:
 			self.commands.run()
 
@@ -191,7 +193,7 @@ class DumpCommands(Commands):
 			raise e
 		
 	def run(self, stdin=None, stdout=None, stderr=None, **kwargs) -> Popen:
-		self.LOG.debug(f"Starting {self!r}")
+		self.LOG.info(f"Running {self}")
 		ex = shutil.which(self.command[0])
 		if ex is None:
 			self.LOG.exception(FileNotFoundError(2, "Could not find command/executable", f"{self.command[0]}"))
@@ -222,6 +224,7 @@ class PipeCommands(Commands):
 	_list : list[DumpCommands]
 
 	def run(self, **kwargs) -> CompletedProcess:
+		self.LOG.info(f"Running {self}")
 		if len(self._list) == 0: return []
 
 		processes : list[Popen] = []
@@ -275,6 +278,7 @@ class SequentialCommands(Commands):
 	thread : Thread
 
 	def start(self : "SequentialCommands") -> None:
+		self.LOG.info(f"Starting {self}")
 		try:
 			self.returncodes = []
 			def runInSequence(self : SequentialCommands):
@@ -306,6 +310,7 @@ class SequentialCommands(Commands):
 			raise e
 
 	def run(self) -> list[CompletedProcess]:
+		self.LOG.info(f"Running {self}")
 		self.processes = []
 		for pc in self._list:
 			returncode = pc.run()
@@ -360,10 +365,12 @@ class ParallelCommands(Commands):
 			raise e
 	
 	def start(self):
+		self.LOG.info(f"Starting {self}")
 		for sc in self._list.values():
 			sc.start()
 	
 	def run(self) -> list[CompletedProcess]:
+		self.LOG.info(f"Running {self}")
 		processes = []
 		
 		for sc in self._list.values():
