@@ -150,6 +150,43 @@ if True:
 	debugOptions.add_argument("--silent",	action="store_true",	help="Disables printing to terminal except for any error messages which might appear.")
 	debugOptions.add_argument("--dry-run",	action="store_true",	help="Don't run the processes of the mapper/aligner/snpCaller, just run a randomised (1 - 5 sec) `sleep` call.")
 
+class MissingDependency(Exception): pass
+
+def checkDependencies(args):
+
+	import shutil
+	requiredDeps = []
+	optionalDeps = ["datasets"]
+	missed = []
+	for dep in requiredDeps:
+		if not shutil.which(dep) and not shutil.which(dep+".exe"):
+			missed.append(dep)
+	if len(missed) == 1:
+		raise MissingDependency(f"Missing required dependency: {missed[0]}.")
+	elif missed:
+		nt = "\n\t"
+		raise MissingDependency(f"Missing required dependencies:\n{nt.join(missed)}.")
+	
+	missed = []
+	for dep in optionalDeps:
+		if not shutil.which(dep) and not shutil.which(dep+".exe"):
+			missed.append(dep)
+	if len(missed) == 1:
+		print(f"Missing optional dependency: {missed[0]}.")
+		while (string := input("You may still run without it, do you want to run anyway [Y/N]? ").strip().lower()) not in ["y", "n"]: pass
+		if string == "n":
+			exit(2)
+		else:
+			pass
+	elif missed:
+		nt = "\n\t"
+		print(f"Missing optional dependencies:\n{nt.join(missed)}.")
+		while (string := input("You may still run without them, do you want to run anyway [Y/N]? ").strip().lower()) not in ["y", "n"]: pass
+		if string == "n":
+			exit(2)
+		else:
+			pass
+
 def separateCommands(argv : list[str]) -> dict[str,list[str]]:
 	
 	import itertools
@@ -242,6 +279,8 @@ def main(argVector : list[str]=sys.argv) -> int:
 	
 	# mainParser = argparse.ArgumentParser(prog=__package__, description=package.__doc__)
 	# mainParser.add_argument("Mode", choices=["mainParser"], type=str.capitalize)
+
+	checkDependencies()
 
 	argsDict = separateCommands(argVector)
 

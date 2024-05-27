@@ -20,15 +20,20 @@ SQUARE = "="
 HALF_SQUARE = ":"
 
 class Printer:
+
+	LOCK : Lock = Lock()
+
 	def __init__(self, out=sys.stdout):
 		self.out = out
 		self.last = 0
 	def __call__(self, msg):
-		print("\b"*self.last, end=msg, flush=True, file=self.out)
-		self.last = len(msg)
+		with self.LOCK:
+			print("\b"*self.last, end=msg, flush=True, file=self.out)
+			self.last = len(msg)
 	def clear(self):
-		print("\b"*self.last+" "*self.last, end="\b"*self.last, flush=True, file=self.out)
-		self.last = 0
+		with self.LOCK:
+			print("\b"*self.last+" "*self.last, end="\b"*self.last, flush=True, file=self.out)
+			self.last = 0
 
 class HitchableDict(dict):
 
