@@ -73,6 +73,7 @@ class Logged:
 		cls.LOG = cls.LOG.getChild(cls.__name__)
 
 DEV_NULL = open(os.devnull, "w")
+DEV_NULL_BYTES = open(os.devnull, "wb")
 ISATTY = sys.stdout.isatty()
 
 ## Default .toml

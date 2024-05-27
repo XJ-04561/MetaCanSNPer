@@ -118,18 +118,10 @@ class ProcessWrapper(Logged):
 		self.createCommand()
 		self.command.start()
 	
-	def run(self) -> list[tuple[tuple[str,str],str]]:
-		"""Runs processes in this thread."""
-		self.createCommand()
-		self.command.run()
-	
-	def waitNext(self, timeout=None):
-		self.semaphore.acquire(timeout=timeout)
-
-	def wait(self, timeout=5):
+	def wait(self, timeout=None):
 		
 		if self.command is not None:
-			self.command.wait()
+			self.command.wait(timeout=timeout)
 
 
 	def finished(self):

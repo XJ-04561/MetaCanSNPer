@@ -4,7 +4,7 @@
 from subprocess import Popen, PIPE, CompletedProcess
 from threading import Thread, Condition
 
-from MetaCanSNPer.core.Hooks import Hooks
+from MetaCanSNPer.core.Hooks import Hooks, GlobalHooks
 from MetaCanSNPer.Globals import *
 
 def bPrint(*strings, sep=b" ", end=b"\n", file : BinaryIO=None, encoding : str="utf-8"):
@@ -25,7 +25,7 @@ class Command(Logged):
 	runningCondition : Condition
 	commands : "ParallelCommands"
 
-	def __init__(self, args : str|list, category=None, hooks : Hooks=None, logDir : Path=Path("."), names : Iterable=None):
+	def __init__(self, args : str|list, category=None, hooks : Hooks=GlobalHooks, logDir : Path=Path("."), names : Iterable=None):
 		try:
 			self.raw = args if type(args) is str else " & ".join(args)
 			self.category = category
@@ -37,7 +37,7 @@ class Command(Logged):
 			if self.raw.strip() != "":
 				self._hook = self.hooks.addHook(f"{self.category}Finished", target=self.parallelFinished)
 				
-				self.commands = ParallelCommands(self.raw, category, hooks, logDir=logDir, names=names)
+				self.commands = ParallelCommands(self.raw, category, hooks=hooks, logDir=logDir, names=names)
 			else:
 				self.commands = None
 			
@@ -101,7 +101,7 @@ class Commands(Logged):
 	logFile : TextIO
 	raw : str
 
-	def __init__(self, args : list[str], category : str, hooks : Hooks, logDir : Path=Path(".")):
+	def __init__(self, args : list[str], category : str, hooks : Hooks=GlobalHooks, logDir : Path=Path(".")):
 		try:
 			self.raw = "".join(args).strip()
 			self.category = category
@@ -157,7 +157,7 @@ class DumpCommands(Commands):
 	def nextType(args, *overFlowArgs, **kwargs) -> list[str]:
 		return list(filter(lambda s : whitePattern.fullmatch(s) is None, args))
 
-	def __init__(self, args, category : str, hooks : Hooks, logDir : Path=Path(".")):
+	def __init__(self, args, category : str, hooks : Hooks=GlobalHooks, logDir : Path=Path(".")):
 		try:
 			super().__init__(args, category, hooks, logDir=logDir)
 		
@@ -172,13 +172,13 @@ class DumpCommands(Commands):
 				self.logFile = open(logFile, "wb")
 			except:
 				self.LOG.warning(f"Failed to create {logFile=}")
-				self.logFile = open(os.devnull, "wb")
+				self.logFile = DEV_NULL_BYTES
 			
 			self.outFile = None
 			self.outFileName = None
 
 			if len(self._list) == 2:
-				if len(self._list[1]) != 1:
+				if len(self._list[1]) > 1:
 					self.LOG.exception(ValueError(f"Output can not be dumped to multiple filenames. Filenames given: {self._list[1]}"))
 					raise ValueError(f"Output can not be dumped to multiple filenames. Filenames given: {self._list[1]}")
 				
@@ -202,7 +202,7 @@ class DumpCommands(Commands):
 			raise FileNotFoundError(2, "Could not find command/executable", f"{self.command[0]}")
 		else:
 			self.command[0] = ex
-		p : Popen = Popen(self.command, stdin=stdin, stdout=self.outFile or stdout or open(os.devnull, "wb"), stderr=stderr or self.logFile, **kwargs)
+		p : Popen = Popen(self.command, stdin=stdin, stdout=self.outFile or stdout or DEV_NULL_BYTES, stderr=stderr or self.logFile, **kwargs)
 		self.LOG.debug(f"Started {self!r}")
 		return p
 
@@ -331,8 +331,9 @@ class ParallelCommands(Commands):
 	pattern : re.Pattern = parallelPattern
 	nextType = SequentialCommands
 	_list : dict[Any,SequentialCommands]
+	_thread : Thread
 
-	def __init__(self, args : str, category : str, hooks : Hooks, logDir : Path=Path("."), names : Iterable=None):
+	def __init__(self, args : str, category : str, hooks : Hooks=GlobalHooks, logDir : Path=Path("."), names : Iterable=None):
 		
 		try:
 			self.category = category
@@ -369,27 +370,24 @@ class ParallelCommands(Commands):
 			e.add_note(f"{type(self).__name__} failed to initialize.")
 			self.LOG.exception(e)
 			raise e
-	
+
 	def start(self):
 		self.LOG.info(f"Starting {self}")
+		self._thread = Thread(target=self.run)
+		self._thread.start()
+		self.LOG.info(f"Started {self}")
+		
+	
+	def run(self):
+		self.LOG.info(f"Running {self}")
 		for sc in self._list.values():
 			sc.start()
-	
-	def run(self) -> list[CompletedProcess]:
-		self.LOG.info(f"Running {self}")
-		processes = []
-		
 		for sc in self._list.values():
-			p = sc.run()
-			processes.extend(p)
-			if processes[-1].returncode != 0:
-				return processes
-		return processes
+			sc.wait()
 	
 	def wait(self, timeout=None):
 
 		nt = "\n\t"
-		self.LOG.info(f"Waiting for:\n\t{nt.join(map(format, self._list))}")
-		for sc in self._list.values():
-			sc.wait(timeout=timeout)
-			self.LOG.info(f"Finished waiting for {sc}")
+		self.LOG.info(f"Waiting for ({id(self):X}):\n\t{nt.join(map(format, self._list))}")
+		self._thread.join()
+		self.LOG.info(f"Done waiting for ({id(self):X})")

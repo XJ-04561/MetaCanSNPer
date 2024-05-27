@@ -264,29 +264,27 @@ class Indicator(Logged):
 		
 		startTime = timer()
 		self.running = True
-		
 		flushPrint = Printer(self.out)
-		while self.running:
-			with self.rowLock:
-				flushPrint(self.rowTemplate.format(time=formatTimestamp(timer()-startTime), names=self.shortKeys, bars=tuple(self.rowGenerator)))
-			
-			if self.checkDone(): break
-
-			sleep(0.1)
-			try:
-				self.condition.acquire(timeout=0.40)
-			except:
-				pass
 		
-		with self.rowLock:
-			if None in self.threads.values():
-				flushPrint((self.rowTemplate+"\n\r").format(time=f"{red('Failed!')} {formatTimestamp(timer()-startTime)}", names=self.shortKeys, bars=tuple(self.rowGenerator)))
-			elif self.finishedThreads.issuperset(self.threads):
-				flushPrint.clear()
-				flushPrint(f"{self.message} {green('Done!')} {formatTimestamp(timer()-startTime)}")
-				print("\n\r", flush=True, file=self.out)
-			else:
-				flushPrint((self.rowTemplate+"\n\r").format(time=f"{yellow('Interrupted!')} {formatTimestamp(timer()-startTime)}", names=self.shortKeys, bars=tuple(self.rowGenerator)))
+		with self.condition:
+			while self.running:
+				with self.rowLock:
+					flushPrint(self.rowTemplate.format(time=formatTimestamp(timer()-startTime), names=self.shortKeys, bars=tuple(self.rowGenerator)))
+				
+				if self.checkDone(): break
+
+				sleep(0.1)
+				self.condition.wait(timeout=0.40)
+			
+			with self.rowLock:
+				if None in self.threads.values():
+					flushPrint((self.rowTemplate+"\n\r").format(time=f"{red('Failed!')} {formatTimestamp(timer()-startTime)}", names=self.shortKeys, bars=tuple(self.rowGenerator)))
+				elif self.finishedThreads.issuperset(self.threads):
+					flushPrint.clear()
+					flushPrint(f"{self.message} {green('Done!')} {formatTimestamp(timer()-startTime)}")
+					print("\n\r", flush=True, file=self.out)
+				else:
+					flushPrint((self.rowTemplate+"\n\r").format(time=f"{yellow('Interrupted!')} {formatTimestamp(timer()-startTime)}", names=self.shortKeys, bars=tuple(self.rowGenerator)))
 	
 	def checkDone(self):
 		if all(v is None or v == 2 or v == 3 for v in self.threads.values()):
