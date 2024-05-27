@@ -42,8 +42,8 @@ class Printer:
 	def __call__(self, msg):
 		with self.LOCK:
 			if supportsColor():
-				print("\r"+"\033[A"*self.last, end=msg, flush=True, file=self.out)
-				self.last = sum(map(*this == "\n", msg))
+				print("\r"+"\033[A"*(self.last // self.terminalWidth), end=msg, flush=True, file=self.out)
+				self.last = len(self.ANSI_REMOVE(msg))
 			else:
 				print("\b"*self.last, end=msg, flush=True, file=self.out)
 				self.last = len(self.ANSI_REMOVE(msg))
@@ -51,8 +51,8 @@ class Printer:
 	def clear(self):
 		with self.LOCK:
 			if supportsColor():
-				back = "\r"+"\033[A"*self.last
-				print(back+"\n".join(itertools.repeat(" "*self.terminalWidth, (self.last+1))), end=back, flush=True, file=self.out)
+				back = "\r"+"\033[A"*(self.last // self.terminalWidth)
+				print(back+" "*self.last, end=back, flush=True, file=self.out)
 				self.last = 0
 			else:
 				print("\b"*self.last+" "*self.last, end="\b"*self.last, flush=True, file=self.out)
@@ -243,17 +243,17 @@ class Indicator(Logged):
 	def createRowTemplate(self, width : int, N : int) -> tuple[str, str, str]:
 		"""createRowTemplate(self, width : int) -> backspaces, whitespaces, rowTemplate
 		"""
-		firstRow = f"{self.message}: {{time:<{width-3-len(self.message)}}}"
-		spacerRow = " " * (width-1)
+		firstRow = f"{self.message}: {{time:<{width-2-len(self.message)}}}"
+		spacerRow = " " * width
 		
 		maxCols = (width+self.sepLength-2) // (self.length+self.sepLength)
 		
 		namesList = []
 		for cols in itertools.batched(map(lambda i: f"{{names[{i}]:^{self.length}}}", range(N)), maxCols):
-			namesList.append( " "+self.sep.join(cols).ljust(width-2))
+			namesList.append( " "+self.sep.join(cols).ljust(width-1))
 		barsList = []
 		for cols in itertools.batched(map(lambda i: f"{self.borders[0]}{{bars[{i}]}}{self.borders[1]}", range(N)), maxCols):
-			barsList.append( " "+self.sep.join(cols).ljust(width-2))
+			barsList.append( " "+self.sep.join(cols).ljust(width-1))
 		
 		rowTemplate = [firstRow, spacerRow]
 		for namesRow, barsRow in zip(namesList, barsList):
@@ -261,10 +261,7 @@ class Indicator(Logged):
 			rowTemplate.append(barsRow)
 			rowTemplate.append(spacerRow)
 		
-		if supportsColor():
-			return "\n".join(rowTemplate)
-		else:
-			return " ".join(rowTemplate)
+		return "".join(rowTemplate)
 
 	@property
 	def rowTemplate(self) -> str:
@@ -304,7 +301,7 @@ class Indicator(Logged):
 				elif self.finishedThreads.issuperset(self.threads):
 					flushPrint.clear()
 					flushPrint(f"{self.message}: {green('Done!')} {formatTimestamp(timer()-startTime)}")
-					print(flush=True, file=self.out)
+					print("\n\r", flush=True, file=self.out)
 				else:
 					flushPrint((self.rowTemplate+"\n\r").format(time=f"{yellow('Interrupted!')} {formatTimestamp(timer()-startTime)}", names=self.shortKeys, bars=tuple(self.rowGenerator)))
 	
