@@ -373,7 +373,7 @@ class ParallelCommands(Commands):
 
 	def start(self):
 		self.LOG.info(f"Starting {self}")
-		self._thread = Thread(target=self.run)
+		self._thread = Thread(target=self.run, daemon=True)
 		self._thread.start()
 		self.LOG.info(f"Started {self}")
 		

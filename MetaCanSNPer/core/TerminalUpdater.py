@@ -42,7 +42,7 @@ class Printer:
 	def __call__(self, msg):
 		with self.LOCK:
 			if supportsColor():
-				print("\r"+"\033[A"*(self.last // self.terminalWidth), end=msg, flush=True, file=self.out)
+				print("\r"+"\033[A"*((self.last-1) // self.terminalWidth), end=msg, flush=True, file=self.out)
 				self.last = len(self.ANSI_REMOVE(msg))
 			else:
 				print("\b"*self.last, end=msg, flush=True, file=self.out)
@@ -51,7 +51,7 @@ class Printer:
 	def clear(self):
 		with self.LOCK:
 			if supportsColor():
-				back = "\r"+"\033[A"*(self.last // self.terminalWidth)
+				back = "\r"+"\033[A"*((self.last-1) // self.terminalWidth)
 				print(back+" "*self.last, end=back, flush=True, file=self.out)
 				self.last = 0
 			else:
