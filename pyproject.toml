@@ -35,6 +35,7 @@ classifiers = [
 dependencies = [
     "appdirs",
     "gunzip",
+    "ansicolors",
     "PseudoPathy @ git+https://github.com/XJ-04561/PseudoPathy",
     "This @ git+https://github.com/XJ-04561/This",
     "VariantCallFixer @ git+https://github.com/XJ-04561/VariantCallFixer",
