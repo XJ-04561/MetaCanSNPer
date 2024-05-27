@@ -90,7 +90,7 @@ class ProcessWrapper(Logged):
 		""""""
 		names, commands, outputs = self.formatCommands()
 		nt = "\n\t"
-		self.LOG.debug(f"Created commands for:\n{nt.join([str(name)+' -> '+str(output)+' = '+str(command) for name, output, command in zip(names, commands, outputs)])}")
+		self.LOG.debug(f"Created commands for:\n{nt.join([str(name)+' -> '+str(output)+' = '+str(command) for name, command, output in zip(names, commands, outputs)])}")
 		for i in range(len(names))[::-1]:
 			name, outFile = outputs[i]
 			if name not in self.history:
