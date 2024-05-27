@@ -250,12 +250,10 @@ class Indicator(Logged):
 		
 		namesList = []
 		for cols in itertools.batched(map(lambda i: f"{{names[{i}]:^{self.length}}}", range(N)), maxCols):
-			string = " "+self.sep.join(cols)
-			namesList.append(string + " "*(width-len(string)))
+			namesList.append(" "+self.sep.join(cols) + " "*(width-1-len(cols)*(self.length+self.sepLength)-self.sepLength))
 		barsList = []
 		for cols in itertools.batched(map(lambda i: f"{self.borders[0]}{{bars[{i}]}}{self.borders[1]}", range(N)), maxCols):
-			string = " "+self.sep.join(cols)
-			namesList.append(string + " "*(width-len(string)))
+			namesList.append(" "+self.sep.join(cols) + " "*(width-1-len(cols)*(self.length+self.sepLength)-self.sepLength))
 		
 		rowTemplate = [firstRow, spacerRow]
 		for namesRow, barsRow in zip(namesList, barsList):
