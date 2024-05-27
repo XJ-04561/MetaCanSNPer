@@ -266,10 +266,13 @@ class Indicator(Logged):
 		self.running = True
 		
 		flushPrint = Printer(self.out)
-		
-		while self.running:
+		retries = 3
+		while self.running or (retries := retries - 1) > 0:
 			with self.rowLock:
 				flushPrint(self.rowTemplate.format(time=formatTimestamp(timer()-startTime), names=self.shortKeys, bars=tuple(self.rowGenerator)))
+			
+			if self.checkDone(): break
+
 			sleep(0.1)
 			self.condition.acquire(timeout=0.40)
 		
@@ -286,6 +289,9 @@ class Indicator(Logged):
 	def checkDone(self):
 		if all(v is None or v == 2 or v == 3 for v in self.threads.values()):
 			self.running = False
+			return True
+		else:
+			return False
 
 	def kill(self):
 		self.running = False
@@ -482,8 +488,8 @@ class TerminalUpdater(Logged):
 
 	def skippedCallback(self, eventInfo : dict[str,Any]):
 		if eventInfo["name"] in self.threads:
-			self.threads[eventInfo["name"]] = 2
 			self.printer.finishedThreads.add(eventInfo["name"])
+			self.threads[eventInfo["name"]] = 2
 
 	def startingCallback(self, eventInfo : dict[str,Any]):
 		if eventInfo["name"] in self.threads:
@@ -499,8 +505,8 @@ class TerminalUpdater(Logged):
 
 	def finishedCallback(self, eventInfo : dict[str,Any]):
 		if eventInfo["name"] in self.threads:
-			self.threads[eventInfo["name"]] = 3
 			self.printer.finishedThreads.add(eventInfo["name"])
+			self.threads[eventInfo["name"]] = 3
 
 	def failedCallback(self, eventInfo : dict[str,Any]):
 		if eventInfo["name"] in self.threads:
