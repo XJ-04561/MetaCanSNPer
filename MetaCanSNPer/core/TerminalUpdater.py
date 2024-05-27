@@ -274,6 +274,7 @@ class Indicator(Logged):
 			self.condition.acquire(timeout=0.40)
 		
 		with self.rowLock:
+			flushPrint.clear()
 			if None in self.threads.values():
 				flushPrint(self.rowTemplate.format(time=f"{red('Failed!')} {formatTimestamp(timer()-startTime)}", names=self.shortKeys, bars=tuple(self.rowGenerator)))
 			elif self.finishedThreads.issuperset(self.threads):
