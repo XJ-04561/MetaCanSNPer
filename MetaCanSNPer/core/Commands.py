@@ -323,9 +323,9 @@ class SequentialCommands(Commands):
 		self.hooks.trigger(f"SequentialCommands{self.category}Finished", {"instance" : self})
 		return self.processes
 	
-	def wait(self):
+	def wait(self, timeout=None):
 		
-		self.thread.join()
+		self.thread.join(timeout=timeout)
 
 class ParallelCommands(Commands):
 	pattern : re.Pattern = parallelPattern
