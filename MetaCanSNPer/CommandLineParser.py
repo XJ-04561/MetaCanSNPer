@@ -309,7 +309,7 @@ def main(argVector : list[str]=sys.argv) -> int:
 		print("Exception occurred: \n", file=sys.stderr)
 
 		if args.debug:
-			pattern = re.compile(r"(\[[\w.]+\] \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3} - ERROR: .*?)(?:\[[\w.]+\] \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3} - \w+?:|\$)", flags=re.DOTALL+re.MULTILINE)
+			pattern = re.compile(r"(\[[\w.]+\] \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3} - ERROR: .*?)(?=Traceback|\[[\w.]+\] \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3} - \w+?:|\$)", flags=re.DOTALL+re.MULTILINE)
 			for i, err in enumerate(pattern.finditer(open(LOGGING_FILEPATH, "r").read())):
 				print(f"Exception [{i}]\n{err.group(1)}", file=sys.stderr)
 		else:
