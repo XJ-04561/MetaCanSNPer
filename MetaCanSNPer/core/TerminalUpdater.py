@@ -298,7 +298,7 @@ class Indicator(Logged):
 			with self.rowLock:
 				if None in self.threads.values():
 					flushPrint((self.rowTemplate+"\n\r").format(time=f"{red('Failed!')} {formatTimestamp(timer()-startTime)}", names=self.shortKeys, bars=tuple(self.rowGenerator)))
-				elif self.finishedThreads.issuperset(self.threads):
+				elif self.finishedThreads.issuperset(self.threads) or all(value > 1 for value in self.threads.values()):
 					flushPrint.clear()
 					flushPrint(f"{self.message} {green('Done!')} {formatTimestamp(timer()-startTime)}")
 					print("\n\r", flush=True, file=self.out)
