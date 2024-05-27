@@ -1,6 +1,6 @@
 
 import os, shutil, re
-from typing import Any, Iterable, Callable
+from typing import Any, Iterable, Callable, TypeVar
 from threading import Semaphore, ThreadError
 
 import MetaCanSNPer.core.ErrorFixes as ErrorFixes
@@ -11,6 +11,7 @@ from MetaCanSNPer.core.Commands import Command
 from MetaCanSNPer.Globals import *
 import MetaCanSNPer.Globals as Globals
 
+_T = TypeVar("_T")
 illegalPattern = re.compile(r"[^\w_ \-\.]")
 
 class MissingDependancy(Exception): pass
@@ -29,7 +30,7 @@ class ProcessWrapper(Logged):
 	Lib : DirectoryLibrary
 	database : MetaCanSNPerDatabase
 	hooks : Hooks
-	softwareName : str
+	softwareName : str = None
 	history : dict[int, list[int]] # History
 	ignoredErrors : set
 	category : str
@@ -42,9 +43,9 @@ class ProcessWrapper(Logged):
 	@ClassProperty
 	def subclasses(self):
 		if isinstance(self, type):
-			return {subClass.__name__:subClass for subClass in self.__subclasses__()}
+			return {subClass.__name__.lower():subClass for subClass in self.__subclasses__()} | {subClass.softwareName.lower():subClass for subClass in self.__subclasses__() if hasattr(subClass, "softwareName")}
 		else:
-			return {subClass.__name__:subClass for subClass in type(self).__subclasses__()}
+			return {subClass.__name__.lower():subClass for subClass in type(self).__subclasses__()} | {subClass.softwareName.lower():subClass for subClass in type(self).__subclasses__() if hasattr(subClass, "softwareName")}
 
 	_hooksList : dict
 
@@ -73,8 +74,14 @@ class ProcessWrapper(Logged):
 			"options" : " ".join(self.flags),
 			"outFormat" : self.outFormat
 		}
-		
-		
+	
+	@classmethod
+	def get(cls : _T, name : str):
+		selectedClass : _T = cls.subclasses.get(name.lower())
+		if not selectedClass:
+			nt = "\n\t"
+			raise MissingDependency(f"Missing dependency: {name!r}\nIf this program is not available to you, consider using one of the following instead:\n{nt.join(map(*this.softwareName, filter(*this.softwareName, cls.__subclasses__())))}")
+		return selectedClass
 
 	def createCommand(self):
 		""""""

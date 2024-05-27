@@ -123,6 +123,8 @@ _NULL_KEY = object()
 def formatTimestamp(seconds):
 	return f"{seconds//3600:0>2.0f}:{(seconds//60)%60:0>2.0f}:{seconds%60:0>6.3f}"
 
+class MissingDependency(Exception): pass
+
 class UninitializedError(AttributeError):
 	def __init__(self, obj=None, name=None, **kwargs):
 		if obj is not None:

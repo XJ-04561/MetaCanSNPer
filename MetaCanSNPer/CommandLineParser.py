@@ -150,8 +150,6 @@ if True:
 	debugOptions.add_argument("--silent",	action="store_true",	help="Disables printing to terminal except for any error messages which might appear.")
 	debugOptions.add_argument("--dry-run",	action="store_true",	help="Don't run the processes of the mapper/aligner/snpCaller, just run a randomised (1 - 5 sec) `sleep` call.")
 
-class MissingDependency(Exception): pass
-
 def checkDependencies():
 
 	import shutil
