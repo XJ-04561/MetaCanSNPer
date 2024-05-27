@@ -24,20 +24,39 @@ class Printer:
 
 	LOCK : Lock = Lock()
 	ANSI_MATCH = re.compile("\u001b.*?m|\x1b.*?m")
+
+	@property
+	def terminalWidth(self):
+		if ISATTY:
+			return os.get_terminal_size()[0]
+		else:
+			return 80
+
 	def ANSI_REMOVE(self, string):
 		return self.ANSI_MATCH.sub("", string)
 
 	def __init__(self, out=sys.stdout):
 		self.out = out
 		self.last = 0
+	
 	def __call__(self, msg):
 		with self.LOCK:
-			print("\b"*self.last, end=msg, flush=True, file=self.out)
-			self.last = len(self.ANSI_REMOVE(msg))
+			if supportsColor():
+				print("\r"+"\033[A"*(self.last // self.terminalWidth), end=msg, flush=True, file=self.out)
+				self.last = len(self.ANSI_REMOVE(msg))
+			else:
+				print("\b"*self.last, end=msg, flush=True, file=self.out)
+				self.last = len(self.ANSI_REMOVE(msg))
+	
 	def clear(self):
 		with self.LOCK:
-			print("\b"*self.last+" "*self.last, end="\b"*self.last, flush=True, file=self.out)
-			self.last = 0
+			if supportsColor():
+				back = "\r"+"\033[A"*(self.last // self.terminalWidth)
+				print(back+" "*self.last, end=back, flush=True, file=self.out)
+				self.last = 0
+			else:
+				print("\b"*self.last+" "*self.last, end="\b"*self.last, flush=True, file=self.out)
+				self.last = 0
 
 class HitchableDict(dict):
 
@@ -265,7 +284,7 @@ class Indicator(Logged):
 		startTime = timer()
 		self.running = True
 		flushPrint = Printer(self.out)
-		
+
 		with self.condition:
 			while self.running:
 				with self.rowLock:

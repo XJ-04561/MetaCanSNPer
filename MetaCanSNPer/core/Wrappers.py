@@ -123,7 +123,6 @@ class ProcessWrapper(Logged):
 		if self.command is not None:
 			self.command.wait(timeout=timeout)
 
-
 	def finished(self):
 		if self.command is None:
 			raise ThreadError("{classType}.command is not initialized so it cannot be status checked with {classType}.finished()".format(classType=type(self).__name__))
