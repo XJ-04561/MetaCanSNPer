@@ -266,8 +266,7 @@ class Indicator(Logged):
 		self.running = True
 		
 		flushPrint = Printer(self.out)
-		retries = 3
-		while self.running or (retries := retries - 1) > 0:
+		while self.running:
 			with self.rowLock:
 				flushPrint(self.rowTemplate.format(time=formatTimestamp(timer()-startTime), names=self.shortKeys, bars=tuple(self.rowGenerator)))
 			
