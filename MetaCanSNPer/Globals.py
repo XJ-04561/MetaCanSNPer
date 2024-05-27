@@ -41,6 +41,17 @@ from tempfile import NamedTemporaryFile
 from threading import Lock
 
 _NOT_SET = object()
+PYTHON_VERSION = tuple(sys.version_info[:3])
+
+if PYTHON_VERSION < (3, 12):
+	class batched:
+		def __init__(self, iterable, n):
+			self.iterator = iter(iterable) if hasattr(iterable, "__iter__") else iterable
+			self.n = n
+		
+		def __next__(self):
+			return tuple(item for i, item in zip(range(self.n), self.iterator))
+	itertools.batched = batched
 
 LOG_DIR = user_log_dir(SOFTWARE_NAME)
 pMakeDirs(LOG_DIR)
