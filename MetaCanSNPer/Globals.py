@@ -146,7 +146,7 @@ class InitCheckDescriptor:
 	def __set__(self, instance, value):
 		instance.__dict__[object.__getattribute__(self, "names")[id(type(instance))]] = value
 
-	def __get__(self, instance, owner=None):
+	def __get__(self, instance : object, owner=None):
 		return instance.__dict__.get(object.__getattribute__(self, "names").get(id(owner), id(_NULL_KEY)), self)
 
 	def __delete__(self, instance):

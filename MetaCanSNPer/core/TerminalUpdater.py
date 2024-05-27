@@ -258,8 +258,8 @@ class Indicator(Logged):
 		while self.running:
 			with self.rowLock:
 				flushPrint(self.rowTemplate.format(time=formatTimestamp(timer()-startTime), names=self.shortKeys, bars=tuple(self.rowGenerator)))
-			
-			self.condition.acquire(timeout=0.25)
+			sleep(0.1)
+			self.condition.acquire(timeout=0.40)
 		
 		with self.rowLock:
 			if None in self.threads.values():

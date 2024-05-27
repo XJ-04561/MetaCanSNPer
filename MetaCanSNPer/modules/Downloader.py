@@ -83,7 +83,7 @@ class DatabaseThread(Logged):
 
 	def mainLoop(self):
 		try:
-			self._connection = sqlite3.connect(self.filename, autocommit=True, factory=self._factory)
+			self._connection = sqlite3.connect(self.filename, factory=self._factory)
 			while self.running:
 				try:
 					string, params, lock, results = self.queue.get(timeout=15)
