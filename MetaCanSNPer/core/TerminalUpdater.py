@@ -510,6 +510,7 @@ class TerminalUpdater(Logged):
 	def failedCallback(self, eventInfo : dict[str,Any]):
 		if eventInfo["name"] in self.threads:
 			self.threads[eventInfo["name"]] = None
+			self.printer.finishedThreads.add(eventInfo["name"])
 	
 	def setPrinter(self, printer : Indicator=Spinner, *args, **kwargs):
 		self.printer = printer(self.threads, *args, **({"out":self.out, "message":self.message} | kwargs))

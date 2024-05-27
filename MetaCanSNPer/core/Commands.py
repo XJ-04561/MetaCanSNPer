@@ -2,7 +2,7 @@
 
 
 from subprocess import Popen, PIPE, CompletedProcess
-from threading import Thread
+from threading import Thread, Condition
 
 from MetaCanSNPer.core.Hooks import Hooks
 from MetaCanSNPer.Globals import *
@@ -22,7 +22,7 @@ illegalPattern = re.compile(r"[^\w_ \-\.]")
 class Command(Logged):
 	"""Triggers the event `f"{self.category}Finished"` on each finished parallel command"""
 
-
+	runningCondition : Condition
 	commands : "ParallelCommands"
 
 	def __init__(self, args : str|list, category=None, hooks : Hooks=None, logDir : Path=Path("."), names : Iterable=None):
@@ -33,20 +33,9 @@ class Command(Logged):
 			self.names = names
 			self.returncodes = {}
 			self.exceptions = {}
+			self.runningCondition = Condition()
 			if self.raw.strip() != "":
-				def parallelFinished(eventInfo, self : Command):
-					try:
-						for name in self.commands:
-							if eventInfo["object"] is self.commands[name]:
-								self.returncodes[name] = None if len(eventInfo["object"].returncodes) == 0 else eventInfo["object"].returncodes[-1]
-								self.hooks.trigger(f"{self.category}Finished", {"name" : name, "Command" : self})
-								return
-					except Exception as e:
-						e.add_note("'parallelFinished' event exception.")
-						self.LOG.exception(e)
-						return
-
-				self._hook = self.hooks.addHook(f"SequentialCommands{self.category}Finished", target=parallelFinished, args=[self])
+				self._hook = self.hooks.addHook(f"{self.category}Finished", target=self.parallelFinished)
 				
 				self.commands = ParallelCommands(self.raw, category, hooks, logDir=logDir, names=names)
 			else:
@@ -77,16 +66,28 @@ class Command(Logged):
 			self.hooks.removeHook(f"SequentialCommands{self.category}Finished", self._hook)
 		except:
 			pass
-	
+
+	def parallelFinished(self, eventInfo):
+		for name in self.commands:
+			if eventInfo["instance"] is self.commands[name]:
+				self.returncodes[name] = eventInfo["value"]
+				self.hooks.trigger(f"{self.category}Finished", {"name" : name, "instance" : self, "value" : 3})
+				break
+
 	def start(self):
 		self.LOG.info(f"Starting {self}")
+		self.runningCondition.acquire(False)
 		if self.commands is not None:
 			self.commands.start()
 
 	def run(self):
 		self.LOG.info(f"Running {self}")
+		self.runningCondition.acquire(False)
 		if self.commands is not None:
 			self.commands.run()
+	
+	def wait(self, timeout=None):
+		self.commands.wait(timeout=timeout)
 
 class Commands(Logged):
 	"""Only meant to be inherited from"""
@@ -292,7 +293,7 @@ class SequentialCommands(Commands):
 							break
 						elif returncode == 0 and self.separators[i] == "||":
 							break
-					self.hooks.trigger(f"SequentialCommands{self.category}Finished", {"object" : self})
+					self.hooks.trigger(f"SequentialCommands{self.category}Finished", {"name" : None, "value" : self.returncodes[-1] if self.returncodes else None, "instance" : self})
 				except Exception as e:
 					if type(e) is FileNotFoundError:
 						self.hooks.trigger(f"ReportError", {"exception" : e})
@@ -301,7 +302,7 @@ class SequentialCommands(Commands):
 						self.LOG.exception(e)
 					except:
 						self.LOG.exception(e)
-					self.hooks.trigger(f"SequentialCommands{self.category}Finished", {"object" : self})
+					self.hooks.trigger(f"SequentialCommands{self.category}Finished", {"name" : None, "value" : self.returncodes[-1] if self.returncodes else None, "instance" : self})
 			self.thread = Thread(target=runInSequence, args=[self], daemon=True)
 			self.thread.start()
 		except Exception as e:
@@ -316,10 +317,14 @@ class SequentialCommands(Commands):
 			returncode = pc.run()
 			self.processes.append(returncode)
 			if returncode != 0:
-				self.hooks.trigger(f"SequentialCommands{self.category}Finished", {"object" : self})
+				self.hooks.trigger(f"SequentialCommands{self.category}Finished", {"instance" : self})
 				return self.processes
-		self.hooks.trigger(f"SequentialCommands{self.category}Finished", {"object" : self})
+		self.hooks.trigger(f"SequentialCommands{self.category}Finished", {"instance" : self})
 		return self.processes
+	
+	def wait(self):
+		
+		self.thread.join()
 
 class ParallelCommands(Commands):
 	pattern : re.Pattern = parallelPattern
@@ -379,3 +384,11 @@ class ParallelCommands(Commands):
 			if processes[-1].returncode != 0:
 				return processes
 		return processes
+	
+	def wait(self, timeout=None):
+
+		nt = "\n\t"
+		self.LOG.info(f"Waiting for:\n\t{nt.join(map(format, self._list))}")
+		for sc in self._list.values():
+			sc.wait(timeout=timeout)
+			self.LOG.info(f"Finished waiting for {sc}")

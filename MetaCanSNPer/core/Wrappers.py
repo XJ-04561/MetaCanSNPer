@@ -1,7 +1,7 @@
 
 import os, shutil, re
 from typing import Any, Iterable, Callable, TypeVar
-from threading import Semaphore, ThreadError
+from threading import Semaphore, ThreadError, Thread
 
 import MetaCanSNPer.core.ErrorFixes as ErrorFixes
 from MetaCanSNPer.core.DirectoryLibrary import DirectoryLibrary
@@ -40,6 +40,8 @@ class ProcessWrapper(Logged):
 	solutions : ErrorFixes.SolutionContainer
 	skip : set
 	command : Command
+	
+	_runningThread : Thread
 
 	@ClassProperty
 	def subclasses(self) -> dict[str,type]:
@@ -122,13 +124,10 @@ class ProcessWrapper(Logged):
 		self.semaphore.acquire(timeout=timeout)
 
 	def wait(self, timeout=5):
-		finished = 0
-		while not self.finished():
-			self.waitNext(timeout=timeout)
-			if finished < (finished := len(self.command.returncodes)):
-				self.LOG.info(f"Finished running {self.softwareName} {finished}/{len(self.command)}.")
-		if any(r is None for r in self.command.returncodes.values()):
-			raise ThreadError(f"{self.softwareName!r} crashed/failed to start. Check logs for more details.")
+		
+		if self.command is not None:
+			self.command.wait()
+
 
 	def finished(self):
 		if self.command is None:
@@ -213,39 +212,38 @@ class ProcessWrapper(Logged):
 	def updateOutput(self, eventInfo, outputs: dict[str, str]):
 		
 		try:
-			genome = eventInfo["name"]
-			if self.command is not eventInfo.get("Command"):
+			
+			if (genome := eventInfo["name"]) in self.command is not eventInfo.get("Command"):
 				self.LOG.debug(f'{self.command is not eventInfo.get("Command") =}')
 				return
 			self.semaphore.release()
-			if self.command.returncodes[genome] not in self.solutions:
-				if self.command.returncodes[genome] == 0:
+			if self.command.returncodes[genome] == 0:
+				outFile = outputs[genome]
+				
+				if self.settings.get("saveTemp") is True:
+					for fileName in os.listdir(self.Lib.tmpDir.find(f".{self.softwareName}", purpose="w") / illegalPattern.sub("-", genome)):
+						try:
+							os.rename(
+								(self.Lib.tmpDir / f".{self.softwareName}" / illegalPattern.sub("-", genome)).find(fileName),
+								(self.Lib.tmpDir / self.softwareName / illegalPattern.sub("-", genome)).writable / fileName
+							)
+						except:
+							pass
+
+				self.outputs[genome] = outFile
+				self.hooks.trigger(f"{self.category}Progress", {"name" : genome, "value" : 1.0})
+				self.hooks.trigger(f"{self.category}Finished", {"name" : genome})
+			elif self.command.returncodes[genome] not in self.solutions:
+				if self.settings.get("saveTemp") is True:
 					outFile = outputs[genome]
-					
-					if self.settings.get("saveTemp") is True:
-						for fileName in os.listdir(self.Lib.tmpDir.find(f".{self.softwareName}", purpose="w") / illegalPattern.sub("-", genome)):
+					for dPath in self.Lib.tmpDir / f".{self.softwareName}" / illegalPattern.sub("-", genome):
+						if pExists(dPath):
 							try:
-								os.rename(
-									(self.Lib.tmpDir / f".{self.softwareName}" / illegalPattern.sub("-", genome)).find(fileName),
-									(self.Lib.tmpDir / self.softwareName / illegalPattern.sub("-", genome)).writable / fileName
-								)
+								shutil.rmtree(dPath, ignore_errors=True)
 							except:
 								pass
-
-					self.outputs[genome] = outFile
-					self.hooks.trigger(f"{self.category}Progress", {"name" : genome, "value" : 1.0})
-					self.hooks.trigger(f"{self.category}Finished", {"name" : genome})
-				else:
-					if self.settings.get("saveTemp") is True:
-						outFile = outputs[genome]
-						for dPath in self.Lib.tmpDir / f".{self.softwareName}" / illegalPattern.sub("-", genome):
-							if pExists(dPath):
-								try:
-									shutil.rmtree(dPath, ignore_errors=True)
-								except:
-									pass
-					self.hooks.trigger(f"{self.category}Progress", {"name" : genome, "value" : None})
-					self.hooks.trigger(f"{self.category}Finished", {"name" : genome})
+				self.hooks.trigger(f"{self.category}Progress", {"name" : genome, "value" : None})
+				self.hooks.trigger(f"{self.category}Finished", {"name" : genome})
 		except Exception as e:
 			self.LOG.exception(e, stacklevel=logging.DEBUG)
 
