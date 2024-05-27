@@ -270,21 +270,22 @@ class LimitedDict(dict):
 class Default:
 
 	deps : tuple = None
-	data : dict
 	name : str
 
-	fget : Callable
-	fset : Callable
-	fdel : Callable
+	fget : Callable = None
+	fset : Callable = None
+	fdel : Callable = None
 
 	def __init__(self, fget=None, fset=None, fdel=None, doc=None, deps=(), *, limit : int=10000):
-		if not hasattr(self, "data"):
-			self.data = LimitedDict(limit)
-		self.fget = fget
-		self.fset = fset
-		self.fdel = fdel
+		if fget or not self.fget:
+			self.fget = fget
+		if fset or not self.fset:
+			self.fset = fset
+		if fdel or not self.fdel:
+			self.fdel = fdel
 		self.__doc__ = doc or fget.__doc__ or getattr(self, "__doc__", None)
-		self.deps = deps
+		if deps or not self.deps:
+			self.deps = deps
 		
 	def __call__(self, fget=None, fset=None, fdel=None, doc=None, *, limit : int=10000):
 		self.__init__(fget, fset, fdel, doc=doc, limit=limit)
@@ -306,18 +307,13 @@ class Default:
 	def __get__(self, instance, owner=None):
 		if instance is None:
 			return self
-		if self.name in getattr(instance, "__dict__", ()):
+		elif self.name in getattr(instance, "__dict__", ()):
 			return instance.__dict__[self.name]
-		
-		idSpec = None if self.deps is None else forceHash(getAttrChain(instance, attrName, None) for attrName in self.deps)
-		if id(instance) not in self.data:
-			self.data[id(instance)] = (idSpec, self.fget(instance))
-			return self.data[id(instance)][1]
-		elif self.data[id(instance)][0] != idSpec:
-			self.data[id(instance)] = (idSpec, self.fget(instance))
-			return self.data[id(instance)][1]
+		elif "_"+self.name in getattr(instance, "__dict__", ()):
+			return instance.__dict__["_"+self.name]
 		else:
-			return self.data[id(instance)][1]
+			instance.__dict__["_"+self.name] = ret = self.fget(instance)
+			return ret
 	
 	def __set__(self, instance, value):
 		if self.fset is None:
@@ -331,8 +327,8 @@ class Default:
 			else:
 				if self.name in instance.__dict__:
 					del instance.__dict__[self.name]
-				if id(instance) in self.data:
-					del self.data[id(instance)]
+				if "_"+self.name in instance.__dict__:
+					del instance.__dict__["_"+self.name]
 	
 	def setter(self, fset):
 		self.fset = fset
