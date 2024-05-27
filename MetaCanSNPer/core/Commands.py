@@ -87,7 +87,8 @@ class Command(Logged):
 			self.commands.run()
 	
 	def wait(self, timeout=None):
-		self.commands.wait(timeout=timeout)
+		if self.commands is not None:
+			self.commands.wait(timeout=timeout)
 
 class Commands(Logged):
 	"""Only meant to be inherited from"""

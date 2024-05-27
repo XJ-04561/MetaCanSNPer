@@ -89,6 +89,8 @@ class ProcessWrapper(Logged):
 	def createCommand(self):
 		""""""
 		names, commands, outputs = self.formatCommands()
+		nt = "\n\t"
+		self.LOG.debug(f"Created commands for:\n{nt.join([str(name)+' -> '+str(output)+' = '+str(command) for name, output, command in zip(names, commands, outputs)])}")
 		for i in range(len(names))[::-1]:
 			name, outFile = outputs[i]
 			if name not in self.history:
@@ -103,6 +105,7 @@ class ProcessWrapper(Logged):
 				self.hooks.trigger(f"{self.category}Finished", {"name" : name})
 
 				names.pop(i), commands.pop(i), outputs.pop(i)
+		self.LOG.debug(f"Initializing commands for:\n{nt.join([str(name)+' -> '+str(output)+' = '+str(command) for name, output, command in zip(names, commands, outputs)])}")
 			
 		self.hooks.removeHook(f"{self.category}Finished", self._hooksList.get(f"{self.category}Finished"))
 
