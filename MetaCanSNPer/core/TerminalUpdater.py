@@ -236,7 +236,7 @@ class Indicator(Logged):
 		for cols in itertools.batched(map(lambda i: f"{self.borders[0]}{{bars[{i}]}}{self.borders[1]}", range(N)), maxCols):
 			barsList.append( " "+self.sep.join(cols).ljust(width-1))
 		
-		rowTemplate = []
+		rowTemplate = [spacerRow]
 		for namesRow, barsRow in zip(namesList, barsList):
 			rowTemplate.append(namesRow)
 			rowTemplate.append(barsRow)
