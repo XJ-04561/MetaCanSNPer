@@ -277,6 +277,8 @@ def main(argVector : list[str]=sys.argv) -> int:
 	
 	# mainParser = argparse.ArgumentParser(prog=__package__, description=package.__doc__)
 	# mainParser.add_argument("Mode", choices=["mainParser"], type=str.capitalize)
+	
+	print(f"\nRunning {SOFTWARE_NAME}...\n")
 
 	checkDependencies()
 
