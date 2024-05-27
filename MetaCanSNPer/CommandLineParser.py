@@ -152,7 +152,7 @@ if True:
 
 class MissingDependency(Exception): pass
 
-def checkDependencies(args):
+def checkDependencies():
 
 	import shutil
 	requiredDeps = []
