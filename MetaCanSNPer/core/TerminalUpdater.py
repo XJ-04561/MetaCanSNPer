@@ -243,17 +243,17 @@ class Indicator(Logged):
 	def createRowTemplate(self, width : int, N : int) -> tuple[str, str, str]:
 		"""createRowTemplate(self, width : int) -> backspaces, whitespaces, rowTemplate
 		"""
-		firstRow = f"{self.message}: {{time:<{width-2-len(self.message)}}}"
-		spacerRow = " " * width
+		firstRow = f"{self.message}: {{time:<{width-3-len(self.message)}}}"
+		spacerRow = " " * (width-1)
 		
 		maxCols = (width+self.sepLength-2) // (self.length+self.sepLength)
 		
 		namesList = []
 		for cols in itertools.batched(map(lambda i: f"{{names[{i}]:^{self.length}}}", range(N)), maxCols):
-			namesList.append( " "+self.sep.join(cols).ljust(width-1))
+			namesList.append( " "+self.sep.join(cols).ljust(width-2))
 		barsList = []
 		for cols in itertools.batched(map(lambda i: f"{self.borders[0]}{{bars[{i}]}}{self.borders[1]}", range(N)), maxCols):
-			barsList.append( " "+self.sep.join(cols).ljust(width-1))
+			barsList.append( " "+self.sep.join(cols).ljust(width-2))
 		
 		rowTemplate = [firstRow, spacerRow]
 		for namesRow, barsRow in zip(namesList, barsList):
@@ -264,7 +264,7 @@ class Indicator(Logged):
 		if supportsColor():
 			return "\n".join(rowTemplate)
 		else:
-			return "".join(rowTemplate)
+			return " ".join(rowTemplate)
 
 	@property
 	def rowTemplate(self) -> str:
