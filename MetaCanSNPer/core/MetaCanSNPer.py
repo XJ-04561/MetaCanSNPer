@@ -87,7 +87,7 @@ class MetaCanSNPer(Logged):
 				self.LOG.debug(f"{databaseName} in {directory}")
 				if MetaCanSNPerDatabase(directory / databaseName, "r", organism=self.organism).valid:
 					self.LOG.debug(f"{directory / databaseName} is valid")
-					self.hooks.trigger("DatabaseDownloaderProgress", {"name" : databaseName, "value" : int(1)})
+					self.hooks.trigger("DatabaseDownloaderSkipped", {"name" : databaseName, "value" : 2})
 					self.databasePath = directory / databaseName
 					break
 			else:
@@ -122,7 +122,7 @@ class MetaCanSNPer(Logged):
 		for genomeID, genome, strain, genbankID, refseqID, assemblyName in references:
 			filename = f"{assemblyName}.fna"
 			if self.Lib.references[genome]:
-				self.hooks.trigger("ReferenceDownloaderProgress", {"name" : self.Lib.references[genome], "value" : int(1)})
+				self.hooks.trigger("ReferenceDownloaderSkipped", {"name" : self.Lib.references[genome], "value" : 2})
 				continue
 			
 			DD.download((genbankID, assemblyName), filename)
