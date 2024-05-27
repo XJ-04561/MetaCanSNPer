@@ -224,19 +224,22 @@ class Indicator(Logged):
 	def createRowTemplate(self, width : int, N : int) -> tuple[str, str, str]:
 		"""createRowTemplate(self, width : int) -> backspaces, whitespaces, rowTemplate
 		"""
-		firstRow = f"{self.message} {{time:<{width-1-len(self.message)}}}"
+		firstRow = f"{self.message}: {{time:<{width-2-len(self.message)}}}"
 		spacerRow = " " * width
-		whiteSep : str = " " * self.sepLength
-		sepReplace = f"{self.borders[0]}{whiteSep}{self.borders[1]}", f"{self.borders[0]}{self.sep}{self.borders[1]}"
-
 		
-		namesList = textwrap.wrap(whiteSep.join(map(lambda i: f"{{names[{i}]}}", range(N))), width)
-		barsList = textwrap.wrap(whiteSep.join(map(lambda i: f"{self.borders[0]}{{bars[{i}]}}{self.borders[1]}", range(N))), width)
+		maxCols = (width+self.sepLength-2) // (self.length+self.sepLength)
+		
+		namesList = []
+		for cols in itertools.batched(map(lambda i: f"{{names[{i}]}}", range(N)), maxCols):
+			namesList.append( " "+self.sep.join(cols).ljust(width-1))
+		barsList = []
+		for cols in itertools.batched(map(lambda i: f"{self.borders[0]}{{bars[{i}]}}{self.borders[1]}", range(N)), maxCols):
+			barsList.append( " "+self.sep.join(cols).ljust(width-1))
 		
 		rowTemplate = []
 		for namesRow, barsRow in zip(namesList, barsList):
-			rowTemplate.append(namesRow.center(width))
-			rowTemplate.append(barsRow.center(width).replace(*sepReplace))
+			rowTemplate.append(namesRow)
+			rowTemplate.append(barsRow)
 			rowTemplate.append(spacerRow)
 		
 		return firstRow + "".join(rowTemplate)
@@ -272,11 +275,11 @@ class Indicator(Logged):
 		
 		with self.rowLock:
 			if None in self.threads.values():
-				flushPrint(self.rowTemplate.format(time=f"{formatTimestamp(timer()-startTime)} Failed!", names=self.shortKeys, bars=tuple(self.rowGenerator)))
+				flushPrint(self.rowTemplate.format(time=f"{red('Failed!')} {formatTimestamp(timer()-startTime)}", names=self.shortKeys, bars=tuple(self.rowGenerator)))
 			elif self.finishedThreads.issuperset(self.threads):
-				flushPrint(self.rowTemplate.format(time=f"{formatTimestamp(timer()-startTime)} Done!", names=self.shortKeys, bars=tuple(self.rowGenerator)))
+				flushPrint(flushPrint(f"{self.message} {green('Done!')} {formatTimestamp(timer()-startTime)}"))
 			else:
-				flushPrint(self.rowTemplate.format(time=f"{formatTimestamp(timer()-startTime)} Interrupted!", names=self.shortKeys, bars=tuple(self.rowGenerator)))
+				flushPrint(self.rowTemplate.format(time=f"{yellow('Interrupted!')} {formatTimestamp(timer()-startTime)}", names=self.shortKeys, bars=tuple(self.rowGenerator)))
 	
 	def checkDone(self):
 		if all(v is None or v == 2 or v == 3 for v in self.threads.values()):
