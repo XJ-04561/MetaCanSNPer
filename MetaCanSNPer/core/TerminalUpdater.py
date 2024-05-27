@@ -175,7 +175,7 @@ class Indicator(Logged):
 		with self.rowLock:
 			self._threads = threads
 			self.names = sorted(threads.keys())
-			self.shortKeys = [name if len(name) < self.length else name[:self.length-2]+"..." for name in self.names]
+			self.shortKeys = [name if len(name) < self.length else name[:self.length-3]+"..." for name in self.names]
 			self.N = len(self.names)
 			self.entries = list(map(lambda _:" "*self.innerLength, range(self.N)))
 			self.finishedThreads.intersection_update(self._threads)
