@@ -247,7 +247,7 @@ class Job(Logged):
 	def isDownloading(self):
 		return self._queueConnection.execute("SELECT CASE WHEN EXISTS(SELECT 1 FROM queueTable WHERE name = ? AND progress >= 0.0 AND progress < 1.0) THEN TRUE ELSE FALSE END;", [self.filename]).fetchone()[0]
 	def isDone(self):
-		return self._queueConnection.execute("SELECT CASE WHEN EXISTS(SELECT 1 FROM queueTable WHERE name = ? AND progress >= 2.0) THEN TRUE ELSE FALSE END;", [self.filename]).fetchone()[0]
+		return self._queueConnection.execute("SELECT CASE WHEN EXISTS(SELECT 1 FROM queueTable WHERE name = ? AND progress > 1.0) THEN TRUE ELSE FALSE END;", [self.filename]).fetchone()[0]
 	def isPostProcess(self):
 		return self._queueConnection.execute("SELECT CASE WHEN EXISTS(SELECT 1 FROM queueTable WHERE name = ? AND progress == 1.0) THEN TRUE ELSE FALSE END;", [self.filename]).fetchone()[0]
 	def isDead(self):
@@ -379,7 +379,7 @@ class Downloader(Logged):
 		if job.reserveQueue():
 			job.run(self.SOURCES, postProcess=self.postProcess)
 		elif job.isDone():
-			reportHook(int(1))
+			reportHook(2)
 		else:
 			while not job.reserveQueue():
 				job.updateLoop(timeStep=self.timeStep)
