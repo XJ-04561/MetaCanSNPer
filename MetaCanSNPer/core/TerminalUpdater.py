@@ -42,7 +42,7 @@ class Printer:
 	def __call__(self, msg):
 		with self.LOCK:
 			if supportsColor():
-				print("\r"+"\033[A"*((self.last-1) // self.terminalWidth), end=msg, flush=True, file=self.out)
+				print("\r"+"\033[A"*(self.last // self.terminalWidth), end=msg, flush=True, file=self.out)
 				self.last = len(self.ANSI_REMOVE(msg))
 			else:
 				print("\b"*self.last, end=msg, flush=True, file=self.out)
@@ -51,7 +51,7 @@ class Printer:
 	def clear(self):
 		with self.LOCK:
 			if supportsColor():
-				back = "\r"+"\033[A"*((self.last-1) // self.terminalWidth)
+				back = "\r"+"\033[A"*(self.last // self.terminalWidth)
 				print(back+" "*self.last, end=back, flush=True, file=self.out)
 				self.last = 0
 			else:
@@ -250,10 +250,10 @@ class Indicator(Logged):
 		
 		namesList = []
 		for cols in itertools.batched(map(lambda i: f"{{names[{i}]:^{self.length}}}", range(N)), maxCols):
-			namesList.append(" "+self.sep.join(cols) + " "*(width-1-len(cols)*(self.length+self.sepLength)-self.sepLength))
+			namesList.append(" "+self.sep.join(cols) + " "*(width-1-len(cols)*(self.length+self.sepLength)+self.sepLength))
 		barsList = []
 		for cols in itertools.batched(map(lambda i: f"{self.borders[0]}{{bars[{i}]}}{self.borders[1]}", range(N)), maxCols):
-			namesList.append(" "+self.sep.join(cols) + " "*(width-1-len(cols)*(self.length+self.sepLength)-self.sepLength))
+			namesList.append(" "+self.sep.join(cols) + " "*(width-1-len(cols)*(self.length+self.sepLength)+self.sepLength))
 		
 		rowTemplate = [firstRow, spacerRow]
 		for namesRow, barsRow in zip(namesList, barsList):
