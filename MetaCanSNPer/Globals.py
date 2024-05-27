@@ -46,11 +46,15 @@ PYTHON_VERSION = tuple(sys.version_info[:3])
 if PYTHON_VERSION < (3, 12):
 	class batched:
 		def __init__(self, iterable, n):
-			self.iterator = iter(iterable) if hasattr(iterable, "__iter__") else iterable
+			self.iterable = iter(iterable) if hasattr(iterable, "__iter__") else iterable
 			self.n = n
 		
-		def __next__(self):
-			return tuple(item for i, item in zip(range(self.n), self.iterator))
+		def __iter__(self):
+			_iter = iter(self.iterable) if hasattr(self.iterable, "__iter__") else self.iterable
+			
+			while (ret := tuple(item for i, item in zip(range(self.n), _iter))):
+				yield ret
+				
 	itertools.batched = batched
 
 LOG_DIR = user_log_dir(SOFTWARE_NAME)
