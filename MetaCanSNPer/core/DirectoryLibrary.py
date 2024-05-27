@@ -76,7 +76,10 @@ class DirectoryLibrary(SoftwareLibrary, Logged):
 	
 	@Default["userCacheDir"]
 	def tmpDir(self) -> DirectoryPath:
-		return self.userCacheDir
+		if self.settings.get("saveTemp"):
+			return self.userCacheDir.writable / f"{self.organism}_{self.queryName}"
+		else:
+			return Path(TemporaryDirectory(prefix=f"{self.organism}_{self.queryName}-", dir=self.userCacheDir.writable))
 	
 	@Default["targetDir", "userDir", "SOFTWARE_NAME"]
 	def outDir(self) -> PathGroup:
