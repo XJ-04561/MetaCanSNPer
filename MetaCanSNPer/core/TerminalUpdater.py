@@ -42,8 +42,8 @@ class Printer:
 	def __call__(self, msg):
 		with self.LOCK:
 			if supportsColor():
-				print("\r"+"\033[A"*(self.last // self.terminalWidth), end=msg, flush=True, file=self.out)
-				self.last = len(self.ANSI_REMOVE(msg))
+				print("\r"+"\033[A"*self.last, end=msg, flush=True, file=self.out)
+				self.last = sum(filter(*this == "\n", msg))
 			else:
 				print("\b"*self.last, end=msg, flush=True, file=self.out)
 				self.last = len(self.ANSI_REMOVE(msg))
@@ -51,8 +51,8 @@ class Printer:
 	def clear(self):
 		with self.LOCK:
 			if supportsColor():
-				back = "\r"+"\033[A"*(self.last // self.terminalWidth)
-				print(back+" "*self.last, end=back, flush=True, file=self.out)
+				back = "\r"+"\033[A"*self.last
+				print(back+" "*(self.last+1)*self.terminalWidth, end=back, flush=True, file=self.out)
 				self.last = 0
 			else:
 				print("\b"*self.last+" "*self.last, end="\b"*self.last, flush=True, file=self.out)
@@ -255,13 +255,16 @@ class Indicator(Logged):
 		for cols in itertools.batched(map(lambda i: f"{self.borders[0]}{{bars[{i}]}}{self.borders[1]}", range(N)), maxCols):
 			barsList.append( " "+self.sep.join(cols).ljust(width-1))
 		
-		rowTemplate = [spacerRow]
+		rowTemplate = [firstRow, spacerRow]
 		for namesRow, barsRow in zip(namesList, barsList):
 			rowTemplate.append(namesRow)
 			rowTemplate.append(barsRow)
 			rowTemplate.append(spacerRow)
 		
-		return firstRow + "".join(rowTemplate)
+		if supportsColor():
+			return "\n".join(rowTemplate)
+		else:
+			return "".join(rowTemplate)
 
 	@property
 	def rowTemplate(self) -> str:
