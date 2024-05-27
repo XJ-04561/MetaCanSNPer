@@ -273,7 +273,10 @@ class Indicator(Logged):
 			if self.checkDone(): break
 
 			sleep(0.1)
-			self.condition.acquire(timeout=0.40)
+			try:
+				self.condition.acquire(timeout=0.40)
+			except:
+				pass
 		
 		with self.rowLock:
 			if None in self.threads.values():
@@ -351,7 +354,7 @@ class Spinner(Indicator):
 			  postColor: str = None, progColor: str = None): ...
 	def __init__(self, *args, **kwargs):
 		if len(args) < 2 and "symbols" not in kwargs:
-			args = (*args, self.symbols)
+			args = (*args[:1], self.symbols, *args[1:])
 		super().__init__(*args, **kwargs)
 
 	@property
@@ -398,7 +401,7 @@ class TextProgress(Indicator):
 			  postColor: str = None, progColor: str = None): ...
 	def __init__(self, *args, **kwargs):
 		if len(args) < 2 and "symbols" not in kwargs:
-			args = (*args, self.symbols)
+			args = (*args[:1], self.symbols, *args[1:])
 		super().__init__(*args, **kwargs)
 
 	@property
