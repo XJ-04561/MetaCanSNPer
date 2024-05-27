@@ -186,7 +186,7 @@ class MetaCanSNPer(Logged):
 	def createMap(self, softwareName : str, flags : list=[]):
 		''''''
 		self.LOG.info(f"Creating map using:{softwareName}")
-		MapperType : Mapper = Mapper.subclasses.get(softwareName.lower())
+		MapperType : Mapper = Mapper.get(softwareName)
 
 		if self.Lib.references is None:
 			self.LOG.error("References not set.")
@@ -201,7 +201,7 @@ class MetaCanSNPer(Logged):
 	def createAlignment(self, softwareName : str, flags : list=[]):
 		''''''
 		self.LOG.info(f"Creating alignment using:{softwareName}")
-		AlignerType : Aligner = Aligner.subclasses.get(softwareName.lower())
+		AlignerType : Aligner = Aligner.get(softwareName)
 
 		if self.Lib.references is None:
 			self.LOG.error("References not set.")
@@ -216,7 +216,7 @@ class MetaCanSNPer(Logged):
 	def callSNPs(self, softwareName : str, flags : list=[]):
 		''''''
 		self.LOG.info(f"Calling SNPs using:{softwareName}")
-		SNPCallerType : SNPCaller = SNPCaller.get(softwareName.lower())
+		SNPCallerType : SNPCaller = SNPCaller.get(softwareName)
 
 		if self.Lib.references is None:
 			self.LOG.error("References not set.")

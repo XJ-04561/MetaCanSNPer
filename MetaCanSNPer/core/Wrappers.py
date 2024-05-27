@@ -35,13 +35,14 @@ class ProcessWrapper(Logged):
 	ignoredErrors : set
 	category : str
 	outputs : dict[str, str]
+	subclasses : dict[str,type]
 	semaphore : Semaphore
 	solutions : ErrorFixes.SolutionContainer
 	skip : set
 	command : Command
 
 	@ClassProperty
-	def subclasses(self):
+	def subclasses(self) -> dict[str,type]:
 		if isinstance(self, type):
 			return {subClass.__name__.lower():subClass for subClass in self.__subclasses__()} | {subClass.softwareName.lower():subClass for subClass in self.__subclasses__() if hasattr(subClass, "softwareName")}
 		else:
@@ -76,8 +77,8 @@ class ProcessWrapper(Logged):
 		}
 	
 	@classmethod
-	def get(cls : _T, name : str):
-		selectedClass : _T = cls.subclasses.get(name.lower())
+	def get(cls : Self, name : str) -> Self:
+		selectedClass = cls.subclasses.get(name.lower())
 		if not selectedClass:
 			nt = "\n\t"
 			raise MissingDependency(f"Missing dependency: {name!r}\nIf this program is not available to you, consider using one of the following instead:\n{nt.join(map(*this.softwareName, filter(*this.softwareName, cls.__subclasses__())))}")
