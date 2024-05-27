@@ -43,7 +43,7 @@ class Printer:
 		with self.LOCK:
 			if supportsColor():
 				print("\r"+"\033[A"*self.last, end=msg, flush=True, file=self.out)
-				self.last = sum(filter(*this == "\n", msg))
+				self.last = sum(map(*this == "\n", msg))
 			else:
 				print("\b"*self.last, end=msg, flush=True, file=self.out)
 				self.last = len(self.ANSI_REMOVE(msg))
@@ -249,7 +249,7 @@ class Indicator(Logged):
 		maxCols = (width+self.sepLength-2) // (self.length+self.sepLength)
 		
 		namesList = []
-		for cols in itertools.batched(map(lambda i: f"{{names[{i}]}}", range(N)), maxCols):
+		for cols in itertools.batched(map(lambda i: f"{{names[{i}]:^{self.length}}}", range(N)), maxCols):
 			namesList.append( " "+self.sep.join(cols).ljust(width-1))
 		barsList = []
 		for cols in itertools.batched(map(lambda i: f"{self.borders[0]}{{bars[{i}]}}{self.borders[1]}", range(N)), maxCols):
