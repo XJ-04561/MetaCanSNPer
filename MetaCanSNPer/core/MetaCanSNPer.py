@@ -122,7 +122,7 @@ class MetaCanSNPer(Logged):
 		for genomeID, genome, strain, genbankID, refseqID, assemblyName in references:
 			filename = f"{assemblyName}.fna"
 			if self.Lib.references[genome]:
-				self.hooks.trigger("ReferenceDownloaderSkipped", {"name" : self.Lib.references[genome], "value" : 2})
+				self.hooks.trigger("ReferenceDownloaderSkipped", {"name" : filename, "value" : 2})
 				continue
 			
 			DD.download((genbankID, assemblyName), filename)
