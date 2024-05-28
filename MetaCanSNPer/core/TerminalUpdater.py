@@ -11,11 +11,39 @@ import textwrap
 
 _NOT_FOUND = object()
 
-# print(sys.stdout.encoding)
-# if sys.stdout.encoding == "utf-8":
-# 	SQUARE = "\u2588"
-# 	HALF_SQUARE = "\u258C"
-# else:
+class ColorStr(str):
+	def __format__(self, fs : str):
+		for s in ["^", "<", ">"]:
+			if s in fs:
+				filler, rest = fs.split(s, 1)
+				if not filler:
+					filler = " "
+				size = int("".join(tuple(itertools.takewhile(*this.isnumeric(),rest))))
+				direction = s
+				break
+		else:
+			return super().__format__(fs)
+		l = len(Printer.ANSI_REMOVE(None, self))
+		match direction:
+			case "<":
+				return self + filler * max(size - len(self), 0)
+			case "^":
+				return filler*(max(size - len(self), 0) // 2)+self+filler*(max(size - len(self), 0) // 2 + max(size - len(self), 0) % 2)
+			case ">":
+				return filler * max(size - len(self), 0) + self
+	
+	def __add__(self, right):
+		return type(self)(str.__add__(self, right))
+	def __radd__(self, left):
+		return type(self)(str.__add__(left, self))
+
+yellow = lambda *args, **kwargs : ColorStr(yellow(*args, **kwargs))
+magenta = lambda *args, **kwargs : ColorStr(magenta(*args, **kwargs))
+white = lambda *args, **kwargs : ColorStr(white(*args, **kwargs))
+red = lambda *args, **kwargs : ColorStr(red(*args, **kwargs))
+red = lambda *args, **kwargs : ColorStr(red(*args, **kwargs))
+green = lambda *args, **kwargs : ColorStr(green(*args, **kwargs))
+cyan = lambda *args, **kwargs : ColorStr(cyan(*args, **kwargs))
 
 SQUARE = "="
 HALF_SQUARE = ":"
