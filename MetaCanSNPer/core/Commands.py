@@ -58,6 +58,9 @@ class Command(Logged):
 		else:
 			raise KeyError("Key {key!r} not associated with a command.")
 	
+	def __contains__(self, name):
+		return name in self.commands
+	
 	def __repr__(self):
 		return f"<{type(self).__name__} {hex(id(self))} raw={self.raw!r}>"
 	
@@ -376,6 +379,9 @@ class ParallelCommands(Commands):
 			e.add_note(f"{type(self).__name__} failed to initialize.")
 			self.LOG.exception(e)
 			raise e
+	
+	def __contains__(self, name):
+		return name in self._list
 
 	def start(self):
 		self.LOG.info(f"Starting {self}")

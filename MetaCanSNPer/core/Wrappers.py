@@ -115,8 +115,7 @@ class ProcessWrapper(Logged):
 				self.outputs[name] = outFile
 				self.skip.add(name)
 
-				self.hooks.trigger(f"{self.category}Progress", {"name" : name, "value" : 1.0})
-				self.hooks.trigger(f"{self.category}Finished", {"name" : name})
+				self.hooks.trigger(f"{self.category}Skipped", {"name" : name, "value" : 2.0})
 
 				names.pop(i), commands.pop(i), outputs.pop(i)
 		self.LOG.debug(f"Initializing commands for:\n{nt.join([str(name)+' -> '+str(output)+' = '+str(command) for name, output, command in zip(names, commands, outputs)])}")
@@ -221,7 +220,10 @@ class ProcessWrapper(Logged):
 		
 		try:
 			
-			if (genome := eventInfo["name"]) in self.command is not eventInfo.get("Command"):
+			if (genome := eventInfo["name"]) not in self.command:
+				self.LOG.debug(f'{eventInfo["name"]} not in {self}')
+				return
+			elif eventInfo["instance"] is not self.command:
 				self.LOG.debug(f'{self.command is not eventInfo.get("Command") =}')
 				return
 			self.semaphore.release()
@@ -239,7 +241,6 @@ class ProcessWrapper(Logged):
 							pass
 
 				self.outputs[genome] = outFile
-				self.hooks.trigger(f"{self.category}Progress", {"name" : genome, "value" : 1.0})
 				self.hooks.trigger(f"{self.category}Finished", {"name" : genome})
 			elif self.command.returncodes[genome] not in self.solutions:
 				if self.settings.get("saveTemp") is True:
@@ -250,9 +251,11 @@ class ProcessWrapper(Logged):
 								shutil.rmtree(dPath, ignore_errors=True)
 							except:
 								pass
-				self.hooks.trigger(f"{self.category}Progress", {"name" : genome, "value" : None})
-				self.hooks.trigger(f"{self.category}Finished", {"name" : genome})
+				self.hooks.trigger(f"{self.category}Failed", {"name" : genome})
+			else:
+				self.hooks.trigger(f"{self.category}Progress", {"name" : genome, "value" : 0.0})
 		except Exception as e:
+			e.add_note(f"This occurred in event callback with {eventInfo=}")
 			self.LOG.exception(e, stacklevel=logging.DEBUG)
 
 	def formatCommands(self) -> tuple[list[Any], list[str], list[tuple[tuple[str,str],str]]]:
