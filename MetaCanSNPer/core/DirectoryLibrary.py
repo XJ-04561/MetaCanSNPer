@@ -146,19 +146,25 @@ class DirectoryLibrary(SoftwareLibrary, Logged):
 		self.outDir.create(purpose="w")
 		self.logDir.create(purpose="w")
 
+	if Globals.MAX_DEBUG:
+		def __getattribute__(self, name):
+			super().__getattribute__("LOG").debug(f"[0x{id(self):0>16X}] Getting {name!r}")
+			ret = super().__getattribute__(name)
+			try:
+				if hasattr(ret, "__str__"):
+					super().__getattribute__("LOG").debug(f"[0x{id(self):0>16X}] Got {name!r} as {ret} ({ret!r})")
+				else:
+					super().__getattribute__("LOG").debug(f"[0x{id(self):0>16X}] Got {name!r} as {ret!r}")
+			except:
+				super().__getattribute__("LOG").debug(f"[0x{id(self):0>16X}] Got {name!r} [Could not format]")
+			return ret
 
-	def __getattribute__(self, name):
-		super().__getattribute__("LOG").debug(f"[0x{id(self):0>16X}] Getting {name!r}")
-		ret = super().__getattribute__(name)
-		super().__getattribute__("LOG").debug(f"[0x{id(self):0>16X}] Got {name!r}")
-		return ret
-
-	def __setattr__(self, name, value):
-		try:
-			if hasattr(value, "__str__"):
-				super().__getattribute__("LOG").debug(f"[0x{id(self):0>16X}] Setting {name!r} to: {value}({value!r})")
-			else:
-				super().__getattribute__("LOG").debug(f"[0x{id(self):0>16X}] Setting {name!r} to: {value!r}")
-		except:
-			super().__getattribute__("LOG").debug(f"[0x{id(self):0>16X}] Setting {name!r} to: [Could not format]")
-		super().__setattr__(name, value)
+		def __setattr__(self, name, value):
+			try:
+				if hasattr(value, "__str__"):
+					super().__getattribute__("LOG").debug(f"[0x{id(self):0>16X}] Setting {name!r} to: {value}({value!r})")
+				else:
+					super().__getattribute__("LOG").debug(f"[0x{id(self):0>16X}] Setting {name!r} to: {value!r}")
+			except:
+				super().__getattribute__("LOG").debug(f"[0x{id(self):0>16X}] Setting {name!r} to: [Could not format]")
+			super().__setattr__(name, value)

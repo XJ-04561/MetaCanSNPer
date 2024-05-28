@@ -42,6 +42,7 @@ from threading import Lock
 
 _NOT_SET = object()
 PYTHON_VERSION = tuple(sys.version_info[:3])
+MAX_DEBUG = False
 
 if PYTHON_VERSION < (3, 12):
 	class batched:
