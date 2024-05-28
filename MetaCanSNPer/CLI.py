@@ -150,11 +150,20 @@ if True:
 	debugOptions.add_argument("--silent",	action="store_true",	help="Disables printing to terminal except for any error messages which might appear.")
 	debugOptions.add_argument("--dry-run",	action="store_true",	help="Don't run the processes of the mapper/aligner/snpCaller, just run a randomised (1 - 5 sec) `sleep` call.")
 
-def checkDependencies():
+def checkDependencies(args):
 
 	import shutil
+	from MetaCanSNPer.core.Wrappers import Aligner, Mapper, SNPCaller
 	requiredDeps = []
-	optionalDeps = ["datasets"]
+	optionalDeps = ["datasets", "samtools"]
+
+	if args.mapper:
+		requiredDeps.extend(Mapper.get(args.mapper).dependencies)
+	if args.aligner:
+		requiredDeps.extend(Aligner.get(args.aligner).dependencies)
+	if args.snpCaller:
+		requiredDeps.extend(SNPCaller.get(args.snpCaller).dependencies)
+
 	missed = []
 	for dep in requiredDeps:
 		if not shutil.which(dep) and not shutil.which(dep+".exe"):
@@ -201,7 +210,6 @@ def separateCommands(argv : list[str]) -> dict[str,list[str]]:
 	return dict(proDict)
 
 "MetaCanSNPer --query RAW_SEQUENCE_DATAFILE_R1.fq RAW_SEQUENCE_DATAFILE_R2.fq --database DATABASE_FILE.db --dry-run --debug --mapper minimap2 --snpCaller gatk_Mutect2 --mapperOptions -x sr"
-
 
 def handleOptions(args : NameSpace):
 	if args.version:
@@ -280,8 +288,6 @@ def main(argVector : list[str]=sys.argv) -> int:
 	
 	print(f"\nRunning {SOFTWARE_NAME}...\n")
 
-	checkDependencies()
-
 	argsDict = separateCommands(argVector)
 
 	if len(argVector) < 2:
@@ -290,9 +296,11 @@ def main(argVector : list[str]=sys.argv) -> int:
 
 	args : NameSpace = parser.parse_args(argsDict["args"], namespace=NameSpace())
 
-	handleOptions(args)
-
 	try:
+		checkDependencies(args)
+		
+		handleOptions(args)
+
 		mObj = initializeMainObject(args)
 
 		runJob(mObj, args, argsDict)
@@ -309,9 +317,12 @@ def main(argVector : list[str]=sys.argv) -> int:
 		print("Exception occurred: \n", file=sys.stderr)
 
 		if args.debug:
-			pattern = re.compile(r"(\[[\w.]+\] \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3} - ERROR: .*?)(?=Traceback|\[[\w.]+\] \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3} - \w+?:|\$)", flags=re.DOTALL+re.MULTILINE)
-			for i, err in enumerate(pattern.finditer(open(LOGGING_FILEPATH, "r").read())):
-				print(f"Exception [{i}]\n{err.group(1)}", file=sys.stderr)
+			pattern = re.compile(r"(\[[\w.]+\])( \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3} - ERROR: )(.*?)(?=Traceback|\[[\w.]+\] \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3} - \w+?:|\$)", flags=re.DOTALL+re.MULTILINE)
+			printableExcepts = set()
+			for err in pattern.finditer(open(LOGGING_FILEPATH, "r").read()):
+				printableExcepts.add(f"{err.group(1)} ERROR: {err.group(3)}")
+			for exc in printableExcepts:
+				print(exc, file=sys.stderr)
 		else:
 			print(f"{type(e).__name__}: "+str(e), file=sys.stderr)
 		exit(1)

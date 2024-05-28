@@ -26,6 +26,7 @@ class ProcessWrapper(Logged):
 	logFormat : str
 	flags : list[str]
 	format : str
+	dependencies : set[str]
 
 	Lib : DirectoryLibrary
 	database : MetaCanSNPerDatabase
@@ -78,6 +79,19 @@ class ProcessWrapper(Logged):
 			"outFormat" : self.outFormat
 		}
 	
+	def __init_subclass__(cls, *args, **kwargs):
+		from MetaCanSNPer.core.Commands import argsPattern, sequentialPattern, parallelPattern, pipePattern
+		super().__init_subclass__(*args, **kwargs)
+		if isinstance(getattr(cls, "softwareName", None), str):
+			cls.dependencies = set(getattr(cls, "dependencies", set()))
+			_iter = iter(filter(lambda s:(s or "").strip(), argsPattern.split(cls.commandTemplate)))
+			for word in _iter:
+				if any(pat.fullmatch(word) for pat in [sequentialPattern, parallelPattern, pipePattern]):
+					try:
+						cls.dependencies.add(next(_iter))
+					except:
+						pass
+
 	@classmethod
 	def get(cls : Self, name : str) -> Self:
 		selectedClass = cls.subclasses.get(name.lower())

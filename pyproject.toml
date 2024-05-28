@@ -46,4 +46,4 @@ dependencies = [
 Repository = "https://github.com/XJ-04561/MetaCanSNPer.git"
 
 [project.scripts]
-MetaCanSNPer = "MetaCanSNPer.CommandLineParser:main"
+MetaCanSNPer = "MetaCanSNPer.CLI:main"
