@@ -120,11 +120,11 @@ class ProcessWrapper(Logged):
 				names.pop(i), commands.pop(i), outputs.pop(i)
 		self.LOG.debug(f"Initializing commands for:\n{nt.join([str(name)+' -> '+str(output)+' = '+str(command) for name, output, command in zip(names, commands, outputs)])}")
 			
-		self.hooks.removeHook(f"{self.category}Finished", self._hooksList.get(f"{self.category}Finished"))
+		self.hooks.removeHook(f"{self.category}CommandFinished", self._hooksList.get(f"{self.category}CommandFinished"))
 
-		self.command = Command(commands, self.category, self.hooks, logDir=self.Lib.resultDir.create("SoftwareLogs"), names=names)
+		self.command = Command(commands, self.category, self.hooks, logDir=self.Lib.logDir.create("SoftwareLogs"), names=names)
 
-		self._hooksList[f"{self.category}Finished"] = self.hooks.addHook(f"{self.category}Finished", target=self.updateOutput, args=[dict(outputs)])
+		self._hooksList[f"{self.category}CommandFinished"] = self.hooks.addHook(f"{self.category}CommandFinished", target=self.updateOutput, args=[dict(outputs)])
 
 	def start(self) -> list[tuple[tuple[str,str],str]]:
 		"""Starts processes in new threads. Returns information of the output of the processes, but does not ensure the processes have finished."""

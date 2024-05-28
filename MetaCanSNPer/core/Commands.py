@@ -74,7 +74,7 @@ class Command(Logged):
 		for name in self.commands:
 			if eventInfo["instance"] is self.commands[name]:
 				self.returncodes[name] = eventInfo["value"]
-				self.hooks.trigger(f"{self.category}Finished", {"name" : name, "instance" : self, "value" : 3})
+				self.hooks.trigger(f"{self.category}CommandFinished", {"name" : name, "instance" : self, "value" : self.returncodes[name]})
 				break
 
 	def start(self):
@@ -290,47 +290,37 @@ class SequentialCommands(Commands):
 
 	def start(self : "SequentialCommands") -> None:
 		self.LOG.info(f"Starting {self}")
+		self.returncodes = []
 		try:
-			self.returncodes = []
-			def runInSequence(self : SequentialCommands):
-				try:
-					for i, pc in enumerate(self._list):
-						returncode = pc.run()
-						self.returncodes.append(returncode)
-						if self.separators[i] == ";":
-							pass
-						elif returncode != 0 and self.separators[i] == "&&":
-							break
-						elif returncode == 0 and self.separators[i] == "||":
-							break
-					self.hooks.trigger(f"SequentialCommands{self.category}Finished", {"name" : None, "value" : self.returncodes[-1] if self.returncodes else None, "instance" : self})
-				except Exception as e:
-					if type(e) is FileNotFoundError:
-						self.hooks.trigger(f"ReportError", {"exception" : e})
-					try:
-						e.add_note(f"<In Thread running: {self.raw!r}>")
-						self.LOG.exception(e)
-					except:
-						self.LOG.exception(e)
-					self.hooks.trigger(f"SequentialCommands{self.category}Finished", {"name" : None, "value" : self.returncodes[-1] if self.returncodes else None, "instance" : self})
-			self.thread = Thread(target=runInSequence, args=[self], daemon=True)
+			self.thread = Thread(target=self.run, daemon=True)
 			self.thread.start()
 		except Exception as e:
 			e.add_note(f"{type(self).__name__} failed to `.start()`.")
 			self.LOG.exception(e)
 			raise e
-
-	def run(self) -> list[CompletedProcess]:
-		self.LOG.info(f"Running {self}")
-		self.processes = []
-		for pc in self._list:
-			returncode = pc.run()
-			self.processes.append(returncode)
-			if returncode != 0:
-				self.hooks.trigger(f"SequentialCommands{self.category}Finished", {"instance" : self})
-				return self.processes
-		self.hooks.trigger(f"SequentialCommands{self.category}Finished", {"instance" : self})
-		return self.processes
+	
+	def run(self : "SequentialCommands") -> int:
+		try:
+			for i, pc in enumerate(self._list):
+				returncode = pc.run()
+				self.returncodes.append(returncode)
+				if self.separators[i] == ";":
+					pass
+				elif returncode != 0 and self.separators[i] == "&&":
+					break
+				elif returncode == 0 and self.separators[i] == "||":
+					break
+			self.hooks.trigger(f"SequentialCommands{self.category}Finished", {"name" : None, "value" : self.returncodes[-1] if self.returncodes else None, "instance" : self})
+		except Exception as e:
+			if type(e) is FileNotFoundError:
+				self.hooks.trigger(f"ReportError", {"exception" : e})
+			try:
+				e.add_note(f"<In Thread running: {self.raw!r}>")
+				self.LOG.exception(e)
+			except:
+				self.LOG.exception(e)
+			self.hooks.trigger(f"SequentialCommands{self.category}Finished", {"name" : None, "value" : self.returncodes[-1] if self.returncodes else None, "instance" : self})
+		return self.returncodes[-1]
 	
 	def wait(self, timeout=None):
 		

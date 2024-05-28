@@ -30,7 +30,7 @@ from PseudoPathy.Paths import FileList
 from collections import namedtuple
 
 from types import FunctionType, MethodType
-import random, logging, re, time, os, sys, shutil, itertools
+import random, logging, re, time, os, sys, shutil, itertools, logging.handlers as logHandlers
 from functools import cache, cached_property
 from typing import Iterable, Callable, Any, Generator, Literal, AnyStr, TextIO, BinaryIO, Self, overload
 from time import sleep
@@ -43,7 +43,7 @@ from threading import Lock
 _NOT_SET = object()
 PYTHON_VERSION = tuple(sys.version_info[:3])
 MAX_DEBUG = False
-
+HANDLER = logging.FileHandler(os.devnull)
 if PYTHON_VERSION < (3, 12):
 	class batched:
 		def __init__(self, iterable, n):

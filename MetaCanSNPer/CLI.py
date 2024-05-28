@@ -244,6 +244,9 @@ def initializeMainObject(args : NameSpace) -> MetaCanSNPer:
 
 	from MetaCanSNPer.modules.Database import ReferencesTable
 	mObj = MetaCanSNPer(args.organism, args.query, settings=vars(args), settingsFile=args.settingsFile)
+	global HANDLER
+	HANDLER = logging.FileHandler(mObj.Lib.logDir / "MetaCanSNPer.log")
+	logging.basicConfig(handlers=[HANDLER], format="[%(name)s] %(asctime)s - %(levelname)s: %(message)s", level=logging.DEBUG)
 
 	database = args.database or mObj.databaseName
 	
@@ -286,14 +289,6 @@ def main(argVector : list[str]=sys.argv) -> int:
 	# mainParser = argparse.ArgumentParser(prog=__package__, description=package.__doc__)
 	# mainParser.add_argument("Mode", choices=["mainParser"], type=str.capitalize)
 	
-	print(f"\nRunning {SOFTWARE_NAME}...\n")
-
-	LOG_DIR = user_log_dir(SOFTWARE_NAME)
-	pMakeDirs(LOG_DIR)
-	with NamedTemporaryFile(prefix=time.strftime("MetaCanSNPer-(%Y-%m-%d)-(%H-%M-%S)-[", time.localtime()), suffix="].log", dir=LOG_DIR, delete=False) as f:
-		LOGGING_FILEPATH = f.name
-	logging.basicConfig(filename=LOGGING_FILEPATH, format="[%(name)s] %(asctime)s - %(levelname)s: %(message)s", level=logging.DEBUG)
-
 	argsDict = separateCommands(argVector)
 
 	if len(argVector) < 2:
@@ -301,6 +296,8 @@ def main(argVector : list[str]=sys.argv) -> int:
 		parser.exit()
 
 	args : NameSpace = parser.parse_args(argsDict["args"], namespace=NameSpace())
+
+	print(f"\nRunning {SOFTWARE_NAME}...\n")
 
 	try:
 		checkDependencies(args)
@@ -325,7 +322,7 @@ def main(argVector : list[str]=sys.argv) -> int:
 		if args.debug:
 			pattern = re.compile(r"(\[[\w.]+\])( \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3} - ERROR: )(.*?)(?=Traceback|\[[\w.]+\] \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3} - \w+?:|\$)", flags=re.DOTALL+re.MULTILINE)
 			printableExcepts = set()
-			for err in pattern.finditer(open(LOGGING_FILEPATH, "r").read()):
+			for err in pattern.finditer(open(HANDLER.name, "r").read()):
 				printableExcepts.add(f"{err.group(1)} ERROR: {err.group(3)}")
 			for exc in printableExcepts:
 				print(exc, file=sys.stderr)

@@ -1,5 +1,6 @@
 
 
+import logging.handlers
 from MetaCanSNPer.Globals import *
 import MetaCanSNPer.Globals as Globals
 
@@ -27,7 +28,7 @@ class DirectoryLibrary(SoftwareLibrary, Logged):
 	"""Defaults to a sequence alignment of the query files involved."""
 	sessionName : str = cached_property(lambda self : f"Sample-{self.queryName}-{time.strftime('%Y-%m-%d_%H-%M-%S', time.localtime())}")
 	"""Defaults to 'Sample-[QUERY_NAME]-[CURRENT_DATE]'"""
-
+	
 	targetDir : PathGroup
 	refDir : PathGroup
 	SNPDir : PathGroup
@@ -96,7 +97,8 @@ class DirectoryLibrary(SoftwareLibrary, Logged):
 
 	@Default["outDir", "sessionName"]
 	def logDir(self) -> DirectoryPath:
-		return self.userLogDir / self.sessionName
+		return TemporaryDirectory(prefix=self.sessionName+"-[", suffix="]", dir=self.userCacheDir.writable, delete=False).name
+	
 	@logDir.setter
 	def logDir(self, value):
 		if isinstance(value, (PathGroup, Path)):

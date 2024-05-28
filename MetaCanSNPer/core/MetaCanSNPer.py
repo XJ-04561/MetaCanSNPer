@@ -105,8 +105,9 @@ class MetaCanSNPer(Logged):
 		
 		self.Lib.database = self.database = MetaCanSNPerDatabase(self.databasePath, "r", organism=self.organism)
 		self.LOG.info(f"Database {self.databaseName} loaded from: {self.databasePath}!")
-		nt = "\n\t"
-		self.LOG.debug(f"Database {self.databaseName} has attributes:\n{nt.join([name+' = '+str(getattr(self.database, name)) for name in dir(self.database) if not name.startswith('_')])}")
+		if Globals.MAX_DEBUG:
+			nt = "\n\t"
+			self.LOG.debug(f"Database {self.databaseName} has attributes:\n{nt.join([name+' = '+str(getattr(self.database, name)) for name in dir(self.database) if not name.startswith('_')])}")
 	
 	def setReferenceFiles(self, references : Iterable[tuple[int,str,str,str,str,str]]=None):
 
