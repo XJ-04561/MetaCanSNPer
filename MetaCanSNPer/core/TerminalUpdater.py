@@ -23,7 +23,7 @@ class ColorStr(str):
 				break
 		else:
 			return super().__format__(fs)
-		l = len(Printer.ANSI_REMOVE(None, self))
+		l = len(Printer.ANSI_REMOVE(self))
 		match direction:
 			case "<":
 				return self + filler * max(size - l, 0)
@@ -59,8 +59,9 @@ class Printer:
 		else:
 			return 80
 
-	def ANSI_REMOVE(self, string):
-		return self.ANSI_MATCH.sub("", string)
+	@staticmethod
+	def ANSI_REMOVE(string):
+		return Printer.ANSI_MATCH.sub("", string)
 
 	def __init__(self, out=sys.stdout):
 		self.out = out
