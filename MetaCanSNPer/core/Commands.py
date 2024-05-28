@@ -261,7 +261,8 @@ class PipeCommands(Commands):
 				return p.returncode
 		
 		while self._list:
-			del self._list.pop()
+			item = self._list.pop()
+			del item
 		
 		return processes[-1].returncode
 
