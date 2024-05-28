@@ -203,12 +203,23 @@ class DumpCommands(Commands):
 		else:
 			self.command[0] = ex
 		p : Popen = Popen(self.command, stdin=stdin, stdout=self.outFile or stdout or DEV_NULL_BYTES, stderr=stderr or self.logFile, **kwargs)
+		try:
+			self.logFile.close()
+		except:
+			pass
+		try:
+			self.outFile.close()
+		except:
+			pass
 		self.LOG.debug(f"Started {self!r}")
 		return p
 
 	def __del__(self):
 		try:
 			self.outFile.close()
+		except:
+			pass
+		try:
 			os.rename(self.outFile.name, self.outFileName)
 		except:
 			pass
@@ -233,16 +244,11 @@ class PipeCommands(Commands):
 		lastSTDOUT = None
 		for i, dc in enumerate(self._list[:-1]):
 			processes.append( dc.run(stdin=lastSTDOUT, stdout=PIPE, **kwargs))
-			try:
+			if lastSTDOUT:
 				lastSTDOUT.close()
-			except:
-				pass
 			lastSTDOUT = processes[i].stdout
 		processes.append( self._list[-1].run(stdin=lastSTDOUT, **kwargs))
-		try:
-			lastSTDOUT.close()
-		except:
-			pass
+		lastSTDOUT.close()
 
 		processes[-1].wait()
 
@@ -253,11 +259,10 @@ class PipeCommands(Commands):
 		for i, p in enumerate(processes):
 			if p.returncode not in [0, None]:
 				return p.returncode
-		try:
-			self[-1].outFile.close()
-			os.rename(self[-1].outFile.name, self[-1].outFileName)
-		except:
-			pass
+		
+		while self._list:
+			del self._list.pop()
+		
 		return processes[-1].returncode
 
 class SequentialCommands(Commands):

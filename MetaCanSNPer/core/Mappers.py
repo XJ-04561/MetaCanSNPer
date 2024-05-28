@@ -9,7 +9,7 @@ from MetaCanSNPer.core.Wrappers import Mapper
 
 class Minimap2(Mapper):
 	softwareName = "minimap2"
-	commandTemplate = "minimap2 -a {options} -R '@RG\\tID:{queryName}\\tSM:{queryName}' --sam-hit-only {refPath!r} {query} | samtools sort --reference {refPath!r} -O BAM -T {refName!r} -o {output!r} - && samtools index {output!r}"
+	commandTemplate = "minimap2 -a {options} -R '@RG\\tID:{queryName}\\tSM:{queryName}' --sam-hit-only {refPath!r} {query} -o '{output}.sam' | samtools sort --reference {refPath!r} -O BAM -T {refName!r} -o {output!r} '{output}.sam' && samtools index {output!r} && rm -f '{output}.sam'"
 	outFormat = "bam"
 
 	boolFlags = [
