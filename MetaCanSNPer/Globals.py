@@ -57,11 +57,6 @@ if PYTHON_VERSION < (3, 12):
 				
 	itertools.batched = batched
 
-LOG_DIR = user_log_dir(SOFTWARE_NAME)
-pMakeDirs(LOG_DIR)
-with NamedTemporaryFile(prefix=time.strftime("MetaCanSNPer-(%Y-%m-%d)-(%H-%M-%S)-[", time.localtime()), suffix="].log", dir=LOG_DIR, delete=False) as f:
-	LOGGING_FILEPATH = f.name
-logging.basicConfig(filename=LOGGING_FILEPATH, format="[%(name)s] %(asctime)s - %(levelname)s: %(message)s", level=logging.DEBUG)
 LOGGER = logging.Logger("MetaCanSNPer", level=logging.DEBUG)
 
 class Logged:

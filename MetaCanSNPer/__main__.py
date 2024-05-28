@@ -1,4 +1,4 @@
 
-from MetaCanSNPer.CommandLineParser import main
+from MetaCanSNPer.CLI import main
 
 main()

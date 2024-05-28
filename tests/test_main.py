@@ -1,6 +1,6 @@
 
 from MetaCanSNPer.core import MetaCanSNPer
-from MetaCanSNPer.CommandLineParser import initializeMainObject, NameSpace, parser, runJob, handleOptions, saveResults, separateCommands
+from MetaCanSNPer.CLI import initializeMainObject, NameSpace, parser, runJob, handleOptions, saveResults, separateCommands
 import pytest
 
 @pytest.mark.skip

@@ -288,6 +288,12 @@ def main(argVector : list[str]=sys.argv) -> int:
 	
 	print(f"\nRunning {SOFTWARE_NAME}...\n")
 
+	LOG_DIR = user_log_dir(SOFTWARE_NAME)
+	pMakeDirs(LOG_DIR)
+	with NamedTemporaryFile(prefix=time.strftime("MetaCanSNPer-(%Y-%m-%d)-(%H-%M-%S)-[", time.localtime()), suffix="].log", dir=LOG_DIR, delete=False) as f:
+		LOGGING_FILEPATH = f.name
+	logging.basicConfig(filename=LOGGING_FILEPATH, format="[%(name)s] %(asctime)s - %(levelname)s: %(message)s", level=logging.DEBUG)
+
 	argsDict = separateCommands(argVector)
 
 	if len(argVector) < 2:
