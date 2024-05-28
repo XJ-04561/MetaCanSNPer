@@ -6,7 +6,7 @@ from timeit import default_timer as timer
 from typing import TextIO, Iterable
 from functools import cached_property, partial
 from MetaCanSNPer.Globals import *
-from colors import black, red, green, yellow, blue, magenta, cyan, white
+import colors
 import textwrap
 
 _NOT_FOUND = object()
@@ -37,12 +37,12 @@ class ColorStr(str):
 	def __radd__(self, left):
 		return type(self)(str.__add__(left, self))
 
-yellow = lambda *args, **kwargs : ColorStr(yellow(*args, **kwargs))
-magenta = lambda *args, **kwargs : ColorStr(magenta(*args, **kwargs))
-white = lambda *args, **kwargs : ColorStr(white(*args, **kwargs))
-red = lambda *args, **kwargs : ColorStr(red(*args, **kwargs))
-green = lambda *args, **kwargs : ColorStr(green(*args, **kwargs))
-cyan = lambda *args, **kwargs : ColorStr(cyan(*args, **kwargs))
+yellow = lambda *args, **kwargs : ColorStr(colors.yellow(*args, **kwargs))
+magenta = lambda *args, **kwargs : ColorStr(colors.magenta(*args, **kwargs))
+white = lambda *args, **kwargs : ColorStr(colors.white(*args, **kwargs))
+red = lambda *args, **kwargs : ColorStr(colors.red(*args, **kwargs))
+green = lambda *args, **kwargs : ColorStr(colors.green(*args, **kwargs))
+cyan = lambda *args, **kwargs : ColorStr(colors.cyan(*args, **kwargs))
 
 SQUARE = "="
 HALF_SQUARE = ":"
