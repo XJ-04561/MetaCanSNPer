@@ -26,11 +26,11 @@ class ColorStr(str):
 		l = len(Printer.ANSI_REMOVE(None, self))
 		match direction:
 			case "<":
-				return self + filler * max(size - len(self), 0)
+				return self + filler * max(size - l, 0)
 			case "^":
-				return filler*(max(size - len(self), 0) // 2)+self+filler*(max(size - len(self), 0) // 2 + max(size - len(self), 0) % 2)
+				return filler*(max(size - l, 0) // 2)+self+filler*(max(size - l, 0) // 2 + max(size - l, 0) % 2)
 			case ">":
-				return filler * max(size - len(self), 0) + self
+				return filler * max(size - l, 0) + self
 	
 	def __add__(self, right):
 		return type(self)(str.__add__(self, right))
