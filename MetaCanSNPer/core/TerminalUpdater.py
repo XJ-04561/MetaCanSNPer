@@ -258,7 +258,7 @@ class Indicator(Logged):
 		for cols in itertools.batched(map(lambda i: f"{{names[{i}]:^{self.length}}}", range(N)), maxCols):
 			namesList.append(" "+self.sep.join(cols) + " "*(width-1-len(cols)*(self.length+self.sepLength)+self.sepLength))
 		barsList = []
-		for cols in itertools.batched(map(lambda i: f"{self.borders[0]}{{bars[{i}]}}{self.borders[1]}", range(N)), maxCols):
+		for cols in itertools.batched(map(lambda i: f"{{bars[{i}]:^{self.length}}}", range(N)), maxCols):
 			barsList.append(" "+self.sep.join(cols) + " "*(width-1-len(cols)*(self.length+self.sepLength)+self.sepLength))
 		
 		rowTemplate = [firstRow, spacerRow]
@@ -341,9 +341,9 @@ class LoadingBar(Indicator):
 		<0		-	Not started
 		1.0		-	Postprocessing
 		"""
-		crashString = self.crashColor(self.crashSymbol * self.innerLength)
-		finishString = self.finishColor(self.symbols[0] * self.innerLength)
-		skippedString = self.skippedColor(self.symbols[0] * self.innerLength)
+		crashString = self.borders[0]+self.crashColor(self.crashSymbol * self.innerLength)+self.borders[1]
+		finishString = self.borders[0]+self.finishColor(self.symbols[0] * self.innerLength)+self.borders[1]
+		skippedString = self.borders[0]+self.skippedColor(self.symbols[0] * self.innerLength)+self.borders[1]
 		
 		for name, prog in zip(self.names, map(self.threads.get, self.names)):
 			if prog is None:
@@ -356,11 +356,11 @@ class LoadingBar(Indicator):
 				fillLength = int(self.innerLength*2*prog)
 				fillLength, halfBlock = fillLength//2, fillLength%2
 				
-				yield self.progColor(f"{self.symbols[0]*fillLength}{self.symbols[1]*halfBlock}")+self.partition(f"{self.symbols[2]*(self.innerLength - fillLength - halfBlock)}")
+				yield self.borders[0]+self.progColor(f"{self.symbols[0]*fillLength}{self.symbols[1]*halfBlock}")+self.partition(f"{self.symbols[2]*(self.innerLength - fillLength - halfBlock)}")+self.borders[1]
 			elif prog < 0:
-				yield self.preColor(self.symbols[2]*self.n + self.symbols[0] + self.symbols[2]*(self.innerLength - self.n - 1))
+				yield self.borders[0]+self.preColor(self.symbols[2]*self.n + self.symbols[0] + self.symbols[2]*(self.innerLength - self.n - 1))+self.borders[1]
 			elif prog == 1:
-				yield self.postColor(self.symbols[0]*self.n + self.symbols[2] + self.symbols[0]*(self.innerLength - self.n - 1))
+				yield self.borders[0]+self.postColor(self.symbols[0]*self.n + self.symbols[2] + self.symbols[0]*(self.innerLength - self.n - 1))+self.borders[1]
 			else:
 				yield crashString
 		self.n = (self.n+1) % self.innerLength
@@ -391,9 +391,9 @@ class Spinner(Indicator):
 		1.0		-	Postprocessing
 		"""
 		NSymbols = len(self.symbols)
-		crashString = self.crashColor(self.crashSymbol)
-		finishString = self.finishColor(self.finishSymbol)
-		skippedString = self.skippedColor(self.finishSymbol)
+		crashString = self.borders[0]+self.crashColor(self.crashSymbol)+self.borders[1]
+		finishString = self.borders[0]+self.finishColor(self.finishSymbol)+self.borders[1]
+		skippedString = self.borders[0]+self.skippedColor(self.finishSymbol)+self.borders[1]
 		
 		for name, prog in zip(self.names, map(self.threads.get, self.names)):
 			if prog is None:
@@ -403,11 +403,11 @@ class Spinner(Indicator):
 			elif name in self.finishedThreads:
 				yield finishString
 			elif 0 <= prog < 1:
-				yield self.progColor(self.symbols[self.n])
+				yield self.borders[0]+self.progColor(self.symbols[self.n])+self.borders[1]
 			elif prog < 0:
-				yield self.preColor("." if self.n%2 else ":")
+				yield self.borders[0]+self.preColor("." if self.n%2 else ":")+self.borders[1]
 			elif prog == 1:
-				yield self.postColor("." if self.n%2 else ":")
+				yield self.borders[0]+self.postColor("." if self.n%2 else ":")+self.borders[1]
 			else:
 				yield crashString
 		self.n = (self.n+1) % NSymbols
@@ -438,9 +438,9 @@ class TextProgress(Indicator):
 		1.0		-	Postprocessing
 		"""
 		NSymbols = len(self.symbols)
-		crashString = self.crashColor(self.crashSymbol)
-		finishString = self.finishColor(self.finishSymbol)
-		skippedString = self.skippedColor(self.finishSymbol)
+		crashString = self.borders[0]+self.crashColor(self.crashSymbol)+self.borders[1]
+		finishString = self.borders[0]+self.finishColor(self.finishSymbol)+self.borders[1]
+		skippedString = self.borders[0]+self.skippedColor(self.finishSymbol)+self.borders[1]
 		
 		for name, prog in zip(self.names, map(self.threads.get, self.names)):
 			if prog is None:
@@ -450,11 +450,11 @@ class TextProgress(Indicator):
 			elif name in self.finishedThreads:
 				yield finishString
 			elif 0 <= prog < 1:
-				yield self.progColor(self.symbols[int(NSymbols*prog)])
+				yield self.borders[0]+self.progColor(self.symbols[int(NSymbols*prog)])+self.borders[1]
 			elif prog < 0:
-				yield self.preColor("."*self.n + ":"*(self.n<self.innerLength) + "."*(self.innerLength-self.n))
+				yield self.borders[0]+self.preColor("."*self.n + ":"*(self.n<self.innerLength) + "."*(self.innerLength-self.n))+self.borders[1]
 			elif prog == 1:
-				yield self.postColor("o"*self.n + "O"*(self.n<self.innerLength) + "o"*(self.innerLength-self.n))
+				yield self.borders[0]+self.postColor("o"*self.n + "O"*(self.n<self.innerLength) + "o"*(self.innerLength-self.n))+self.borders[1]
 			else:
 				yield crashString
 		self.n = (self.n+1) % (self.innerLength + 1)
