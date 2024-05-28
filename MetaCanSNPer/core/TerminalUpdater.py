@@ -370,7 +370,7 @@ class Spinner(Indicator):
 	symbols : list[str] = ["|", "/", "-", "\\"]
 
 	@overload
-	def __init__(self, threads: HitchableDict, symbols: tuple[str]=["|", "/", "-", "\\"], length: int = 10,
+	def __init__(self, threads: HitchableDict, symbols: tuple[str]=["|", "/", "-", "\\"], length: int = 15,
 			  message: str = "", sep: str = " ", borders: tuple[str, str] = ("[", "]"), crashSymbol="X",
 			  finishSymbol=SQUARE, out=sys.stdout, preColor: str = None, partition: str = None,
 			  crashColor: str = None, skippedColor: str = None, finishColor: str = None,
@@ -417,7 +417,7 @@ class TextProgress(Indicator):
 	symbols : tuple[str]=[".", ",", ":", "|", "I", "H", "#"]
 
 	@overload
-	def __init__(self, threads: HitchableDict, symbols: tuple[str]=[".", ",", ":", "|", "I", "H", "#"], length: int = 3,
+	def __init__(self, threads: HitchableDict, symbols: tuple[str]=[".", ",", ":", "|", "I", "H", "#"], length: int = 15,
 			  message: str = "", sep: str = " ", borders: tuple[str, str] = ("[", "]"), crashSymbol="X",
 			  finishSymbol=SQUARE, out=sys.stdout, preColor: str = None, partition: str = None,
 			  crashColor: str = None, skippedColor: str = None, finishColor: str = None,

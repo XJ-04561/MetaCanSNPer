@@ -110,7 +110,6 @@ class Commands(Logged):
 			self.separators = []
 			
 			for c in args:
-				self.LOG.debug(f"{self.pattern}.fullmatch({c}) -> {self.pattern.fullmatch(c)}")
 				if c is None:
 					continue
 				elif self.pattern.fullmatch(c):
