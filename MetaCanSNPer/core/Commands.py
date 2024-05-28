@@ -248,7 +248,8 @@ class PipeCommands(Commands):
 				lastSTDOUT.close()
 			lastSTDOUT = processes[i].stdout
 		processes.append( self._list[-1].run(stdin=lastSTDOUT, **kwargs))
-		lastSTDOUT.close()
+		if lastSTDOUT:
+			lastSTDOUT.close()
 
 		processes[-1].wait()
 
