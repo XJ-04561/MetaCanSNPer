@@ -15,7 +15,7 @@ class ParseXMFA2(SNPCaller):
 
 class GATK_Mutect2(SNPCaller):
 	softwareName = "gatk_Mutect2"
-	commandTemplate = "samtools faidx {refPath!r} && gatk CreateSequenceDictionary -R {refPath!r}; gatk IndexFeatureFile -I {targetSNPs!r} --java-options '-DGATK_STACKTRACE_ON_USER_EXCEPTION=true' && gatk Mutect2 --Genotype-germline-sites --Genotype-pon-sites --java-options '-DGATK_STACKTRACE_ON_USER_EXCEPTION=true' -R {refPath!r} -I {mapPath!r} -L {targetSNPs!r} --force-call-filtered-alleles --alleles {targetSNPs!r} -O {output!r}"
+	commandTemplate = "samtools faidx {refPath!r} && gatk CreateSequenceDictionary -R {refPath!r}; gatk IndexFeatureFile -I {targetSNPs!r} --java-options '-DGATK_STACKTRACE_ON_USER_EXCEPTION=true' && gatk Mutect2 --genotype-germline-sites --genotype-pon-sites --java-options '-DGATK_STACKTRACE_ON_USER_EXCEPTION=true' -R {refPath!r} -I {mapPath!r} -L {targetSNPs!r} --force-call-filtered-alleles --alleles {targetSNPs!r} -O {output!r}"
 	inFormat = ["bam"]
 	outFormat = "vcf"
 

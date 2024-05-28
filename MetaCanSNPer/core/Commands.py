@@ -35,7 +35,7 @@ class Command(Logged):
 			self.exceptions = {}
 			self.runningCondition = Condition()
 			if self.raw.strip() != "":
-				self._hook = self.hooks.addHook(f"{self.category}Finished", target=self.parallelFinished)
+				self._hook = self.hooks.addHook(f"SequentialCommand{self.category}Finished", target=self.parallelFinished)
 				
 				self.commands = ParallelCommands(self.raw, category, hooks=hooks, logDir=logDir, names=names)
 			else:
@@ -66,7 +66,7 @@ class Command(Logged):
 	
 	def __del__(self):
 		try:
-			self.hooks.removeHook(f"SequentialCommands{self.category}Finished", self._hook)
+			self.hooks.removeHook(f"SequentialCommand{self.category}Finished", self._hook)
 		except:
 			pass
 
@@ -277,7 +277,7 @@ class SequentialCommands(Commands):
 	  the 'object' key.
 	* If `.run()` is used, the method only returns once all commands have finished.
 
-	Triggers the event `f"SequentialCommands{self.category}Finished"` to its
+	Triggers the event `f"SequentialCommand{self.category}Finished"` to its
 	SequentialCommands.hooks that is taken from the constructor for
 	SequentialCommands when a command has finished, irrespective of using
 	`.start()` or `.run()`.
@@ -310,7 +310,7 @@ class SequentialCommands(Commands):
 					break
 				elif returncode == 0 and self.separators[i] == "||":
 					break
-			self.hooks.trigger(f"SequentialCommands{self.category}Finished", {"name" : None, "value" : self.returncodes[-1] if self.returncodes else None, "instance" : self})
+			self.hooks.trigger(f"SequentialCommand{self.category}Finished", {"name" : None, "value" : self.returncodes[-1] if self.returncodes else None, "instance" : self})
 		except Exception as e:
 			if type(e) is FileNotFoundError:
 				self.hooks.trigger(f"ReportError", {"exception" : e})
@@ -319,7 +319,7 @@ class SequentialCommands(Commands):
 				self.LOG.exception(e)
 			except:
 				self.LOG.exception(e)
-			self.hooks.trigger(f"SequentialCommands{self.category}Finished", {"name" : None, "value" : self.returncodes[-1] if self.returncodes else None, "instance" : self})
+			self.hooks.trigger(f"SequentialCommand{self.category}Finished", {"name" : None, "value" : self.returncodes[-1] if self.returncodes else None, "instance" : self})
 		return self.returncodes[-1]
 	
 	def wait(self, timeout=None):

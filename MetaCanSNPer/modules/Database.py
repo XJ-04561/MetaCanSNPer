@@ -141,19 +141,16 @@ class HasChromosomes(Assertion, Logged):
 		ref2chromLookup = {}
 		for i, genbankID, assembly in database[GenomeID, GenbankID, AssemblyName, ReferencesTable]:
 			ref2chromLookup[i] = []
-			chromosomes = ()
-			assemblyFile = refDir.find(f"{assembly}.fna") or Path("?")
+			assemblyFile = refDir.find(f"{assembly}.fna")
 			
-			if shutil.which(commandName):
-				chromosomes = tuple(map(*this["value"].strip("\"'"), loads(getOutput(f"{commandName} summary genome accession {genbankID} --as-json-lines".split()))["assembly_info"]["biosample"]["sample_ids"]))
+			# if shutil.which(commandName):
+			# 	chromosomes = tuple(map(*this["value"].strip("\"'"), loads(getOutput(f"{commandName} summary genome accession {genbankID} --as-json-lines".split()))["assembly_info"]["biosample"]["sample_ids"]))
 			
-			if len(chromosomes) > 0:
-				pass # genbank entry found
-			elif assemblyFile.exists:
+			if assemblyFile and assemblyFile.exists:
 				# No genbank entry found
-				chromosomes = map(*this[1:].split()[0], filter(*this.startswith(">"), open(assemblyFile, "r").readline()))
+				with open(assemblyFile, "r") as refFile:
+					chromosomes = tuple(map(*this[1:].split()[0], filter(*this.startswith(">"), refFile)))
 			else:
-				self.LOG.exception(UnableToDefineChromosomes(f"Could not find naming for chromosomes in entry with {i=}, {genbankID=}, and {assembly=}."))
 				self.LOG.error(f"Couldn't find genome with {genbankID=} either online or in {refDir}.")
 				chromosomes = (NULL,)
 

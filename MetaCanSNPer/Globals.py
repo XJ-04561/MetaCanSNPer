@@ -43,7 +43,9 @@ from threading import Lock
 _NOT_SET = object()
 PYTHON_VERSION = tuple(sys.version_info[:3])
 MAX_DEBUG = False
-HANDLER = logging.FileHandler(os.devnull)
+LOGGING_FILEPATH = NamedTemporaryFile(prefix=time.strftime("MetaCanSNPer-%Y-%m-%d--%H-%M-%S-[", time.localtime()), suffix="].log", dir=DirectoryPath(user_log_dir(SOFTWARE_NAME)).writable, delete=False).name
+LOGGING_FILEHANDLER = logging.FileHandler(LOGGING_FILEPATH)
+logging.basicConfig(handlers=[LOGGING_FILEHANDLER], format="[%(name)s] %(asctime)s - %(levelname)s: %(message)s", level=logging.DEBUG)
 if PYTHON_VERSION < (3, 12):
 	class batched:
 		def __init__(self, iterable, n):

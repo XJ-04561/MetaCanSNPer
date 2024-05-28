@@ -98,24 +98,21 @@ class NotLegacyCanSNPer2(Assertion, Logged):
 		# Chromosomes
 		self.LOG.info("Updating 'Chromosomes'-table")
 		database(CREATE - TABLE - sql(ChromosomesTable) )
+		# commandName = f"datasets{'.exe' if os.name == 'nt' else ''}"
 		j = 0
 		ref2chromLookup = {}
 		for i, genbankID, assembly in database(SELECT (LO.ReferencesTable.ID, LO.GenbankID, LO.AssemblyName) - FROM (LO.ReferencesTable)):
 			ref2chromLookup[i] = []
-			chromosomes = ()
 			assemblyFile = refDir.find(f"{assembly}.fna") or Path("?")
-			commandName = f"datasets{'.exe' if os.name == 'nt' else ''}"
 			
-			if shutil.which(commandName):
-				chromosomes = tuple(map(*this["value"].strip("\"'"), loads(getOutput(f"{commandName} summary genome accession {genbankID} --as-json-lines".split()))["assembly_info"]["biosample"]["sample_ids"]))
+			# if shutil.which(commandName):
+			# 	chromosomes = tuple(map(*this["value"].strip("\"'"), loads(getOutput(f"{commandName} summary genome accession {genbankID} --as-json-lines".split()))["assembly_info"]["biosample"]["sample_ids"]))
 			
-			if len(chromosomes) > 0:
-				pass # genbank entry found
-			elif assemblyFile.exists:
+			if assemblyFile.exists:
 				# No genbank entry found
-				chromosomes = map(*this[1:].split()[0], filter(*this.startswith(">"), open(assemblyFile, "r").readline()))
+				with open(assemblyFile, "r") as refFile:
+					chromosomes = tuple(map(*this[1:].split()[0].strip("\"'"), filter(*this.startswith(">"), refFile)))
 			else:
-				self.LOG.exception(UnableToDefineChromosomes(f"Could not find naming for chromosomes in entry with {i=}, {genbankID=}, and {assembly=}."))
 				self.LOG.warning(f"Couldn't find genome with {genbankID=} and {assembly=} either online or in {refDir}.")
 				chromosomes = (NULL,)
 

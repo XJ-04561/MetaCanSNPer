@@ -97,7 +97,7 @@ class DirectoryLibrary(SoftwareLibrary, Logged):
 
 	@Default["outDir", "sessionName"]
 	def logDir(self) -> DirectoryPath:
-		return TemporaryDirectory(prefix=self.sessionName+"-[", suffix="]", dir=self.userCacheDir.writable, delete=False).name
+		return DirectoryPath(TemporaryDirectory(prefix=self.sessionName+"-[", suffix="]", dir=self.userCacheDir.writable, delete=False).name)
 	
 	@logDir.setter
 	def logDir(self, value):
@@ -139,7 +139,7 @@ class DirectoryLibrary(SoftwareLibrary, Logged):
 
 		super().__init__(**{name:value for name, value in kwargs.items() if value is not None})
 		self.LOG = self.LOG.getChild(f"[{self.sessionName}]")
-
+		
 		self.targetDir.create(purpose="w")
 		self.refDir.create(purpose="w")
 		self.SNPDir.create(purpose="w")

@@ -244,18 +244,15 @@ def initializeMainObject(args : NameSpace) -> MetaCanSNPer:
 
 	from MetaCanSNPer.modules.Database import ReferencesTable
 	mObj = MetaCanSNPer(args.organism, args.query, settings=vars(args), settingsFile=args.settingsFile)
-	global HANDLER
-	HANDLER = logging.FileHandler(mObj.Lib.logDir / "MetaCanSNPer.log")
-	logging.basicConfig(handlers=[HANDLER], format="[%(name)s] %(asctime)s - %(levelname)s: %(message)s", level=logging.DEBUG)
 
 	database = args.database or mObj.databaseName
 	
-	with TerminalUpdater(f"Checking database {database}:", category="DatabaseDownloader", hooks=mObj.hooks, threadNames=[database], printer=LoadingBar, out=sys.stdout if ISATTY else DEV_NULL):
+	with TerminalUpdater(f"Checking database {database}:", category="DatabaseDownloader", hooks=mObj.hooks, names=[database], printer=LoadingBar, length=30, out=sys.stdout if ISATTY else DEV_NULL):
 		mObj.setDatabase(args.database)
 
 	if args.sessionName is not None: mObj.setSessionName(args.sessionName)
 
-	with TerminalUpdater(f"Checking Reference Genomes:", category="ReferenceDownloader", hooks=mObj.hooks, threadNames=list(map(lambda a:f"{a}.fna", mObj.database[ReferencesTable.AssemblyName])), printer=LoadingBar, out=sys.stdout if ISATTY else DEV_NULL):
+	with TerminalUpdater(f"Checking Reference Genomes:", category="ReferenceDownloader", hooks=mObj.hooks, names=list(map(lambda a:f"{a}.fna", mObj.database[ReferencesTable.AssemblyName])), printer=LoadingBar, out=sys.stdout if ISATTY else DEV_NULL):
 		mObj.setReferenceFiles()
 	
 	return mObj
@@ -266,19 +263,19 @@ def runJob(mObj : MetaCanSNPer, args : NameSpace, argsDict : dict):
 	genomes = list(mObj.database[ReferencesTable.Genome])
 	
 	if args.mapper is not None:
-		with TerminalUpdater(f"Creating Mappings:", category="Mappers", hooks=mObj.hooks, threadNames=genomes, printer=Spinner, out=sys.stdout if ISATTY else DEV_NULL):
+		with TerminalUpdater(f"Creating Mappings:", category="Mappers", hooks=mObj.hooks, names=genomes, printer=Spinner, out=sys.stdout if ISATTY else DEV_NULL):
 			mObj.createMap(softwareName=args.mapper, flags=argsDict.get("--mapperOptions", {}))
 
 	if args.aligner is not None:
-		with TerminalUpdater(f"Creating Alignments:", category="Aligners", hooks=mObj.hooks, threadNames=genomes, printer=Spinner, out=sys.stdout if ISATTY else DEV_NULL):
+		with TerminalUpdater(f"Creating Alignments:", category="Aligners", hooks=mObj.hooks, names=genomes, printer=Spinner, out=sys.stdout if ISATTY else DEV_NULL):
 			mObj.createAlignment(softwareName=args.aligner, flags=argsDict.get("--alignerOptions", {}))
 	
-	with TerminalUpdater(f"Calling SNPs:", category="SNPCallers", hooks=mObj.hooks, threadNames=genomes, printer=Spinner, out=sys.stdout if ISATTY else DEV_NULL):
+	with TerminalUpdater(f"Calling SNPs:", category="SNPCallers", hooks=mObj.hooks, names=genomes, printer=Spinner, out=sys.stdout if ISATTY else DEV_NULL):
 		mObj.callSNPs(softwareName=args.snpCaller, flags=argsDict.get("--snpCallerOptions", {}))
 
 def saveResults(mObj : MetaCanSNPer, args : argparse.Namespace):
 
-	with TerminalUpdater(f"Saving Results:", category="SavingResults", hooks=mObj.hooks, threadNames=[mObj.queryName], printer=Spinner, out=sys.stdout if ISATTY else DEV_NULL):
+	with TerminalUpdater(f"Saving Results:", category="SavingResults", hooks=mObj.hooks, names=[mObj.queryName], printer=Spinner, out=sys.stdout if ISATTY else DEV_NULL):
 		mObj.saveSNPdata()
 		outDir = mObj.saveResults()
 		mObj.hooks.trigger("SavingResultsFinished", {"name" : mObj.queryName})
@@ -322,7 +319,7 @@ def main(argVector : list[str]=sys.argv) -> int:
 		if args.debug:
 			pattern = re.compile(r"(\[[\w.]+\])( \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3} - ERROR: )(.*?)(?=Traceback|\[[\w.]+\] \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3} - \w+?:|\$)", flags=re.DOTALL+re.MULTILINE)
 			printableExcepts = set()
-			for err in pattern.finditer(open(HANDLER.name, "r").read()):
+			for err in pattern.finditer(open(LOGGING_FILEPATH, "r").read()):
 				printableExcepts.add(f"{err.group(1)} ERROR: {err.group(3)}")
 			for exc in printableExcepts:
 				print(exc, file=sys.stderr)

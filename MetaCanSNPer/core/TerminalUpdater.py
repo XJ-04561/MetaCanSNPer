@@ -495,15 +495,15 @@ class TerminalUpdater(Logged):
 	out : TextIO
 	printer : Indicator = None
 
-	def __init__(self, message, category, hooks : Hooks, threadNames : Iterable, out=sys.stdout, printer : Indicator=Spinner):
+	def __init__(self, message, category, *args, hooks : Hooks, names : Iterable, out=sys.stdout, printer : Indicator=Spinner, **kwargs):
 		
 		self.startTime = timer()
 		
 		self.message = message
 		self.category = category
 		self.hooks = hooks
-		self.threadNames = threadNames
-		self.threads = HitchableDict(map(lambda name : (name,-1.0), threadNames), onSet=self.updatePrinter)
+		self.threadNames = names
+		self.threads = HitchableDict(map(lambda name : (name,-1.0), names), onSet=self.updatePrinter)
 		self.out = out
 		
 		self.running = True
@@ -526,7 +526,7 @@ class TerminalUpdater(Logged):
 		self.hooks.addHook(f"{self.category}Failed", self.failedCallback)
 
 		if printer is not None:
-			self.setPrinter(printer)
+			self.setPrinter(printer, *args, **kwargs)
 
 	def __enter__(self):
 		self.start()
