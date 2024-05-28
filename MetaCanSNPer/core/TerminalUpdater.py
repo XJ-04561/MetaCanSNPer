@@ -41,7 +41,6 @@ yellow = lambda *args, **kwargs : ColorStr(yellow(*args, **kwargs))
 magenta = lambda *args, **kwargs : ColorStr(magenta(*args, **kwargs))
 white = lambda *args, **kwargs : ColorStr(white(*args, **kwargs))
 red = lambda *args, **kwargs : ColorStr(red(*args, **kwargs))
-red = lambda *args, **kwargs : ColorStr(red(*args, **kwargs))
 green = lambda *args, **kwargs : ColorStr(green(*args, **kwargs))
 cyan = lambda *args, **kwargs : ColorStr(cyan(*args, **kwargs))
 
