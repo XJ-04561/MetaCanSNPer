@@ -86,7 +86,7 @@ class NotLegacyCanSNPer2(Assertion, Logged):
 			RefseqID, AssemblyName
 		)
 		
-		refDir = PathGroup(appdirs.user_data_dir(SOFTWARE_NAME), *appdirs.site_data_dir(SOFTWARE_NAME, multipath=True).split(os.pathsep)) / "References" / database.organism
+		refDir = PathGroup([appdirs.user_data_dir(SOFTWARE_NAME), *appdirs.site_data_dir(SOFTWARE_NAME, multipath=True).split(os.pathsep)]) / "References" / database.organism
 		
 		database(BEGIN - TRANSACTION)
 

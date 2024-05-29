@@ -129,7 +129,7 @@ class HasChromosomes(Assertion, Logged):
 		from json import loads
 		from subprocess import check_output as getOutput
 		
-		refDir = PathGroup(appdirs.user_data_dir(SOFTWARE_NAME), *appdirs.site_data_dir(SOFTWARE_NAME, multipath=True).split(os.pathsep)) / "References" / database.organism
+		refDir = PathGroup([appdirs.user_data_dir(SOFTWARE_NAME), *appdirs.site_data_dir(SOFTWARE_NAME, multipath=True).split(os.pathsep)]) / "References" / database.organism
 		
 		database(BEGIN - TRANSACTION)
 
