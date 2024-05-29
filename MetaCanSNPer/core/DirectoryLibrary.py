@@ -80,8 +80,7 @@ class DirectoryLibrary(SoftwareLibrary, Logged):
 		if self.settings.get("saveTemp"):
 			return self.userCacheDir.writable / f"{self.organism}_{self.queryName}"
 		else:
-			self._tmpDirObject = PseudoPathyFunctions.createTempDir(f"{self.organism}_{self.queryName}", dir=self.userCacheDir.writable)
-			return Path(self._tmpDirObject.name)
+			return PseudoPathyFunctions.createTempDir(f"{self.organism}_{self.queryName}", dir=self.userCacheDir.writable)
 	
 	@Default["targetDir", "userDir", "SOFTWARE_NAME"]
 	def outDir(self) -> PathGroup:
