@@ -390,7 +390,8 @@ class Downloader(Logged):
 				break
 			elif job.isDead():
 				job.clearFromQueue()
-			job.updateLoop(timeStep=self.timeStep)
+			else:
+				job.updateLoop(timeStep=self.timeStep)
 		else:
 			job.run(self.SOURCES, postProcess=self.postProcess)
 
