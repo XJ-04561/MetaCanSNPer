@@ -83,8 +83,8 @@ class DirectoryLibrary(SoftwareLibrary, Logged):
 			return PseudoPathyFunctions.createTempDir(f"{self.organism}_{self.queryName}", dir=self.userCacheDir.writable)
 	
 	@Default["targetDir", "userDir", "SOFTWARE_NAME"]
-	def outDir(self) -> PathGroup:
-		return self.targetDir | (self.userDir / self.SOFTWARE_NAME)
+	def outDir(self) -> DirectoryGroup:
+		return self.workDir | (self.userDir / self.SOFTWARE_NAME)
 	
 	@Default["outDir", "sessionName"]
 	def resultDir(self) -> DirectoryPath:

@@ -90,8 +90,12 @@ class DatabaseThread(Logged):
 					try:
 						results.extend(self._connection.execute(string, params).fetchall())
 					except Exception as e:
+						self.LOG.exception(e)
 						results.append(e)
-					lock.release()
+					try:
+						lock.release()
+					except:
+						pass
 					self.queue.task_done()
 				except EmptyQueueException:
 					pass
