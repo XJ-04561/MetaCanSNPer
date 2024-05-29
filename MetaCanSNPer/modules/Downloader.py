@@ -239,6 +239,12 @@ class Job(Logged):
 			return False
 		else:
 			return True
+	
+	def clearFromQueue(self):
+		try:
+			self._queueConnection.execute("DELETE FROM queueTable WHERE name = ?;", [self.filename])
+		except:
+			pass
 
 	def isListed(self):
 		return self._queueConnection.execute("SELECT CASE WHEN EXISTS(SELECT 1 FROM queueTable WHERE name = ?) THEN TRUE ELSE FALSE END;", [self.filename]).fetchone()[0]
@@ -379,17 +385,14 @@ class Downloader(Logged):
 		job = Job(query, filename, conn=self._queueConnection, reportHook=reportHook, out=self.directory, logger=self.LOG)
 		self.jobs.append(job)
 
-		if job.reserveQueue():
-			job.run(self.SOURCES, postProcess=self.postProcess)
-		elif job.isDone():
-			reportHook(2)
+		while not job.reserveQueue():
+			if job.isDone():
+				break
+			elif job.isDead():
+				job.clearFromQueue()
+			job.updateLoop(timeStep=self.timeStep)
 		else:
-			while not job.reserveQueue():
-				job.updateLoop(timeStep=self.timeStep)
-				if job.isDone():
-					break
-			else:
-				job.run(self.SOURCES, postProcess=self.postProcess)
+			job.run(self.SOURCES, postProcess=self.postProcess)
 
 
 # Implementations
