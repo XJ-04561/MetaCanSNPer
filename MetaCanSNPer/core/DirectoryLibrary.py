@@ -60,19 +60,19 @@ class DirectoryLibrary(SoftwareLibrary, Logged):
 		self.__dict__["query"] = FileList(queryList)
 
 	@Default["workDir", "userDir"]
-	def targetDir(self) -> PathGroup:
+	def targetDir(self) -> DirectoryGroup:
 		return self.workDir | self.userDir
 	
 	@Default["dataDir", "organism"]
-	def refDir(self) -> PathGroup:
+	def refDir(self) -> DirectoryGroup:
 		return self.dataDir / "References" / self.organism
 	
 	@Default["dataDir", "organism"]
-	def SNPDir(self) -> PathGroup:
+	def SNPDir(self) -> DirectoryGroup:
 		return self.dataDir / "SNPs" / self.organism
 	
 	@Default["dataDir"]
-	def databaseDir(self) -> PathGroup:
+	def databaseDir(self) -> DirectoryGroup:
 		return self.dataDir / "Databases"
 	
 	@Default["userCacheDir"]
