@@ -3,6 +3,10 @@ from MetaCanSNPer.core import MetaCanSNPer
 from MetaCanSNPer.CLI import initializeMainObject, NameSpace, parser, runJob, handleOptions, saveResults, separateCommands
 import pytest
 
+"""
+MetaCanSNPer --query ~/SAMPLES/FSC458/raw_data/illumina/FSC458_R1.fastq.gz ~/SAMPLES/FSC458/raw_data/illumina/FSC458_R2.fastq.gz --organism francisella_tularensis --dry-run --saveTemp --debug --mapper minimap2 --snpCaller gatk_Mutect2 --mapperOptions -x sr
+"""
+
 @pytest.mark.skip
 def test_init():
 

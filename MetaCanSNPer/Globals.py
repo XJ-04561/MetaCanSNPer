@@ -37,13 +37,12 @@ from time import sleep
 from collections import defaultdict, OrderedDict
 import tomllib as toml
 from appdirs import user_log_dir, user_config_dir, site_config_dir
-from tempfile import NamedTemporaryFile, TemporaryDirectory
 from threading import Lock
 
 _NOT_SET = object()
 PYTHON_VERSION = tuple(sys.version_info[:3])
 MAX_DEBUG = False
-LOGGING_FILEPATH = NamedTemporaryFile(prefix=time.strftime("MetaCanSNPer-%Y-%m-%d--%H-%M-%S-[", time.localtime()), suffix="].log", dir=DirectoryPath(user_log_dir(SOFTWARE_NAME)).writable, delete=False).name
+LOGGING_FILEPATH = UniqueFilePath(DirectoryPath(user_log_dir(SOFTWARE_NAME)).writable, time.strftime("MetaCanSNPer-%Y-%m-%d--%H-%M-%S.log", time.localtime()))
 LOGGING_FILEHANDLER = logging.FileHandler(LOGGING_FILEPATH)
 logging.basicConfig(handlers=[LOGGING_FILEHANDLER], format="[%(name)s] %(asctime)s - %(levelname)s: %(message)s", level=logging.DEBUG)
 if PYTHON_VERSION < (3, 12):
@@ -131,7 +130,6 @@ def printCall(func, args, kwargs):
 	return f"{getattr(func, '__qualname__', getattr(func, '__name__', func))}({', '.join(itertools.chain(map(str, args), map(lambda keyval : str(keyval[0])+'='+str(keyval[1]), kwargs.items())))})"
 
 random.seed()
-from tempfile import NamedTemporaryFile
 
 _NULL_KEY = object()
 def formatTimestamp(seconds):

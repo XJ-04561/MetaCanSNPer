@@ -80,7 +80,7 @@ class DirectoryLibrary(SoftwareLibrary, Logged):
 		if self.settings.get("saveTemp"):
 			return self.userCacheDir.writable / f"{self.organism}_{self.queryName}"
 		else:
-			self._tmpDirObject = TemporaryDirectory(prefix=f"{self.organism}_{self.queryName}-", dir=self.userCacheDir.writable)
+			self._tmpDirObject = PseudoPathyFunctions.createTempDir(f"{self.organism}_{self.queryName}", dir=self.userCacheDir.writable)
 			return Path(self._tmpDirObject.name)
 	
 	@Default["targetDir", "userDir", "SOFTWARE_NAME"]
@@ -97,7 +97,7 @@ class DirectoryLibrary(SoftwareLibrary, Logged):
 
 	@Default["outDir", "sessionName"]
 	def logDir(self) -> DirectoryPath:
-		return DirectoryPath(TemporaryDirectory(prefix=self.sessionName+"-[", suffix="]", dir=self.userCacheDir.writable, delete=False).name)
+		return UniqueDirectoryPath(self.userCacheDir.writable / self.sessionName)
 	
 	@logDir.setter
 	def logDir(self, value):
