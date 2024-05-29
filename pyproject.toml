@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "MetaCanSNPer"
 readme = "README.md"
 description = "MetaCanSNPer: A toolkit for SNP-typing genomes."
-version = "0.1"
+version = "0.2"
 requires-python = ">= 3.8"
 license = { file = "LICENSE"}
 keywords = ["Bioinformatics", "SNP-typing", "sequence-data"]
@@ -33,17 +33,17 @@ classifiers = [
     "Operating System :: OS Independent"
 ]
 dependencies = [
-    "PseudoPathy @ git+https://github.com/XJ-04561/PseudoPathy.git",
-    "VariantCallFixer @ git+https://github.com/XJ-04561/VariantCallFixer.git"
+    "appdirs",
+    "gunzip",
+    "ansicolors",
+    "PseudoPathy @ git+https://github.com/XJ-04561/PseudoPathy",
+    "This @ git+https://github.com/XJ-04561/This",
+    "VariantCallFixer @ git+https://github.com/XJ-04561/VariantCallFixer",
+    "SQLOOP @ git+https://github.com/XJ-04561/SQLOOP"
 ]
 
 [project.urls]
 Repository = "https://github.com/XJ-04561/MetaCanSNPer.git"
 
 [project.scripts]
-MetaCanSNPer = "MetaCanSNPer.CommandLineParser:main"
-
-[project.optional-dependencies]
-basic = ["minimap2", "gatk"]
-legacy = ["ParseXMFA2 @ git+https://github.com/XJ-04561/ParseXMFA2.git", "progressiveMauve"]
-all = ["ParseXMFA2 @ git+https://github.com/XJ-04561/ParseXMFA2.git", "progressiveMauve", "minimap2", "gatk"]
+MetaCanSNPer = "MetaCanSNPer.CLI:main"

@@ -1,6 +1,5 @@
 build*
 *.pyc
-test*
 *.dmp
 .ctbd
 *.db
@@ -9,3 +8,5 @@ test*
 dist*
 results*
 logs
+_*
+!__*__
