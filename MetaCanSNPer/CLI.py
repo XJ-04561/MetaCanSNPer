@@ -297,7 +297,8 @@ def main(argVector : list[str]=sys.argv) -> int:
 	print(f"\nRunning {SOFTWARE_NAME}...\n")
 
 	try:
-		checkDependencies(args)
+		if not args.dry_run:
+			checkDependencies(args)
 		
 		handleOptions(args)
 
