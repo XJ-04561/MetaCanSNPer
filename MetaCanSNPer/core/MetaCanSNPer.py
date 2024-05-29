@@ -123,6 +123,7 @@ class MetaCanSNPer(Logged):
 		for genomeID, genome, strain, genbankID, refseqID, assemblyName in references:
 			filename = f"{assemblyName}.fna"
 			if self.Lib.references[genome]:
+				self.LOG.debug(f"Reference genome already exists! {self.Lib.references[genome]}")
 				self.hooks.trigger("ReferenceDownloaderSkipped", {"name" : filename, "value" : 2})
 				continue
 			
