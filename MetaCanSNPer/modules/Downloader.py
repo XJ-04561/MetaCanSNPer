@@ -329,7 +329,7 @@ class Downloader(Logged):
 	timeStep : float = 0.25
 	database : Path = f"{__module__}_QUEUE.db"
 	jobs : list
-	hooks : Hooks = cached_property(lambda self:Hooks())
+	hooks : Hooks = Hooks.GlobalHooks
 
 	_queueConnection : DatabaseThread
 	_threads : list[Thread]= []
