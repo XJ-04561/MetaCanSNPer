@@ -130,6 +130,8 @@ class ProcessWrapper(Logged):
 		"""Starts processes in new threads. Returns information of the output of the processes, but does not ensure the processes have finished."""
 		self.createCommand()
 		self.command.start()
+		for genome in self.command.names:
+			self.hooks.trigger(f"{self.category}Progress", {"name" : genome, "value" : 0.0})
 	
 	def wait(self, timeout=None):
 		
