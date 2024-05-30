@@ -30,7 +30,9 @@ class DatabaseThread(Logged):
 	
 	filename : str
 	_thread : Thread
-	_connection : sqlite3.Connection
+	@property
+	def _connection(self) -> "DatabaseThread":
+		return self
 
 	def __new__(cls, filename : str, factory=sqlite3.Connection):
 		if (filename, factory) in cls.OPEN_DATABASES and cls.OPEN_DATABASES[filename, factory]._thread.is_alive():
@@ -51,12 +53,12 @@ class DatabaseThread(Logged):
 
 	def mainLoop(self):
 		try:
-			self._connection = sqlite3.connect(self.filename, factory=self._factory)
+			_connection = sqlite3.connect(self.filename, factory=self._factory)
 			while self.running:
 				try:
 					string, params, lock, results = self.queue.get(timeout=15)
 					try:
-						results.extend(self._connection.execute(string, params).fetchall())
+						results.extend(_connection.execute(string, params).fetchall())
 					except Exception as e:
 						self.LOG.exception(e)
 						results.append(e)
@@ -79,7 +81,7 @@ class DatabaseThread(Logged):
 			for _ in range(self.queue.unfinished_tasks):
 				string, params, lock, results = self.queue.get(timeout=15)
 				lock.release()
-		self._connection.close()
+		_connection.close()
 
 	def execute(self, string : str, params : list=[]):
 		lock = Lock()
