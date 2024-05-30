@@ -35,7 +35,7 @@ class DatabaseThread(Logged):
 		return self
 
 	def __new__(cls, filename : str, factory=sqlite3.Connection):
-		if (filename, factory) in cls.OPEN_DATABASES and cls.OPEN_DATABASES[filename, factory]._thread.is_alive():
+		if (filename, factory) in cls.OPEN_DATABASES and cls.OPEN_DATABASES[filename, factory]._thread.is_alive() and cls.OPEN_DATABASES[filename, factory].running:
 			return cls.OPEN_DATABASES[filename, factory]
 		else:
 			cls.OPEN_DATABASES[filename, factory] = super().__new__(cls)
@@ -57,6 +57,7 @@ class DatabaseThread(Logged):
 			while self.running:
 				try:
 					string, params, lock, results = self.queue.get(timeout=15)
+					if string is None: continue
 					try:
 						results.extend(_connection.execute(string, params).fetchall())
 					except Exception as e:
@@ -112,6 +113,14 @@ class DatabaseThread(Logged):
 			raise next(filter(lambda r:r and isinstance(r[-1], Exception), results))[-1]
 		
 		return results
+
+	def close(self):
+		self.running = False
+		self.queue.put([None, None, None, None])
+		self._thread.join()
+	
+	def commit(self):
+		self.execute("COMMIT;")
 
 	def __del__(self):
 		self.running = False
