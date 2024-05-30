@@ -71,16 +71,16 @@ class MetaCanSNPer(Logged):
 
 		requiredDeps = []
 
-		if "mapper" not in self.settings and "aligner" not in self.settings:
+		if not self.settings.get("mapper") and not self.settings.get("aligner"):
 			raise ValueError("No aligner or mapper has been provided through flags or settings-files.")
-		elif "snpCaller" not in self.settings:
+		elif not self.settings.get("snpCaller"):
 			raise ValueError("No SNP caller has been provided through flags or settings-files.")
 		
-		if "mapper" in self.settings:
+		if self.settings.get("mapper"):
 			requiredDeps.extend(Mapper.get(self.settings["mapper"]).dependencies)
-		if "aligner" in self.settings:
+		if self.settings.get("aligner"):
 			requiredDeps.extend(Aligner.get(self.settings["aligner"]).dependencies)
-		if "snpCaller" in self.settings:
+		if self.settings.get("snpCaller"):
 			requiredDeps.extend(SNPCaller.get(self.settings["snpCaller"]).dependencies)
 
 		missed = []
