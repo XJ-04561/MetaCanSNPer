@@ -11,7 +11,6 @@ from MetaCanSNPer.modules.Downloader import DatabaseDownloader, ThreadConnection
 
 LOGGER = LOGGER.getChild(__name__.split(".")[-1])
 
-
 class Parent(Column):						type=INTEGER
 class Genotype(Column):						type=TEXT
 class NodeID(Column):						type=INTEGER

@@ -9,6 +9,8 @@ import sqlite3
 from queue import Queue, Empty as EmptyQueueException
 from urllib.request import urlretrieve, HTTPError
 
+ThreadConnection.LOG = Globals.LOGGER.getChild("ThreadConnection")
+
 def correctDatabase(filename, finalFilename):
 	from MetaCanSNPer.modules.Database import MetaCanSNPerDatabase, NoChromosomesInDatabase
 	database = MetaCanSNPerDatabase(filename, "w")
