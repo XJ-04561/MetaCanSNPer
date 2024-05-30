@@ -148,7 +148,7 @@ class HasChromosomes(Assertion, Logged):
 			# if shutil.which(commandName):
 			# 	chromosomes = tuple(map(*this["value"].strip("\"'"), loads(getOutput(f"{commandName} summary genome accession {genbankID} --as-json-lines".split()))["assembly_info"]["biosample"]["sample_ids"]))
 			
-			if assemblyFile and assemblyFile.exists:
+			if assemblyFile:
 				# No genbank entry found
 				with open(assemblyFile, "r") as refFile:
 					chromosomes = [["N/A", 0]]
@@ -160,7 +160,7 @@ class HasChromosomes(Assertion, Logged):
 							chromosomes[-1][1] += len(row.strip())
 			else:
 				self.LOG.error(f"Couldn't find genome with {genbankID=} either online or in {refDir}.")
-				raise UnableToDefineChromosomes(f"Can't find fasta file for reference genome with assebmly name: {assembly}")
+				raise UnableToDefineChromosomes(f"Can't find fasta file for reference genome with assembly name: {assembly}")
 
 			for [chromosome, length], prevLength in zip(chromosomes[1:], itertools.accumulate(chromosomes[1:-1], lambda x, y:x+y[1], initial=0)):
 				database(INSERT - OR - REPLACE - INTO (ChromosomesTable) - (ChromosomeID, Chromosome, GenomeID) - VALUES (j, chromosome, i))
