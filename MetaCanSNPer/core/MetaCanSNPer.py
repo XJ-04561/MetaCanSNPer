@@ -76,22 +76,23 @@ class MetaCanSNPer(Logged):
 		elif not self.settings.get("snpCaller"):
 			raise ValueError("No SNP caller has been provided through flags or settings-files.")
 		
-		if self.settings.get("mapper"):
-			requiredDeps.extend(Mapper.get(self.settings["mapper"]).dependencies)
-		if self.settings.get("aligner"):
-			requiredDeps.extend(Aligner.get(self.settings["aligner"]).dependencies)
-		if self.settings.get("snpCaller"):
-			requiredDeps.extend(SNPCaller.get(self.settings["snpCaller"]).dependencies)
+		if not self.settings.get("dry_run"):
+			if self.settings.get("mapper"):
+				requiredDeps.extend(Mapper.get(self.settings["mapper"]).dependencies)
+			if self.settings.get("aligner"):
+				requiredDeps.extend(Aligner.get(self.settings["aligner"]).dependencies)
+			if self.settings.get("snpCaller"):
+				requiredDeps.extend(SNPCaller.get(self.settings["snpCaller"]).dependencies)
 
-		missed = []
-		for dep in requiredDeps:
-			if not shutil.which(dep) and not shutil.which(dep+".exe"):
-				missed.append(dep)
-		if len(missed) == 1:
-			raise MissingDependency(f"Missing required dependency: {missed[0]}.")
-		elif missed:
-			nt = "\n\t"
-			raise MissingDependency(f"Missing required dependencies:\n{nt.join(missed)}.")
+			missed = []
+			for dep in requiredDeps:
+				if not shutil.which(dep) and not shutil.which(dep+".exe"):
+					missed.append(dep)
+			if len(missed) == 1:
+				raise MissingDependency(f"Missing required dependency: {missed[0]}.")
+			elif missed:
+				nt = "\n\t"
+				raise MissingDependency(f"Missing required dependencies:\n{nt.join(missed)}.")
 
 	def setOrganism(self, organism : str):
 		self.Lib.organism = self.organism = organism
