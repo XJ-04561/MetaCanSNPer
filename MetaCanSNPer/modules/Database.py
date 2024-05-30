@@ -136,29 +136,39 @@ class HasChromosomes(Assertion, Logged):
 		# Chromosomes
 		self.LOG.info("Updating 'Chromosomes'-table")
 		database(DELETE - FROM (ChromosomesTable) )
-		commandName = f"datasets{'.exe' if os.name == 'nt' else ''}"
-		j = 0
+
+		highestGenomeID = max(database[GenomeID, ReferencesTable])
+		j = highestGenomeID + 1
 		ref2chromLookup = {}
 		for i, genbankID, assembly in database[GenomeID, GenbankID, AssemblyName, ReferencesTable]:
 			ref2chromLookup[i] = []
 			assemblyFile = refDir.find(f"{assembly}.fna")
 			
+			### DATASETS SUMMARY DOESN'T HAVE THE .FNA CHROMOSOME NAMES
 			# if shutil.which(commandName):
 			# 	chromosomes = tuple(map(*this["value"].strip("\"'"), loads(getOutput(f"{commandName} summary genome accession {genbankID} --as-json-lines".split()))["assembly_info"]["biosample"]["sample_ids"]))
 			
 			if assemblyFile and assemblyFile.exists:
 				# No genbank entry found
 				with open(assemblyFile, "r") as refFile:
-					chromosomes = tuple(map(*this[1:].split()[0], filter(*this.startswith(">"), refFile)))
+					chromosomes = [["N/A", 0]]
+					_iter = iter(refFile)
+					for row in _iter:
+						if row.startswith(">"):
+							chromosomes.append([row[1:].split()[0], 0])
+						else:
+							chromosomes[-1][1] += len(row.strip())
 			else:
 				self.LOG.error(f"Couldn't find genome with {genbankID=} either online or in {refDir}.")
-				chromosomes = (NULL,)
+				raise UnableToDefineChromosomes(f"Can't find fasta file for reference genome with assebmly name: {assembly}")
 
-			for chromosome in chromosomes:
+			for [chromosome, length], prevLength in zip(chromosomes[1:], itertools.accumulate(chromosomes[:-1], lambda x:x[1])):
 				database(INSERT - OR - REPLACE - INTO (ChromosomesTable) - (ChromosomeID, Chromosome, GenomeID) - VALUES (j, chromosome, i))
-				ref2chromLookup[i].append(j)
+				database(UPDATE (SNPsTable) - SET (chromosome_id = j, position = (Position - prevLength) ) - WHERE (ChromosomeID == i, Position > prevLength, Position - prevLength <= length))
 				j += 1
-				break # FOR NOW
+		database(UPDATE (SNPsTable) - SET (chromosome_id = ChromosomeID - highestGenomeID))
+		database(UPDATE (ChromosomesTable) - SET (chromosome_id = ChromosomeID - highestGenomeID))
+				
 		database(COMMIT)
 
 class MetaCanSNPerDatabase(Database, Logged):

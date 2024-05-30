@@ -80,9 +80,9 @@ saveTemp = false
 referenceFormats = [".fna", ".fasta"]
 
 [Software]
-# mapper = minimap2
+mapper = minimap2
 # aligner = progressiveMauve
-# snpCaller = gatk_Mutect2
+snpCaller = gatk_Mutect2
 
 [Directories]
 # workDir = 
