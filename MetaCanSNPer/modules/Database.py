@@ -162,7 +162,7 @@ class HasChromosomes(Assertion, Logged):
 				self.LOG.error(f"Couldn't find genome with {genbankID=} either online or in {refDir}.")
 				raise UnableToDefineChromosomes(f"Can't find fasta file for reference genome with assebmly name: {assembly}")
 
-			for [chromosome, length], prevLength in zip(chromosomes[1:], itertools.accumulate(chromosomes[:-1], lambda x:x[1])):
+			for [chromosome, length], prevLength in zip(chromosomes[1:], itertools.accumulate(chromosomes[1:-1], lambda x, y:x+y[1], initial=0)):
 				database(INSERT - OR - REPLACE - INTO (ChromosomesTable) - (ChromosomeID, Chromosome, GenomeID) - VALUES (j, chromosome, i))
 				database(UPDATE (SNPsTable) - SET (chromosome_id = j, position = (Position - prevLength) ) - WHERE (ChromosomeID == i, Position > prevLength, Position - prevLength <= length))
 				j += 1
