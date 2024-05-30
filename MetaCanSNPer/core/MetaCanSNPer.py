@@ -69,6 +69,30 @@ class MetaCanSNPer(Logged):
 
 		self.organism = organism
 
+		requiredDeps = []
+
+		if "mapper" not in self.settings and "aligner" not in self.settings:
+			raise ValueError("No aligner or mapper has been provided through flags or settings-files.")
+		elif "snpCaller" not in self.settings:
+			raise ValueError("No SNP caller has been provided through flags or settings-files.")
+		
+		if "mapper" in self.settings:
+			requiredDeps.extend(Mapper.get(self.settings["mapper"]).dependencies)
+		if "aligner" in self.settings:
+			requiredDeps.extend(Aligner.get(self.settings["aligner"]).dependencies)
+		if "snpCaller" in self.settings:
+			requiredDeps.extend(SNPCaller.get(self.settings["snpCaller"]).dependencies)
+
+		missed = []
+		for dep in requiredDeps:
+			if not shutil.which(dep) and not shutil.which(dep+".exe"):
+				missed.append(dep)
+		if len(missed) == 1:
+			raise MissingDependency(f"Missing required dependency: {missed[0]}.")
+		elif missed:
+			nt = "\n\t"
+			raise MissingDependency(f"Missing required dependencies:\n{nt.join(missed)}.")
+
 	def setOrganism(self, organism : str):
 		self.Lib.organism = self.organism = organism
 		
