@@ -366,7 +366,6 @@ class ClassProperty:
 	def __repr__(self):
 		return f"{object.__repr__(self)[:-1]} name={self.name!r}>"
 
-
 class CachedClassProperty:
 
 	def __init__(self, func):

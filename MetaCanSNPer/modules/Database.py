@@ -3,6 +3,7 @@
 import SQLOOP.Globals as Globals
 from SQLOOP import *
 from SQLOOP.core import *
+from SQLOOP.Globals import first
 import argparse, sys
 
 from MetaCanSNPer.Globals import *
