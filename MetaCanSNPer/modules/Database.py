@@ -6,7 +6,7 @@ from SQLOOP.core import *
 import argparse, sys
 
 from MetaCanSNPer.Globals import *
-from MetaCanSNPer.modules.Downloader import DatabaseDownloader, DatabaseThread
+from MetaCanSNPer.modules.Downloader import DatabaseDownloader, ThreadConnection
 
 LOGGER = LOGGER.getChild(__name__.split(".")[-1])
 

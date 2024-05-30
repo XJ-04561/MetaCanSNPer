@@ -2,7 +2,7 @@
 from MetaCanSNPer.Globals import *
 import MetaCanSNPer.Globals as Globals
 import MetaCanSNPer.core.Hooks as Hooks
-from SQLOOP.core.ThreadConnection import ThreadConnection
+from SQLOOP.core import ThreadConnection
 from collections import defaultdict
 from threading import Thread, _DummyThread, Lock, Semaphore, Condition, current_thread
 import sqlite3
@@ -115,7 +115,7 @@ class ReportHook:
 
 class Job(Logged):
 
-	_queueConnection : DatabaseThread
+	_queueConnection : ThreadConnection
 
 	query : Any|Iterable
 	filename : str
@@ -234,7 +234,7 @@ class Downloader(Logged):
 	jobs : list
 	hooks : Hooks = Hooks.GlobalHooks
 
-	_queueConnection : DatabaseThread
+	_queueConnection : ThreadConnection
 	_threads : list[Thread]= []
 
 	def __init__(self, directory=directory, *, reportHook=None, logger=None, hooks=None, threads=None):
@@ -247,7 +247,7 @@ class Downloader(Logged):
 			raise PermissionError(f"Missing read and/or write permissions in directory: {directory}")
 		self.jobs = []
 		
-		self._queueConnection = DatabaseThread(self.directory / self.database)
+		self._queueConnection = ThreadConnection(self.directory / self.database)
 		self._queueConnection.execute("CREATE TABLE IF NOT EXISTS queueTable (name TEXT UNIQUE, progress DECIMAL DEFAULT -1.0, modified INTEGER DEFAULT (UNIXEPOCH()));")
 		if logger is not None:
 			self.LOG = logger.getChild(type(self).__name__.split(".")[-1])
