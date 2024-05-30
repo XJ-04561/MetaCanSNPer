@@ -2,7 +2,7 @@
 from MetaCanSNPer.Globals import *
 import MetaCanSNPer.Globals as Globals
 import MetaCanSNPer.core.Hooks as Hooks
-from MetaCanSNPer.modules.ThreadedDatabase import DatabaseThread
+from SQLOOP.core.ThreadConnection import ThreadConnection
 from collections import defaultdict
 from threading import Thread, _DummyThread, Lock, Semaphore, Condition, current_thread
 import sqlite3

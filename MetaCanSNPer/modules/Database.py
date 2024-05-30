@@ -194,7 +194,7 @@ class MetaCanSNPerDatabase(Database, Logged):
 
 	def __init__(self, filename: str, mode: Globals.Mode, organism : str=None):
 		self.organism = organism or pName(filename)
-		super().__init__(filename, mode, factoryFunc=DatabaseThread)
+		super().__init__(filename, mode)
 
 	@property
 	def tree(self):
