@@ -249,7 +249,7 @@ class Downloader(Logged):
 			raise PermissionError(f"Missing read and/or write permissions in directory: {directory}")
 		self.jobs = []
 		
-		self._queueConnection = ThreadConnection(self.directory / self.database)
+		self._queueConnection = ThreadConnection(self.directory / self.database, identifier=id(self))
 		self._queueConnection.execute("CREATE TABLE IF NOT EXISTS queueTable (name TEXT UNIQUE, progress DECIMAL DEFAULT -1.0, modified INTEGER DEFAULT (UNIXEPOCH()));")
 		if logger is not None:
 			self.LOG = logger.getChild(type(self).__name__.split(".")[-1])
