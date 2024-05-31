@@ -68,7 +68,7 @@ class SNPsTable(Table, name="snp_annotation"):
 	Date = Date
 	ChromosomeID = ChromosomeID
 	constraints = (
-		PRIMARY - KEY (Position),
+		PRIMARY - KEY (Position, ChromosomeID),
 		# FOREIGN - KEY (ChromosomeID) - REFERENCES (ChromosomesTable, ChromosomeID),
 		# FOREIGN - KEY (NodeID) - REFERENCES (TreeTable, NodeID)
 	)
