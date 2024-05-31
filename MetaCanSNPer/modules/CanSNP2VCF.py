@@ -17,6 +17,7 @@ def CanSNP2VCF(lib : "DirectoryLibrary", force : bool=False):
 
 		filePath = path / filename
 		with openVCF(filePath, mode="w", referenceFile=refPath, chrom=genome) as vcfFile:
+			lib.database.LOG.info(repr(lib.database[Position, Chromosome, GenomeID == genomeID]))
 			for position, chromosome in lib.database[Position, Chromosome, GenomeID == genomeID]:
 				vcfFile.add(CHROM=chromosome, POS=position, REF="N", ALT="A,T,C,G")
 			lib.targetSNPs[genome] = filePath
