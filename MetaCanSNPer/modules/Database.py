@@ -129,7 +129,7 @@ class HasChromosomes(Assertion, Logged):
 		from json import loads
 		from subprocess import check_output as getOutput
 		
-		refDir = PathGroup([appdirs.user_data_dir(SOFTWARE_NAME), *appdirs.site_data_dir(SOFTWARE_NAME, multipath=True).split(os.pathsep)]) / "References" / database.organism
+		refDir = DirectoryGroup([appdirs.user_data_dir(SOFTWARE_NAME), *appdirs.site_data_dir(SOFTWARE_NAME, multipath=True).split(os.pathsep)], purpose="r") / "References" / database.organism
 		
 		database(BEGIN - TRANSACTION)
 
@@ -139,9 +139,7 @@ class HasChromosomes(Assertion, Logged):
 
 		highestGenomeID = max(database[GenomeID, ReferencesTable])
 		j = highestGenomeID + 1
-		ref2chromLookup = {}
 		for i, genbankID, assembly in database[GenomeID, GenbankID, AssemblyName, ReferencesTable]:
-			ref2chromLookup[i] = []
 			assemblyFile = refDir.find(f"{assembly}.fna")
 			
 			### DATASETS SUMMARY DOESN'T HAVE THE .FNA CHROMOSOME NAMES
@@ -151,18 +149,21 @@ class HasChromosomes(Assertion, Logged):
 			if assemblyFile:
 				# No genbank entry found
 				with open(assemblyFile, "r") as refFile:
-					chromosomes = [["N/A", 0]]
-					_iter = iter(refFile)
-					for row in _iter:
+					chromosomes = []
+					for row in refFile:
+						if row.startswith(">"):
+							chromosomes.append([row[1:].split()[0], 0])
+							break
+					for row in refFile:
 						if row.startswith(">"):
 							chromosomes.append([row[1:].split()[0], 0])
 						else:
 							chromosomes[-1][1] += len(row.strip())
 			else:
-				self.LOG.error(f"Couldn't find genome with {genbankID=} either online or in {refDir}.")
-				raise UnableToDefineChromosomes(f"Can't find fasta file for reference genome with assembly name: {assembly}")
+				self.LOG.error(f"Couldn't find genome with {genbankID=} either online or in {refDir}. refDir.find(f\"{{assembly}}.fna\") -> {assemblyFile}")
+				raise UnableToDefineChromosomes(f"Can't find fasta file '{assembly}.fna' in {refDir}.")
 
-			for [chromosome, length], prevLength in zip(chromosomes[1:], itertools.accumulate(chromosomes[1:-1], lambda x, y:x+y[1], initial=0)):
+			for [chromosome, length], prevLength in zip(chromosomes, itertools.accumulate(chromosomes, lambda x, y:x+y[1], initial=0)):
 				database(INSERT - OR - REPLACE - INTO (ChromosomesTable) - (ChromosomeID, Chromosome, GenomeID) - VALUES (j, chromosome, i))
 				database(UPDATE (SNPsTable) - SET (chromosome_id = j, position = (Position - prevLength) ) - WHERE (ChromosomeID == i, Position > prevLength, Position - prevLength <= length))
 				j += 1
