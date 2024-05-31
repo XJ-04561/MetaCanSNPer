@@ -16,10 +16,9 @@ def CanSNP2VCF(lib : "DirectoryLibrary", force : bool=False):
 			raise FileNotFoundError(f"Could not find file for reference genome {genome!r}. Either the file has not been downloaded or the path to the file is not correct. Path to file was {refPath!r}")
 
 		filePath = path / filename
-		chrom = next(lib.database[Chromosome, GenomeID == genomeID])
-		with openVCF(filePath, mode="w", referenceFile=refPath, chrom=chrom) as vcfFile:
-			for chromosome, pos in lib.database[Chromosome, Position, GenomeID == genomeID]:
-				vcfFile.add(CHROM=chromosome, POS=pos, REF="N", ALT="A,T,C,G")
+		with openVCF(filePath, mode="w", referenceFile=refPath, chrom=genome) as vcfFile:
+			for position, chromosome in lib.database[Position, Chromosome, GenomeID == genomeID]:
+				vcfFile.add(CHROM=chromosome, POS=position, REF="N", ALT="A,T,C,G")
 			lib.targetSNPs[genome] = filePath
 
 try:
