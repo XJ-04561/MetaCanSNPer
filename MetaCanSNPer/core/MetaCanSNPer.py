@@ -263,8 +263,8 @@ class MetaCanSNPer(Logged):
 		for genome, filePath in self.Lib.resultSNPs.items():
 			if Globals.DRY_RUN:
 				continue
-			for pos, (ref, *_) in getSNPdata(filePath, values=["REF"]):
-				nodeID = self.database[NodeID, Position==pos]
+			for (chrom, pos), ref in getSNPdata(filePath, key=["CHROM", "POS"], values="REF"):
+				nodeID = self.database[NodeID, Chromosome==chrom, Position==pos]
 				if nodeID not in self.SNPresults:
 					self.SNPresults[nodeID] = {}
 				self.SNPresults[nodeID][pos] = ref
