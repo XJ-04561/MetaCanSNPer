@@ -22,9 +22,11 @@ def CanSNP2VCF(lib : "DirectoryLibrary", force : bool=False):
 			vcfFile.addMeta(Reference(refPath))
 			for chromosome in lib.database[Chromosome, ChromosomesTable, GenomeID == genomeID]:
 				vcfFile.addMeta(Contig(ID=chromosome, URL=refPath))
+			vcfFile.dump()
 			
 			for position, chromosome in lib.database[Position, Chromosome, GenomeID == genomeID, +Position]:
 				vcfFile.add(CHROM=chromosome, POS=position, REF="N", ALT=("A", "T", "C", "G"))
+			
 		lib.targetSNPs[genome] = filePath
 
 try:
