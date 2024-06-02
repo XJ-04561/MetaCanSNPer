@@ -16,7 +16,7 @@ import MetaCanSNPer.core.Mappers as Mappers
 import MetaCanSNPer.core.SNPCallers as SNPCallers
 from MetaCanSNPer.core.TerminalUpdater import TerminalUpdater
 
-from MetaCanSNPer.modules.Database import MetaCanSNPerDatabase, TreeTable, NodeID, Position, GenomeID, AncestralBase, DerivedBase, Chromosome, Genotype
+from MetaCanSNPer.modules.Database import MetaCanSNPerDatabase, TreeTable, NodeID, Position, GenomeID, AncestralBase, DerivedBase, Chromosome, Genotype, ChromosomeID, Genome
 from MetaCanSNPer.modules.Downloader import DatabaseDownloader, DownloaderReportHook, ReferenceDownloader
 
 
@@ -264,7 +264,7 @@ class MetaCanSNPer(Logged):
 			if Globals.DRY_RUN:
 				continue
 			for (chrom, pos), ref in getSNPdata(filePath, key=["CHROM", "POS"], values="REF"):
-				nodeID = self.database[NodeID, Chromosome==chrom, Position==pos]
+				nodeID = self.database[NodeID, ChromosomeID==self.database[ChromosomeID, Chromosome==chrom, GenomeID==self.database[GenomeID, Genome==genome]], Position==pos]
 				if nodeID not in self.SNPresults:
 					self.SNPresults[nodeID] = {}
 				self.SNPresults[nodeID][pos] = ref
