@@ -268,6 +268,7 @@ class MetaCanSNPer(Logged):
 				if nodeID not in self.SNPresults:
 					self.SNPresults[nodeID] = {}
 				self.SNPresults[nodeID][pos] = ref
+		self.LOG.info("Got nodes: " + ", ".join(map(str, self.SNPresults)))
 	
 	def traverseTree(self):
 		'''Depth-first tree search.'''
