@@ -16,7 +16,7 @@ import MetaCanSNPer.core.Mappers as Mappers
 import MetaCanSNPer.core.SNPCallers as SNPCallers
 from MetaCanSNPer.core.TerminalUpdater import TerminalUpdater
 
-from MetaCanSNPer.modules.Database import MetaCanSNPerDatabase, TreeTable, NodeID, Position, GenomeID, AncestralBase, DerivedBase, Chromosome, Genotype
+from MetaCanSNPer.modules.Database import MetaCanSNPerDatabase, TreeTable, NodeID, Position, GenomeID, AncestralBase, DerivedBase, Chromosome, Genotype, ChromosomeID, Genome
 from MetaCanSNPer.modules.Downloader import DatabaseDownloader, DownloaderReportHook, ReferenceDownloader
 
 
@@ -27,7 +27,7 @@ class MetaCanSNPer(Logged):
 	outputTemplate = "{refName}_{queryName}.{outFormat}"
 	organism : str
 
-	settings : dict = cached_property(lambda self:DEFAULT_SETTINGS.copy())
+	settings : dict
 	Lib : DirectoryLibrary
 	database : MetaCanSNPerDatabase
 
@@ -61,13 +61,40 @@ class MetaCanSNPer(Logged):
 				raise FileNotFoundError(f"Could not find the settingsFile {kwargs['settingsFile']!r}")
 			self.settings |= loadFlattenedTOML(kwargs["settingsFile"])
 			
-		self.settings |= kwargs.get("settings", {})
+		for flag, value in kwargs.get("settings", {}).items():
+			if isinstance(value, bool) or value:
+				self.settings[flag] = value
 
 		self.Lib = DirectoryLibrary(organism, query, settings=self.settings, hooks=self.hooks)
 
 		self.LOG = self.LOG.getChild(f"[{self.Lib.queryName}]")
 
 		self.organism = organism
+
+		requiredDeps = []
+
+		if not self.settings.get("mapper") and not self.settings.get("aligner"):
+			raise ValueError("No aligner or mapper has been provided through flags or settings-files.")
+		elif not self.settings.get("snpCaller"):
+			raise ValueError("No SNP caller has been provided through flags or settings-files.")
+		
+		if not self.settings.get("dry_run"):
+			if self.settings.get("mapper"):
+				requiredDeps.extend(Mapper.get(self.settings["mapper"]).dependencies)
+			if self.settings.get("aligner"):
+				requiredDeps.extend(Aligner.get(self.settings["aligner"]).dependencies)
+			if self.settings.get("snpCaller"):
+				requiredDeps.extend(SNPCaller.get(self.settings["snpCaller"]).dependencies)
+
+			missed = []
+			for dep in requiredDeps:
+				if not shutil.which(dep) and not shutil.which(dep+".exe"):
+					missed.append(dep)
+			if len(missed) == 1:
+				raise MissingDependency(f"Missing required dependency: {missed[0]}.")
+			elif missed:
+				nt = "\n\t"
+				raise MissingDependency(f"Missing required dependencies:\n{nt.join(missed)}.")
 
 	def setOrganism(self, organism : str):
 		self.Lib.organism = self.organism = organism
@@ -219,30 +246,35 @@ class MetaCanSNPer(Logged):
 
 	def callSNPs(self, softwareName : str, flags : list=[]):
 		''''''
-		self.LOG.info(f"Calling SNPs using:{softwareName}")
+		LOG = self.LOG.getChild("callSNPs")
+		LOG.info(f"Calling SNPs using:{softwareName}")
 		SNPCallerType : SNPCaller = SNPCaller.get(softwareName)
 
 		if self.Lib.references is None:
-			self.LOG.error("References not set.")
+			LOG.error("References not set.")
 			raise FileNotFoundError("References not set. Can be set with MetaCanSNPer.setReferences")
 		
-		self.LOG.info("Loading SNPs from database.")
+		LOG.info("Loading SNPs from database.")
 		from MetaCanSNPer.modules.CanSNP2VCF import CanSNP2VCF
 		CanSNP2VCF(self.Lib)
-		self.LOG.info(f"Loaded a total of {len(self.database.SNPs)} SNPs.")
+		LOG.info(f"Loaded a total of {len(self.database.SNPs)} SNPs.")
 		
 		self.runSoftware(SNPCallerType, outputDict=self.Lib.resultSNPs, flags=flags)
 
-		self.LOG.info(f"Result of SNPCalling in: {self.Lib.resultSNPs}")
+		LOG.info(f"Result of SNPCalling in: {self.Lib.resultSNPs}")
 
 		for genome, filePath in self.Lib.resultSNPs.items():
-			if Globals.DRY_RUN:
-				continue
-			for pos, (ref, *_) in getSNPdata(filePath, values=["REF"]):
-				nodeID = self.database[NodeID, Position==pos]
+			for nodeID in self.database[NodeID, Genome==genome]:
 				if nodeID not in self.SNPresults:
 					self.SNPresults[nodeID] = {}
+			if Globals.DRY_RUN:
+				continue
+			for (chrom, pos), ref in getSNPdata(filePath, key=["CHROM", "POS"], values="REF"):
+				LOG.debug(f"({chrom}, {pos}), {ref}")
+				chromID = list(self.database[ChromosomeID, Chromosome==chrom, Genome==genome])[0]
+				nodeID = self.database[NodeID, Position==pos, ChromosomeID==chromID]
 				self.SNPresults[nodeID][pos] = ref
+		LOG.info("Got nodes: " + ", ".join(map(str, self.SNPresults)))
 	
 	def traverseTree(self):
 		'''Depth-first tree search.'''
@@ -253,6 +285,7 @@ class MetaCanSNPer(Logged):
 
 		award = (1, -1, 0)
 
+		miscCalls = []
 		paths.append([rootNode])
 		while paths[-1] != []:
 			paths.append([])
@@ -263,15 +296,19 @@ class MetaCanSNPer(Logged):
 					
 					nodeScores[child.node] = nodeScores[parent.node]
 					for nodeID, pos, anc, der, *_ in self.database.SNPsByNode[child.node]:
-						for pos, base in self.SNPresults[nodeID].items():
-							if der == base:
-								nodeScores[child.node] += award[0]
-							elif anc == base:
-								nodeScores[child.node] += award[1]
-							else:
-								nodeScores[child.node] += award[2]
+						base = self.SNPresults[nodeID].get(pos, "-")
+						
+						if der == base:
+							nodeScores[child.node] += award[0]
+						elif anc == base:
+							nodeScores[child.node] += award[1]
+						elif base == "-":
+							pass
+						else:
+							miscCalls.append((nodeID, pos, anc, der, base))
 					paths[-1].append(child)
-		
+		if miscCalls:
+			self.LOG.warning("These nodes had non-recognized bases:\n\t NODE_ID, POS, ANCESTRAL, DERIVED, TARGET\n\t" + "\n\t".join(map(str, miscCalls)))
 		paths = paths[:-1]
 		self.LOG.info(f"Finished traversing tree.")
 		return max(nodeScores.items(), key=lambda x: x[1]), nodeScores
@@ -299,49 +336,36 @@ class MetaCanSNPer(Logged):
 		outDir = dst or self.Lib.resultDir.writable
 		header = "Name\tReference\tChromosome\tPosition\tAncestral base\tDerived base\tTarget base\n"
 
-		if self.settings.get("debug"):
-			self.LOG.debug(f"open({outDir!r} / {self.Lib.queryName!r}+'_snps.tsv', 'w')")
-			self.LOG.debug(f"open({outDir!r} / {self.Lib.queryName!r}+'_not_called.tsv', 'w')")
-			self.LOG.debug(f"open({outDir!r} / {self.Lib.queryName!r}+'_no_coverage.tsv', 'w')")
-			self.LOG.debug(f"open({outDir!r} / {self.Lib.queryName!r}+'_unique.tsv', 'w')")
-			called = open((outDir) / self.Lib.queryName+"_snps.tsv", "w")
-			notCalled = open((outDir) / self.Lib.queryName+"_not_called.tsv", "w")
-			noCoverage = open((outDir) / self.Lib.queryName+"_no_coverage.tsv", "w")
-			unique = open((outDir) / self.Lib.queryName+"_unique.tsv", "w")
-			
-			called.write(header)
-			notCalled.write(header)
-			noCoverage.write(header)
-			unique.write(header)
-		else:
-			self.LOG.debug(f"open({outDir!r} / {self.Lib.queryName!r}+'_snps.tsv', 'w')")
-			self.LOG.debug(f"open({outDir!r} / {self.Lib.queryName!r}+'_not_called.tsv', 'w')")
-			called = open((outDir) / self.Lib.queryName+"_snps.tsv", "w")
-			noCoverage = unique = notCalled = open((outDir) / self.Lib.queryName+"_not_called.tsv", "w")
-			
-			called.write(header)
-			noCoverage.write(header)
+		self.LOG.debug(f"open({outDir!r} / {self.Lib.queryName!r}+'_snps.tsv', 'w')")
+		self.LOG.debug(f"open({outDir!r} / {self.Lib.queryName!r}+'_not_called.tsv', 'w')")
+		self.LOG.debug(f"open({outDir!r} / {self.Lib.queryName!r}+'_no_coverage.tsv', 'w')")
+		called = open((outDir) / self.Lib.queryName+"_snps.tsv", "w")
+		notCalled = open((outDir) / self.Lib.queryName+"_not_called.tsv", "w")
+		noCoverage = open((outDir) / self.Lib.queryName+"_no_coverage.tsv", "w")
+		
+		called.write(header)
+		notCalled.write(header)
+		noCoverage.write(header)
 
 		for genomeID, genome, strain, genbankID, refseqID, assemblyName in self.database.references:
 			'''Print SNPs to tab separated file'''
 			for nodeID, position, ancestral, derived, chromosome in self.database[NodeID, Position, AncestralBase, DerivedBase, Chromosome, GenomeID == genomeID]:
 				if Globals.DRY_RUN:
 					continue
-				N = self.SNPresults[nodeID][position]
-				entry = f"{nodeID}\t{genome}\t{chromosome}\t{position}\t{ancestral}\t{derived}\t{N}\n"
-				if derived == N:
+				N = self.SNPresults[nodeID].get(position, "-")
+				genotype = self.database[Genotype, NodeID==nodeID]
+				if Globals.MAX_DEBUG: self.LOG.debug(f"Got {genotype=} and base={N!r} for {nodeID=}")
+
+				entry = f"{genotype}\t{genome}\t{chromosome}\t{position}\t{ancestral}\t{derived}\t{N}\n"
+				if N == derived or N == ancestral:
 					called.write(entry)
-				elif ancestral == N:
-					notCalled.write(entry)
 				elif N.isalpha():
-					unique.write(entry)
+					notCalled.write(entry)
 				else:
 					noCoverage.write(entry)
+		
 		called.close()
 		noCoverage.close()
-		try:
-			notCalled.close()
-			unique.close()
-		except:
-			pass
+		notCalled.close()
+			
 		return outDir

@@ -24,6 +24,7 @@ from This import this
 from PseudoPathy.PathShortHands import *
 import PseudoPathy.Globals as PPGlobals
 import VariantCallFixer.Globals as VCFGlobals
+import SQLOOP.Globals as SQLOOPGlobals
 from VariantCallFixer import openVCF
 from PseudoPathy import *
 from PseudoPathy.Paths import FileList
@@ -42,6 +43,7 @@ from threading import Lock
 _NOT_SET = object()
 PYTHON_VERSION = tuple(sys.version_info[:3])
 MAX_DEBUG = False
+SQLOOPGlobals.MAX_DEBUG = MAX_DEBUG
 LOGGING_FILEPATH = UniqueFilePath(DirectoryPath(user_log_dir(SOFTWARE_NAME)).writable, time.strftime("MetaCanSNPer-%Y-%m-%d--%H-%M-%S.log", time.localtime()))
 LOGGING_FILEHANDLER = logging.FileHandler(LOGGING_FILEPATH)
 logging.basicConfig(handlers=[LOGGING_FILEHANDLER], format="[%(name)s] %(asctime)s - %(levelname)s: %(message)s", level=logging.DEBUG)
@@ -80,9 +82,9 @@ saveTemp = false
 referenceFormats = [".fna", ".fasta"]
 
 [Software]
-# mapper = minimap2
-# aligner = progressiveMauve
-# snpCaller = gatk_Mutect2
+mapper = "minimap2"
+aligner = "progressiveMauve"
+snpCaller = "gatk_Mutect2"
 
 [Directories]
 # workDir = 
@@ -112,10 +114,6 @@ if "defaults.toml" not in _configDir:
 	with open(_configDir / "defaults.toml", "w") as f:
 		f.write(DEFAULT_TOML_TEMPLATE)
 DEFAULT_SETTINGS = loadFlattenedTOML(_configDir / "defaults.toml")
-
-
-PPGlobals.LOGGER = LOGGER.getChild("PseudoPathy")
-VCFGlobals.LOGGER = LOGGER.getChild("VariantCallFixer")
 
 class Number: pass
 Number = int|float
@@ -365,7 +363,6 @@ class ClassProperty:
 	
 	def __repr__(self):
 		return f"{object.__repr__(self)[:-1]} name={self.name!r}>"
-
 
 class CachedClassProperty:
 
