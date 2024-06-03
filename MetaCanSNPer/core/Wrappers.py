@@ -93,7 +93,7 @@ class ProcessWrapper(Logged):
 						pass
 
 	@classmethod
-	def get(cls : Self, name : str) -> Self:
+	def get(cls : "ProcessWrapper", name : str) -> "ProcessWrapper":
 		selectedClass = cls.subclasses.get(name.lower())
 		if not selectedClass:
 			nt = "\n\t"
