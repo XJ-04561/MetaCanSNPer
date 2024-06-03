@@ -246,21 +246,22 @@ class MetaCanSNPer(Logged):
 
 	def callSNPs(self, softwareName : str, flags : list=[]):
 		''''''
-		self.LOG.info(f"Calling SNPs using:{softwareName}")
+		LOG = self.LOG.getChild("callSNPs")
+		LOG.info(f"Calling SNPs using:{softwareName}")
 		SNPCallerType : SNPCaller = SNPCaller.get(softwareName)
 
 		if self.Lib.references is None:
-			self.LOG.error("References not set.")
+			LOG.error("References not set.")
 			raise FileNotFoundError("References not set. Can be set with MetaCanSNPer.setReferences")
 		
-		self.LOG.info("Loading SNPs from database.")
+		LOG.info("Loading SNPs from database.")
 		from MetaCanSNPer.modules.CanSNP2VCF import CanSNP2VCF
 		CanSNP2VCF(self.Lib)
-		self.LOG.info(f"Loaded a total of {len(self.database.SNPs)} SNPs.")
+		LOG.info(f"Loaded a total of {len(self.database.SNPs)} SNPs.")
 		
 		self.runSoftware(SNPCallerType, outputDict=self.Lib.resultSNPs, flags=flags)
 
-		self.LOG.info(f"Result of SNPCalling in: {self.Lib.resultSNPs}")
+		LOG.info(f"Result of SNPCalling in: {self.Lib.resultSNPs}")
 
 		for genome, filePath in self.Lib.resultSNPs.items():
 			for nodeID in self.database[NodeID, Genome==genome]:
@@ -269,10 +270,11 @@ class MetaCanSNPer(Logged):
 			if Globals.DRY_RUN:
 				continue
 			for (chrom, pos), ref in getSNPdata(filePath, key=["CHROM", "POS"], values="REF"):
+				LOG.debug(f"({chrom}, {pos}), {ref}")
 				chromID = list(self.database[ChromosomeID, Chromosome==chrom, Genome==genome])[0]
 				nodeID = self.database[NodeID, Position==pos, ChromosomeID==chromID]
 				self.SNPresults[nodeID][pos] = ref
-		self.LOG.info("Got nodes: " + ", ".join(map(str, self.SNPresults)))
+		LOG.info("Got nodes: " + ", ".join(map(str, self.SNPresults)))
 	
 	def traverseTree(self):
 		'''Depth-first tree search.'''
