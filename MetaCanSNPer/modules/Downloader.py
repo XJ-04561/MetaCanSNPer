@@ -2,12 +2,21 @@
 from MetaCanSNPer.Globals import *
 import MetaCanSNPer.Globals as Globals
 import MetaCanSNPer.core.Hooks as Hooks
+<<<<<<< HEAD
+=======
+from SQLOOP.core import ThreadConnection
+>>>>>>> accurate-chromosomes
 from collections import defaultdict
 from threading import Thread, _DummyThread, Lock, Semaphore, Condition, current_thread
 import sqlite3
 from queue import Queue, Empty as EmptyQueueException
 from urllib.request import urlretrieve, HTTPError
 
+<<<<<<< HEAD
+=======
+ThreadConnection.LOG = Globals.LOGGER.getChild("ThreadConnection")
+
+>>>>>>> accurate-chromosomes
 def correctDatabase(filename, finalFilename):
 	from MetaCanSNPer.modules.Database import MetaCanSNPerDatabase, NoChromosomesInDatabase
 	database = MetaCanSNPerDatabase(filename, "w")
@@ -44,6 +53,7 @@ class URL:
 
 		return self.string.format(**query)
 
+<<<<<<< HEAD
 class CursorLike:
 	def __init__(self, data : list):
 		self.data = data
@@ -146,6 +156,8 @@ class DatabaseThread(Logged):
 	def __del__(self):
 		self.running = False
 
+=======
+>>>>>>> accurate-chromosomes
 class ThreadDescriptor(Logged):
 
 	func : FunctionType | MethodType
@@ -216,7 +228,11 @@ class ReportHook:
 
 class Job(Logged):
 
+<<<<<<< HEAD
 	_queueConnection : DatabaseThread
+=======
+	_queueConnection : ThreadConnection
+>>>>>>> accurate-chromosomes
 
 	query : Any|Iterable
 	filename : str
@@ -335,7 +351,11 @@ class Downloader(Logged):
 	jobs : list
 	hooks : Hooks = Hooks.GlobalHooks
 
+<<<<<<< HEAD
 	_queueConnection : DatabaseThread
+=======
+	_queueConnection : ThreadConnection
+>>>>>>> accurate-chromosomes
 	_threads : list[Thread]= []
 
 	def __init__(self, directory=directory, *, reportHook=None, logger=None, hooks=None, threads=None):
@@ -348,7 +368,11 @@ class Downloader(Logged):
 			raise PermissionError(f"Missing read and/or write permissions in directory: {directory}")
 		self.jobs = []
 		
+<<<<<<< HEAD
 		self._queueConnection = DatabaseThread(self.directory / self.database)
+=======
+		self._queueConnection = ThreadConnection(self.directory / self.database, identifier=id(self))
+>>>>>>> accurate-chromosomes
 		self._queueConnection.execute("CREATE TABLE IF NOT EXISTS queueTable (name TEXT UNIQUE, progress DECIMAL DEFAULT -1.0, modified INTEGER DEFAULT (UNIXEPOCH()));")
 		if logger is not None:
 			self.LOG = logger.getChild(type(self).__name__.split(".")[-1])

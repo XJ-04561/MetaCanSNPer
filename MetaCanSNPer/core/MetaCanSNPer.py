@@ -16,7 +16,11 @@ import MetaCanSNPer.core.Mappers as Mappers
 import MetaCanSNPer.core.SNPCallers as SNPCallers
 from MetaCanSNPer.core.TerminalUpdater import TerminalUpdater
 
+<<<<<<< HEAD
 from MetaCanSNPer.modules.Database import MetaCanSNPerDatabase, TreeTable, NodeID, Position, GenomeID, AncestralBase, DerivedBase, Chromosome, Genotype
+=======
+from MetaCanSNPer.modules.Database import MetaCanSNPerDatabase, TreeTable, NodeID, Position, GenomeID, AncestralBase, DerivedBase, Chromosome, Genotype, ChromosomeID, Genome
+>>>>>>> accurate-chromosomes
 from MetaCanSNPer.modules.Downloader import DatabaseDownloader, DownloaderReportHook, ReferenceDownloader
 
 
@@ -69,6 +73,34 @@ class MetaCanSNPer(Logged):
 
 		self.organism = organism
 
+<<<<<<< HEAD
+=======
+		requiredDeps = []
+
+		if not self.settings.get("mapper") and not self.settings.get("aligner"):
+			raise ValueError("No aligner or mapper has been provided through flags or settings-files.")
+		elif not self.settings.get("snpCaller"):
+			raise ValueError("No SNP caller has been provided through flags or settings-files.")
+		
+		if not self.settings.get("dry_run"):
+			if self.settings.get("mapper"):
+				requiredDeps.extend(Mapper.get(self.settings["mapper"]).dependencies)
+			if self.settings.get("aligner"):
+				requiredDeps.extend(Aligner.get(self.settings["aligner"]).dependencies)
+			if self.settings.get("snpCaller"):
+				requiredDeps.extend(SNPCaller.get(self.settings["snpCaller"]).dependencies)
+
+			missed = []
+			for dep in requiredDeps:
+				if not shutil.which(dep) and not shutil.which(dep+".exe"):
+					missed.append(dep)
+			if len(missed) == 1:
+				raise MissingDependency(f"Missing required dependency: {missed[0]}.")
+			elif missed:
+				nt = "\n\t"
+				raise MissingDependency(f"Missing required dependencies:\n{nt.join(missed)}.")
+
+>>>>>>> accurate-chromosomes
 	def setOrganism(self, organism : str):
 		self.Lib.organism = self.organism = organism
 		
@@ -236,6 +268,7 @@ class MetaCanSNPer(Logged):
 		self.LOG.info(f"Result of SNPCalling in: {self.Lib.resultSNPs}")
 
 		for genome, filePath in self.Lib.resultSNPs.items():
+<<<<<<< HEAD
 			if Globals.DRY_RUN:
 				continue
 			for pos, (ref, *_) in getSNPdata(filePath, values=["REF"]):
@@ -243,6 +276,17 @@ class MetaCanSNPer(Logged):
 				if nodeID not in self.SNPresults:
 					self.SNPresults[nodeID] = {}
 				self.SNPresults[nodeID][pos] = ref
+=======
+			for nodeID in self.database[NodeID, Genome==genome]:
+				if nodeID not in self.SNPresults:
+					self.SNPresults[nodeID] = {}
+			if Globals.DRY_RUN:
+				continue
+			for (chrom, pos), ref in getSNPdata(filePath, key=["CHROM", "POS"], values="REF"):
+				nodeID == list(self.database[NodeID, Chromosome==chrom])[0]
+				self.SNPresults[nodeID][pos] = ref
+		self.LOG.info("Got nodes: " + ", ".join(map(str, self.SNPresults)))
+>>>>>>> accurate-chromosomes
 	
 	def traverseTree(self):
 		'''Depth-first tree search.'''
@@ -253,6 +297,10 @@ class MetaCanSNPer(Logged):
 
 		award = (1, -1, 0)
 
+<<<<<<< HEAD
+=======
+		miscCalls = []
+>>>>>>> accurate-chromosomes
 		paths.append([rootNode])
 		while paths[-1] != []:
 			paths.append([])
@@ -263,6 +311,7 @@ class MetaCanSNPer(Logged):
 					
 					nodeScores[child.node] = nodeScores[parent.node]
 					for nodeID, pos, anc, der, *_ in self.database.SNPsByNode[child.node]:
+<<<<<<< HEAD
 						for pos, base in self.SNPresults[nodeID].items():
 							if der == base:
 								nodeScores[child.node] += award[0]
@@ -272,6 +321,21 @@ class MetaCanSNPer(Logged):
 								nodeScores[child.node] += award[2]
 					paths[-1].append(child)
 		
+=======
+						base = self.SNPresults[nodeID].get(pos)
+						
+						if der == base:
+							nodeScores[child.node] += award[0]
+						elif anc == base:
+							nodeScores[child.node] += award[1]
+						elif base is None:
+							pass
+						else:
+							miscCalls.append((nodeID, pos, anc, der, base))
+					paths[-1].append(child)
+		if miscCalls:
+			self.LOG.warning("These nodes had non-recognized bases:\n\t NODE_ID, POS, ANCESTRAL, DERIVED, TARGET\n\t" + "\n\t".join(map(str, miscCalls)))
+>>>>>>> accurate-chromosomes
 		paths = paths[:-1]
 		self.LOG.info(f"Finished traversing tree.")
 		return max(nodeScores.items(), key=lambda x: x[1]), nodeScores
@@ -327,7 +391,11 @@ class MetaCanSNPer(Logged):
 			for nodeID, position, ancestral, derived, chromosome in self.database[NodeID, Position, AncestralBase, DerivedBase, Chromosome, GenomeID == genomeID]:
 				if Globals.DRY_RUN:
 					continue
+<<<<<<< HEAD
 				N = self.SNPresults[nodeID][position]
+=======
+				N = self.SNPresults[nodeID].get(position, "-")
+>>>>>>> accurate-chromosomes
 				entry = f"{nodeID}\t{genome}\t{chromosome}\t{position}\t{ancestral}\t{derived}\t{N}\n"
 				if derived == N:
 					called.write(entry)

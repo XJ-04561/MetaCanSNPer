@@ -112,12 +112,21 @@ requiredArguments = parser.add_argument_group("Required arguments")
 if True:
 	requiredArguments.add_argument("--query", nargs="+",	metavar="query",		required=True, help="Raw sequence data file supported by the intended Aligner/Mapper.")
 	requiredArguments.add_argument("--organism",			metavar="organism",		required=True, help="Name of organism queried. (Use \"_\" in place of spaces)")
+<<<<<<< HEAD
 	
 	mapOrAlign = requiredArguments.add_mutually_exclusive_group(required=True)
 	if True:
 		mapOrAlign.add_argument("--mapper",					metavar="mapper",		help="Name of installed and supported Mapper software.")
 		mapOrAlign.add_argument("--aligner",				metavar="aligner",		help="Name of installed and supported Alignment software.")
 	requiredArguments.add_argument("--snpCaller",			metavar="snpCaller",	help="Name of installed and supported SNP Calling software.")
+=======
+
+servicesArguments = parser.add_argument_group("Services")
+if True:
+	servicesArguments.add_argument("--mapper",				metavar="mapper",		help="Name of installed and supported Mapper software.")
+	servicesArguments.add_argument("--aligner",				metavar="aligner",		help="Name of installed and supported Alignment software.")
+	servicesArguments.add_argument("--snpCaller",			metavar="snpCaller",	help="Name of installed and supported SNP Calling software.")
+>>>>>>> accurate-chromosomes
 
 optionalArguments = parser.add_argument_group("Optional arguments")
 if True:
@@ -155,7 +164,11 @@ def checkDependencies(args):
 	import shutil
 	from MetaCanSNPer.core.Wrappers import Aligner, Mapper, SNPCaller
 	requiredDeps = []
+<<<<<<< HEAD
 	optionalDeps = ["datasets", "samtools"]
+=======
+	optionalDeps = ["samtools"]
+>>>>>>> accurate-chromosomes
 
 	if args.mapper:
 		requiredDeps.extend(Mapper.get(args.mapper).dependencies)

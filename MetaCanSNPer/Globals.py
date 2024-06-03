@@ -80,9 +80,15 @@ saveTemp = false
 referenceFormats = [".fna", ".fasta"]
 
 [Software]
+<<<<<<< HEAD
 # mapper = minimap2
 # aligner = progressiveMauve
 # snpCaller = gatk_Mutect2
+=======
+mapper = minimap2
+# aligner = progressiveMauve
+snpCaller = gatk_Mutect2
+>>>>>>> accurate-chromosomes
 
 [Directories]
 # workDir = 
@@ -366,7 +372,10 @@ class ClassProperty:
 	def __repr__(self):
 		return f"{object.__repr__(self)[:-1]} name={self.name!r}>"
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> accurate-chromosomes
 class CachedClassProperty:
 
 	def __init__(self, func):

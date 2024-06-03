@@ -42,8 +42,11 @@ class LO: # NameSpace
 		class Parent(Column):						type=INTEGER
 		class Child(Column):						type=INTEGER
 		class RankI(Column):						type=INTEGER
+<<<<<<< HEAD
 		class ParentMinus1(Column, name="parent-1"): pass
 		class NodeMinus1(Column, name="node_id-1"): pass
+=======
+>>>>>>> accurate-chromosomes
 	class ReferencesTable(Table, name="snp_references"):
 		class ID(Column):							type=INTEGER
 		class Genome(Column):						type=VARCHAR(30)
@@ -98,6 +101,7 @@ class NotLegacyCanSNPer2(Assertion, Logged):
 		# Chromosomes
 		self.LOG.info("Updating 'Chromosomes'-table")
 		database(CREATE - TABLE - sql(ChromosomesTable) )
+<<<<<<< HEAD
 		# commandName = f"datasets{'.exe' if os.name == 'nt' else ''}"
 		j = 0
 		ref2chromLookup = {}
@@ -121,6 +125,10 @@ class NotLegacyCanSNPer2(Assertion, Logged):
 				ref2chromLookup[i].append(j)
 				j += 1
 				break # FOR NOW
+=======
+		for i in database(SELECT (LO.ReferencesTable.ID) - FROM (LO.ReferencesTable)):
+			database(INSERT - OR - REPLACE - INTO (ChromosomesTable) - (ChromosomeID, Chromosome, GenomeID) - VALUES (i, NULL, i))
+>>>>>>> accurate-chromosomes
 		
 		# SNPs
 		# TODO : Get the real chromosome ID based on the position of the SNP and the lengths of the chromosomes
@@ -132,7 +140,11 @@ class NotLegacyCanSNPer2(Assertion, Logged):
 		# Tree
 		self.LOG.info("Updating 'Tree'-table")
 		database(CREATE - TABLE - sql(NewTreeTable))
+<<<<<<< HEAD
 		database(INSERT - INTO (NewTreeTable) - (Parent, NodeID, Genotype) - SELECT (LO.TreeTable.ParentMinus1, NULL, LO.NodesTable.Name) - FROM (LO.TreeTable, LO.NodesTable) - WHERE (LO.TreeTable.Child == LO.NodesTable.ID, LO.TreeTable.Child > 1) - ORDER - BY (LO.TreeTable.Child - ASC))
+=======
+		database(INSERT - INTO (NewTreeTable) - (Parent, NodeID, Genotype) - SELECT (LO.TreeTable.Parent - 1, NULL, LO.NodesTable.Name) - FROM (LO.TreeTable, LO.NodesTable) - WHERE (LO.TreeTable.Child == LO.NodesTable.ID, LO.TreeTable.Child > 1) - ORDER - BY (LO.TreeTable.Child - ASC))
+>>>>>>> accurate-chromosomes
 		database(UPDATE (NewTreeTable) - SET (parent = 0) - WHERE (NodeID == 1))
 
 
