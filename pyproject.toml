@@ -29,6 +29,7 @@ classifiers = [
     # "Programming Language :: Python :: 3.9", 
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
 
     "Operating System :: OS Independent"
 ]
@@ -36,7 +37,7 @@ dependencies = [
     "appdirs",
     "gunzip",
     "ansicolors",
-    "toml;python_version<'3.11'",
+    "toml; python_version<'3.11'",
     "PseudoPathy @ git+https://github.com/XJ-04561/PseudoPathy",
     "This @ git+https://github.com/XJ-04561/This",
     "VariantCallFixer @ git+https://github.com/XJ-04561/VariantCallFixer",

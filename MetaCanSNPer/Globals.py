@@ -103,8 +103,11 @@ snpCaller = "gatk_Mutect2"
 """
 
 def loadFlattenedTOML(filename):
-	with open(filename, "rb") as f:
-		tmp : dict[str,dict] = toml.load(f)
+	if sys.version_info < (3, 11):
+		tmp : dict[str,dict] = toml.load(filename)
+	else:
+		with open(filename, "rb") as f:
+			tmp : dict[str,dict] = toml.load(f)
 	# Settings hierarchy looks like this: ["Category"]["Flag"] -> Value
 	# Flatten hierarchy so flags are easily accessible
 	settings = {}
