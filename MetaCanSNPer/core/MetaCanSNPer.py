@@ -27,7 +27,7 @@ class MetaCanSNPer(Logged):
 	outputTemplate = "{refName}_{queryName}.{outFormat}"
 	organism : str
 
-	settings : dict = cached_property(lambda self:DEFAULT_SETTINGS.copy())
+	settings : dict
 	Lib : DirectoryLibrary
 	database : MetaCanSNPerDatabase
 
@@ -61,7 +61,9 @@ class MetaCanSNPer(Logged):
 				raise FileNotFoundError(f"Could not find the settingsFile {kwargs['settingsFile']!r}")
 			self.settings |= loadFlattenedTOML(kwargs["settingsFile"])
 			
-		self.settings |= kwargs.get("settings", {})
+		for flag, value in kwargs.get("settings", {}).items():
+			if isinstance(value, bool) or value:
+				self.settings[flag] = value
 
 		self.Lib = DirectoryLibrary(organism, query, settings=self.settings, hooks=self.hooks)
 
