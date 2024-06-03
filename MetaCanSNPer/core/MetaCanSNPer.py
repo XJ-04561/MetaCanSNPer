@@ -336,28 +336,16 @@ class MetaCanSNPer(Logged):
 		outDir = dst or self.Lib.resultDir.writable
 		header = "Name\tReference\tChromosome\tPosition\tAncestral base\tDerived base\tTarget base\n"
 
-		if self.settings.get("debug"):
-			self.LOG.debug(f"open({outDir!r} / {self.Lib.queryName!r}+'_snps.tsv', 'w')")
-			self.LOG.debug(f"open({outDir!r} / {self.Lib.queryName!r}+'_not_called.tsv', 'w')")
-			self.LOG.debug(f"open({outDir!r} / {self.Lib.queryName!r}+'_no_coverage.tsv', 'w')")
-			self.LOG.debug(f"open({outDir!r} / {self.Lib.queryName!r}+'_unique.tsv', 'w')")
-			called = open((outDir) / self.Lib.queryName+"_snps.tsv", "w")
-			notCalled = open((outDir) / self.Lib.queryName+"_not_called.tsv", "w")
-			noCoverage = open((outDir) / self.Lib.queryName+"_no_coverage.tsv", "w")
-			unique = open((outDir) / self.Lib.queryName+"_unique.tsv", "w")
-			
-			called.write(header)
-			notCalled.write(header)
-			noCoverage.write(header)
-			unique.write(header)
-		else:
-			self.LOG.debug(f"open({outDir!r} / {self.Lib.queryName!r}+'_snps.tsv', 'w')")
-			self.LOG.debug(f"open({outDir!r} / {self.Lib.queryName!r}+'_not_called.tsv', 'w')")
-			called = open((outDir) / self.Lib.queryName+"_snps.tsv", "w")
-			noCoverage = unique = notCalled = open((outDir) / self.Lib.queryName+"_not_called.tsv", "w")
-			
-			called.write(header)
-			noCoverage.write(header)
+		self.LOG.debug(f"open({outDir!r} / {self.Lib.queryName!r}+'_snps.tsv', 'w')")
+		self.LOG.debug(f"open({outDir!r} / {self.Lib.queryName!r}+'_not_called.tsv', 'w')")
+		self.LOG.debug(f"open({outDir!r} / {self.Lib.queryName!r}+'_no_coverage.tsv', 'w')")
+		called = open((outDir) / self.Lib.queryName+"_snps.tsv", "w")
+		notCalled = open((outDir) / self.Lib.queryName+"_not_called.tsv", "w")
+		noCoverage = open((outDir) / self.Lib.queryName+"_no_coverage.tsv", "w")
+		
+		called.write(header)
+		notCalled.write(header)
+		noCoverage.write(header)
 
 		for genomeID, genome, strain, genbankID, refseqID, assemblyName in self.database.references:
 			'''Print SNPs to tab separated file'''
@@ -366,19 +354,15 @@ class MetaCanSNPer(Logged):
 					continue
 				N = self.SNPresults[nodeID].get(position, "-")
 				entry = f"{nodeID}\t{genome}\t{chromosome}\t{position}\t{ancestral}\t{derived}\t{N}\n"
-				if derived == N:
+				if N == derived or N == ancestral:
 					called.write(entry)
-				elif ancestral == N:
-					notCalled.write(entry)
 				elif N.isalpha():
-					unique.write(entry)
+					notCalled.write(entry)
 				else:
 					noCoverage.write(entry)
+		
 		called.close()
 		noCoverage.close()
-		try:
-			notCalled.close()
-			unique.close()
-		except:
-			pass
+		notCalled.close()
+			
 		return outDir
