@@ -334,5 +334,7 @@ def main(argVector : list[str]=sys.argv) -> int:
 	else:
 		if not args.silent or not ISATTY:
 			print(f"{SOFTWARE_NAME} finished in {timer() - startTime:.3f} seconds! Results exported to: {outDir}")
+	finally:
+		print()
 	
 	return 0
