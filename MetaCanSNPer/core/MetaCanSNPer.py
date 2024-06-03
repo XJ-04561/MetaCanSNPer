@@ -261,12 +261,13 @@ class MetaCanSNPer(Logged):
 		self.LOG.info(f"Result of SNPCalling in: {self.Lib.resultSNPs}")
 
 		for genome, filePath in self.Lib.resultSNPs.items():
+			for nodeID in self.database[NodeID, Genome==genome]:
+				if nodeID not in self.SNPresults:
+					self.SNPresults[nodeID] = {}
 			if Globals.DRY_RUN:
 				continue
 			for (chrom, pos), ref in getSNPdata(filePath, key=["CHROM", "POS"], values="REF"):
-				nodeID = list(self.database[NodeID, Chromosome==chrom, Position==pos])[0]
-				if nodeID not in self.SNPresults:
-					self.SNPresults[nodeID] = {}
+				nodeID == list(self.database[NodeID, Chromosome==chrom])[0]
 				self.SNPresults[nodeID][pos] = ref
 		self.LOG.info("Got nodes: " + ", ".join(map(str, self.SNPresults)))
 	
@@ -279,6 +280,7 @@ class MetaCanSNPer(Logged):
 
 		award = (1, -1, 0)
 
+		miscCalls = []
 		paths.append([rootNode])
 		while paths[-1] != []:
 			paths.append([])
@@ -289,15 +291,19 @@ class MetaCanSNPer(Logged):
 					
 					nodeScores[child.node] = nodeScores[parent.node]
 					for nodeID, pos, anc, der, *_ in self.database.SNPsByNode[child.node]:
-						for pos, base in self.SNPresults[nodeID].items():
-							if der == base:
-								nodeScores[child.node] += award[0]
-							elif anc == base:
-								nodeScores[child.node] += award[1]
-							else:
-								nodeScores[child.node] += award[2]
+						base = self.SNPresults[nodeID].get(pos)
+						
+						if der == base:
+							nodeScores[child.node] += award[0]
+						elif anc == base:
+							nodeScores[child.node] += award[1]
+						elif base is None:
+							pass
+						else:
+							miscCalls.append((nodeID, pos, anc, der, base))
 					paths[-1].append(child)
-		
+		if miscCalls:
+			self.LOG.warning("These nodes had non-recognized bases:\n\t NODE_ID, POS, ANCESTRAL, DERIVED, TARGET\n\t" + "\n\t".join(map(str, miscCalls)))
 		paths = paths[:-1]
 		self.LOG.info(f"Finished traversing tree.")
 		return max(nodeScores.items(), key=lambda x: x[1]), nodeScores

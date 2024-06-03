@@ -160,8 +160,9 @@ class HasChromosomes(Assertion, Logged):
 						else:
 							chromosomes[-1][1] += len(row.strip())
 			else:
-				self.LOG.error(f"Couldn't find genome with {genbankID=} either online or in {refDir}. refDir.find(f\"{{assembly}}.fna\") -> {assemblyFile}")
-				raise UnableToDefineChromosomes(f"Can't find fasta file '{assembly}.fna' in {refDir}.")
+				self.LOG.warning(UnableToDefineChromosomes(f"Can't find fasta file '{assembly}.fna' in {refDir}."))
+				database(ROLLBACK)
+				return
 
 			for [chromosome, length], prevLength in zip(chromosomes, itertools.accumulate(chromosomes, lambda x, y:x+y[1], initial=0)):
 				database(INSERT - OR - REPLACE - INTO (ChromosomesTable) - (ChromosomeID, Chromosome, GenomeID) - VALUES (j, chromosome, i))
