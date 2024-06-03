@@ -359,7 +359,7 @@ class MetaCanSNPer(Logged):
 			for nodeID, position, ancestral, derived, chromosome in self.database[NodeID, Position, AncestralBase, DerivedBase, Chromosome, GenomeID == genomeID]:
 				if Globals.DRY_RUN:
 					continue
-				N = self.SNPresults[nodeID][position]
+				N = self.SNPresults[nodeID].get(position, "-")
 				entry = f"{nodeID}\t{genome}\t{chromosome}\t{position}\t{ancestral}\t{derived}\t{N}\n"
 				if derived == N:
 					called.write(entry)
