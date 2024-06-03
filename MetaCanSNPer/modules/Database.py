@@ -3,16 +3,6 @@
 import SQLOOP.Globals as Globals
 from SQLOOP import *
 from SQLOOP.core import *
-<<<<<<< HEAD
-import argparse, sys
-
-from MetaCanSNPer.Globals import *
-from MetaCanSNPer.modules.Downloader import DatabaseDownloader, DatabaseThread
-
-LOGGER = LOGGER.getChild(__name__.split(".")[-1])
-
-
-=======
 from SQLOOP.Globals import first
 import argparse, sys
 
@@ -21,7 +11,6 @@ from MetaCanSNPer.modules.Downloader import DatabaseDownloader, ThreadConnection
 
 LOGGER = LOGGER.getChild(__name__.split(".")[-1])
 
->>>>>>> accurate-chromosomes
 class Parent(Column):						type=INTEGER
 class Genotype(Column):						type=TEXT
 class NodeID(Column):						type=INTEGER
@@ -79,11 +68,7 @@ class SNPsTable(Table, name="snp_annotation"):
 	Date = Date
 	ChromosomeID = ChromosomeID
 	constraints = (
-<<<<<<< HEAD
-		PRIMARY - KEY (Position),
-=======
 		PRIMARY - KEY (Position, ChromosomeID),
->>>>>>> accurate-chromosomes
 		# FOREIGN - KEY (ChromosomeID) - REFERENCES (ChromosomesTable, ChromosomeID),
 		# FOREIGN - KEY (NodeID) - REFERENCES (TreeTable, NodeID)
 	)
@@ -144,42 +129,13 @@ class HasChromosomes(Assertion, Logged):
 		from json import loads
 		from subprocess import check_output as getOutput
 		
-<<<<<<< HEAD
-		refDir = PathGroup([appdirs.user_data_dir(SOFTWARE_NAME), *appdirs.site_data_dir(SOFTWARE_NAME, multipath=True).split(os.pathsep)]) / "References" / database.organism
-=======
 		refDir = DirectoryGroup([appdirs.user_data_dir(SOFTWARE_NAME), *appdirs.site_data_dir(SOFTWARE_NAME, multipath=True).split(os.pathsep)], purpose="r") / "References" / database.organism
->>>>>>> accurate-chromosomes
 		
 		database(BEGIN - TRANSACTION)
 
 		# Chromosomes
 		self.LOG.info("Updating 'Chromosomes'-table")
 		database(DELETE - FROM (ChromosomesTable) )
-<<<<<<< HEAD
-		commandName = f"datasets{'.exe' if os.name == 'nt' else ''}"
-		j = 0
-		ref2chromLookup = {}
-		for i, genbankID, assembly in database[GenomeID, GenbankID, AssemblyName, ReferencesTable]:
-			ref2chromLookup[i] = []
-			assemblyFile = refDir.find(f"{assembly}.fna")
-			
-			# if shutil.which(commandName):
-			# 	chromosomes = tuple(map(*this["value"].strip("\"'"), loads(getOutput(f"{commandName} summary genome accession {genbankID} --as-json-lines".split()))["assembly_info"]["biosample"]["sample_ids"]))
-			
-			if assemblyFile and assemblyFile.exists:
-				# No genbank entry found
-				with open(assemblyFile, "r") as refFile:
-					chromosomes = tuple(map(*this[1:].split()[0], filter(*this.startswith(">"), refFile)))
-			else:
-				self.LOG.error(f"Couldn't find genome with {genbankID=} either online or in {refDir}.")
-				chromosomes = (NULL,)
-
-			for chromosome in chromosomes:
-				database(INSERT - OR - REPLACE - INTO (ChromosomesTable) - (ChromosomeID, Chromosome, GenomeID) - VALUES (j, chromosome, i))
-				ref2chromLookup[i].append(j)
-				j += 1
-				break # FOR NOW
-=======
 
 		highestGenomeID = max(database[GenomeID, ReferencesTable])
 		j = highestGenomeID + 1
@@ -215,7 +171,6 @@ class HasChromosomes(Assertion, Logged):
 		database(UPDATE (SNPsTable) - SET (chromosome_id = ChromosomeID - highestGenomeID))
 		database(UPDATE (ChromosomesTable) - SET (chromosome_id = ChromosomeID - highestGenomeID))
 				
->>>>>>> accurate-chromosomes
 		database(COMMIT)
 
 class MetaCanSNPerDatabase(Database, Logged):
@@ -241,11 +196,7 @@ class MetaCanSNPerDatabase(Database, Logged):
 
 	def __init__(self, filename: str, mode: Globals.Mode, organism : str=None):
 		self.organism = organism or pName(filename)
-<<<<<<< HEAD
-		super().__init__(filename, mode, factoryFunc=DatabaseThread)
-=======
 		super().__init__(filename, mode)
->>>>>>> accurate-chromosomes
 
 	@property
 	def tree(self):
