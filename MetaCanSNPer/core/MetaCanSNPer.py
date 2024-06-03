@@ -296,13 +296,13 @@ class MetaCanSNPer(Logged):
 					
 					nodeScores[child.node] = nodeScores[parent.node]
 					for nodeID, pos, anc, der, *_ in self.database.SNPsByNode[child.node]:
-						base = self.SNPresults[nodeID].get(pos)
+						base = self.SNPresults[nodeID].get(pos, "-")
 						
 						if der == base:
 							nodeScores[child.node] += award[0]
 						elif anc == base:
 							nodeScores[child.node] += award[1]
-						elif base is None:
+						elif base == "-":
 							pass
 						else:
 							miscCalls.append((nodeID, pos, anc, der, base))
@@ -349,10 +349,12 @@ class MetaCanSNPer(Logged):
 
 		for genomeID, genome, strain, genbankID, refseqID, assemblyName in self.database.references:
 			'''Print SNPs to tab separated file'''
-			for nodeID, genotype, position, ancestral, derived, chromosome in self.database[NodeID, Genotype, Position, AncestralBase, DerivedBase, Chromosome, GenomeID == genomeID]:
+			for nodeID, position, ancestral, derived, chromosome in self.database[NodeID, Position, AncestralBase, DerivedBase, Chromosome, GenomeID == genomeID]:
 				if Globals.DRY_RUN:
 					continue
 				N = self.SNPresults[nodeID].get(position, "-")
+				genotype = self.database[Genotype, NodeID==nodeID]
+				self.LOG.debug(f"Got {genotype=} and base={N!r} for {nodeID=}")
 				entry = f"{genotype}\t{genome}\t{chromosome}\t{position}\t{ancestral}\t{derived}\t{N}\n"
 				if N == derived or N == ancestral:
 					called.write(entry)
