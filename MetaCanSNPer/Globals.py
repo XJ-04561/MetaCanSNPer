@@ -81,7 +81,7 @@ referenceFormats = [".fna", ".fasta"]
 
 [Software]
 mapper = minimap2
-# aligner = progressiveMauve
+aligner = progressiveMauve
 snpCaller = gatk_Mutect2
 
 [Directories]
@@ -112,10 +112,6 @@ if "defaults.toml" not in _configDir:
 	with open(_configDir / "defaults.toml", "w") as f:
 		f.write(DEFAULT_TOML_TEMPLATE)
 DEFAULT_SETTINGS = loadFlattenedTOML(_configDir / "defaults.toml")
-
-
-PPGlobals.LOGGER = LOGGER.getChild("PseudoPathy")
-VCFGlobals.LOGGER = LOGGER.getChild("VariantCallFixer")
 
 class Number: pass
 Number = int|float

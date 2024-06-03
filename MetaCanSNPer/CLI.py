@@ -113,7 +113,9 @@ if True:
 	requiredArguments.add_argument("--query", nargs="+",	metavar="query",		required=True, help="Raw sequence data file supported by the intended Aligner/Mapper.")
 	requiredArguments.add_argument("--organism",			metavar="organism",		required=True, help="Name of organism queried. (Use \"_\" in place of spaces)")
 
-servicesArguments = parser.add_argument_group("Services")
+servicesArguments = parser.add_argument_group("Choosing Software to run", description="If no software is given, a "
+											  "default will be used from your personal default flags or from a "
+											  "settingsFile specified by the '--settingsFile' flag.")
 if True:
 	servicesArguments.add_argument("--mapper",				metavar="mapper",		help="Name of installed and supported Mapper software.")
 	servicesArguments.add_argument("--aligner",				metavar="aligner",		help="Name of installed and supported Alignment software.")
@@ -262,16 +264,18 @@ def runJob(mObj : MetaCanSNPer, args : NameSpace, argsDict : dict):
 	from MetaCanSNPer.modules.Database import ReferencesTable
 	genomes = list(mObj.database[ReferencesTable.Genome])
 	
-	if args.mapper is not None:
+	if args.mapper or mObj.query[0].ext.lower() in ["fastq", "fq", "fastq.gz", "fq.gz"]:
 		with TerminalUpdater(f"Creating Mappings:", category="Mappers", hooks=mObj.hooks, names=genomes, printer=Spinner, out=sys.stdout if ISATTY else DEV_NULL):
-			mObj.createMap(softwareName=args.mapper, flags=argsDict.get("--mapperOptions", {}))
-
-	if args.aligner is not None:
+			
+			mObj.createMap(softwareName=args.mapper or mObj.settings["mapper"], flags=argsDict.get("--mapperOptions", {}))
+	
+	elif args.aligner:
 		with TerminalUpdater(f"Creating Alignments:", category="Aligners", hooks=mObj.hooks, names=genomes, printer=Spinner, out=sys.stdout if ISATTY else DEV_NULL):
-			mObj.createAlignment(softwareName=args.aligner, flags=argsDict.get("--alignerOptions", {}))
+			
+			mObj.createAlignment(softwareName=args.aligner or mObj.settings["aligner"], flags=argsDict.get("--alignerOptions", {}))
 	
 	with TerminalUpdater(f"Calling SNPs:", category="SNPCallers", hooks=mObj.hooks, names=genomes, printer=Spinner, out=sys.stdout if ISATTY else DEV_NULL):
-		mObj.callSNPs(softwareName=args.snpCaller, flags=argsDict.get("--snpCallerOptions", {}))
+		mObj.callSNPs(softwareName=args.snpCaller or mObj.settings["snpCaller"], flags=argsDict.get("--snpCallerOptions", {}))
 
 def saveResults(mObj : MetaCanSNPer, args : argparse.Namespace):
 
