@@ -269,7 +269,8 @@ class MetaCanSNPer(Logged):
 			if Globals.DRY_RUN:
 				continue
 			for (chrom, pos), ref in getSNPdata(filePath, key=["CHROM", "POS"], values="REF"):
-				nodeID == list(self.database[NodeID, Chromosome==chrom])[0]
+				chromID = list(self.database[ChromosomeID, Chromosome==chrom, Genome==genome])[0]
+				nodeID = self.database[NodeID, Position==pos, ChromosomeID==chromID]
 				self.SNPresults[nodeID][pos] = ref
 		self.LOG.info("Got nodes: " + ", ".join(map(str, self.SNPresults)))
 	
