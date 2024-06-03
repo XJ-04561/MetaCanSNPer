@@ -235,6 +235,8 @@ def handleOptions(args : NameSpace):
 	
 	if args.debug:
 		logging.basicConfig(level=logging.DEBUG)
+		Globals.MAX_DEBUG = True
+		Globals.SQLOOPGlobals.MAX_DEBUG = True
 	elif args.verbose:
 		logging.basicConfig(level=logging.INFO)
 	elif args.suppress:
