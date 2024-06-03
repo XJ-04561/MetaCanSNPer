@@ -33,10 +33,14 @@ from collections import namedtuple
 from types import FunctionType, MethodType
 import random, logging, re, time, os, sys, shutil, itertools, logging.handlers as logHandlers
 from functools import cache, cached_property
-from typing import Iterable, Callable, Any, Generator, Literal, AnyStr, TextIO, BinaryIO, Self, overload
+from typing import Iterable, Callable, Any, Generator, Literal, AnyStr, TextIO, BinaryIO, overload
 from time import sleep
 from collections import defaultdict, OrderedDict
-import tomllib as toml
+if sys.version_info < (3, 11):
+	import toml
+else:
+	import tomllib as toml
+	
 from appdirs import user_log_dir, user_config_dir, site_config_dir
 from threading import Lock
 
