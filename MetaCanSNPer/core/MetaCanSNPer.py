@@ -349,7 +349,7 @@ class MetaCanSNPer(Logged):
 
 		for genomeID, genome, strain, genbankID, refseqID, assemblyName in self.database.references:
 			'''Print SNPs to tab separated file'''
-			for nodeID, position, ancestral, derived, chromosome in self.database[NodeID, Position, AncestralBase, DerivedBase, Chromosome, GenomeID == genomeID]:
+			for nodeID, position, ancestral, derived, chromosome in self.database[Genotype, Position, AncestralBase, DerivedBase, Chromosome, GenomeID == genomeID]:
 				if Globals.DRY_RUN:
 					continue
 				N = self.SNPresults[nodeID].get(position, "-")
