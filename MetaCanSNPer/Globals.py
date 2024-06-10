@@ -74,14 +74,11 @@ from typing import Iterable, Callable, Any, Generator, Literal, AnyStr, TextIO, 
 from time import sleep
 from collections import defaultdict, OrderedDict
 
-from GeekyGadgets.Globals import DEV_NULL, DEV_NULL_BYTES, ISATTY
-from GeekyGadgets.Classy import Logged, Default, ClassProperty, CachedClassProperty
-from GeekyGadgets.Configs import Config, loadTOML
-from GeekyGadgets.Functions import forceHash, getAttrChain
-from GeekyGadgets.Formatting import callFormat, timeFormat
-from GeekyGadgets.SpecialClasses import LimitedDict
-from GeekyGadgets.Processes import MissingDependency
-from GeekyGadgets.This import this
+from GeekyGadgets import (
+	DEV_NULL, DEV_NULL_BYTES, ISATTY, Logged, Default, ClassProperty, CachedClassProperty, Config, loadTOML,
+	forceHash, getAttrChain, Hooks, Hook, DummyHooks, callFormat, timeFormat, LimitedDict, MissingDependency,
+	this
+)
 import GeekyGadgets.MonkeyPatch
 
 from appdirs import user_log_dir, user_config_dir, site_config_dir

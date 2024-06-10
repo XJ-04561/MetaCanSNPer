@@ -11,13 +11,13 @@ import MetaCanSNPer.Globals as Globals
 from MetaCanSNPer.core.DirectoryLibrary import DirectoryLibrary
 from MetaCanSNPer.core.Hooks import Hooks, DummyHooks, GlobalHooks
 from MetaCanSNPer.core.Wrappers import Aligner, Mapper, SNPCaller, ProcessWrapper
-import MetaCanSNPer.core.Aligners as Aligners
-import MetaCanSNPer.core.Mappers as Mappers
-import MetaCanSNPer.core.SNPCallers as SNPCallers
+import MetaCanSNPer.software.Aligners as Aligners
+import MetaCanSNPer.software.Mappers as Mappers
+import MetaCanSNPer.software.SNPCallers as SNPCallers
 from MetaCanSNPer.core.TerminalUpdater import TerminalUpdater
 
-from MetaCanSNPer.modules.Database import MetaCanSNPerDatabase, TreeTable, NodeID, Position, GenomeID, AncestralBase, DerivedBase, Chromosome, Genotype, ChromosomeID, Genome
-from MetaCanSNPer.modules.Downloader import DatabaseDownloader, DownloaderReportHook, ReferenceDownloader
+from MetaCanSNPer.core.Database import MetaCanSNPerDatabase, TreeTable, NodeID, Position, GenomeID, AncestralBase, DerivedBase, Chromosome, Genotype, ChromosomeID, Genome
+from MetaCanSNPer.core.Downloaders import DatabaseDownloader, DownloaderReportHook, ReferenceDownloader
 
 
 class MetaCanSNPer(Logged):
@@ -59,7 +59,7 @@ class MetaCanSNPer(Logged):
 		if kwargs.get("settingsFile"):
 			if not os.path.exists(kwargs["settingsFile"]):
 				raise FileNotFoundError(f"Could not find the settingsFile {kwargs['settingsFile']!r}")
-			self.settings |= loadFlattenedTOML(kwargs["settingsFile"])
+			self.settings |= loadTOML(kwargs["settingsFile"])
 			
 		for flag, value in kwargs.get("settings", {}).items():
 			if isinstance(value, bool) or value:

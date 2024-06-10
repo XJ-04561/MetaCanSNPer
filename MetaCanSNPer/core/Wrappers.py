@@ -7,7 +7,7 @@ import MetaCanSNPer.core.ErrorFixes as ErrorFixes
 from MetaCanSNPer.core.DirectoryLibrary import DirectoryLibrary
 from MetaCanSNPer.core.Hooks import Hooks
 from MetaCanSNPer.modules.Database import MetaCanSNPerDatabase
-from MetaCanSNPer.core.Commands import Command
+from GeekyGadgets.Processes import Commands
 from MetaCanSNPer.Globals import *
 import MetaCanSNPer.Globals as Globals
 
@@ -40,7 +40,7 @@ class ProcessWrapper(Logged):
 	semaphore : Semaphore
 	solutions : ErrorFixes.SolutionContainer
 	skip : set
-	command : Command
+	command : Commands
 	
 	_runningThread : Thread
 
@@ -80,7 +80,7 @@ class ProcessWrapper(Logged):
 		}
 	
 	def __init_subclass__(cls, *args, **kwargs):
-		from MetaCanSNPer.core.Commands import argsPattern, sequentialPattern, parallelPattern, pipePattern
+		from MetaCanSNPer.core._Commands import argsPattern, sequentialPattern, parallelPattern, pipePattern
 		super().__init_subclass__(*args, **kwargs)
 		if isinstance(getattr(cls, "softwareName", None), str):
 			cls.dependencies = set(getattr(cls, "dependencies", set()))
@@ -121,8 +121,8 @@ class ProcessWrapper(Logged):
 		self.LOG.debug(f"Initializing commands for:\n{nt.join([str(name)+' -> '+str(output)+' = '+str(command) for name, output, command in zip(names, commands, outputs)])}")
 			
 		self.hooks.removeHook(f"{self.category}CommandFinished", self._hooksList.get(f"{self.category}CommandFinished"))
-
-		self.command = Command(commands, self.category, self.hooks, logDir=self.Lib.logDir.create("SoftwareLogs"), names=names)
+		logDir = self.Lib.logDir.create("SoftwareLogs")
+		self.command = Commands(commands, self.category, names=names, hooks=self.hooks, dirs=[logDir / name for name in names])
 
 		self._hooksList[f"{self.category}CommandFinished"] = self.hooks.addHook(f"{self.category}CommandFinished", target=self.updateOutput, args=[dict(outputs)])
 
@@ -130,8 +130,6 @@ class ProcessWrapper(Logged):
 		"""Starts processes in new threads. Returns information of the output of the processes, but does not ensure the processes have finished."""
 		self.createCommand()
 		self.command.start()
-		for genome in self.command.names:
-			self.hooks.trigger(f"{self.category}Progress", {"name" : genome, "value" : 0.0})
 	
 	def wait(self, timeout=None):
 		
@@ -171,14 +169,14 @@ class ProcessWrapper(Logged):
 		
 		if len(previousUnsolved) > 0:
 			for name, e in previousUnsolved:
-				self.LOG.error(f"Thread {name} of {self.softwareName} ran command: {self.command.args[name][0]!r} and returned exitcode {self.command.returncodes[name]} even after applying a fix for this exitcode.")
+				self.LOG.error(f"Thread {name} of {self.softwareName} ran command: {self.command.failed[name]!r} and returned exitcode {self.command.returncodes[name]} even after applying a fix for this exitcode.")
 			raise ChildProcessError(f"{self.softwareName} process(es) returned non-zero value(s). A solution was attempted but the process returned the same exitcode. Check logs for details.")
 
 		failed = [(e,errors[e]) for e in errors if e not in self.solutions and e != 0 and e not in self.ignoredErrors]
 		if len(failed) != 0:
 			for e, threads in failed:
 				for name in threads:
-					self.LOG.error(f"Thread {name} of {self.softwareName} ran command: {self.command.args[name][0]!r} and returned exitcode {self.command.returncodes[name]}.")
+					self.LOG.error(f"Thread {name} of {self.softwareName} ran command: {self.command.failed[name]!r} and returned exitcode {self.command.returncodes[name]}.")
 			raise ChildProcessError(f"{self.softwareName} process(es) returned non-zero value(s) which do not have an implemented fix. Check logs for details.")
 		
 		for e in errors:
