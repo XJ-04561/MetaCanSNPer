@@ -311,11 +311,6 @@ class MetaCanSNPer(Logged):
 							miscCalls.append((nodeID, pos, anc, der, base))
 					paths[-1].append(child)
 		
-		for n, generation in enumerate(paths):
-			if n == 0: continue
-			for node in generation:
-				nodeScores[node.node] = nodeScores[node.node] / n
-		
 		if miscCalls:
 			self.LOG.warning("These nodes had non-recognized bases:\n\t NODE_ID, POS, ANCESTRAL, DERIVED, TARGET\n\t" + "\n\t".join(map(str, miscCalls)))
 		paths = paths[:-1]
