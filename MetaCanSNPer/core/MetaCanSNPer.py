@@ -270,9 +270,14 @@ class MetaCanSNPer(Logged):
 			for chrom, pos, baseCounts in vcfFile["CHROM", "POS", "AD"]:
 				counts = sum(baseCounts)
 				LOG.debug(f"(CHROM, POS, Allele-readDepth (A, T, C, G) ) {chrom}, {pos}, {counts} = {' + '.join(map(str, baseCounts))}")
+				
 				chromID = list(self.database[ChromosomeID, Chromosome==chrom, Genome==genome])[0]
 				nodeID = self.database[NodeID, Position==pos, ChromosomeID==chromID]
-				self.SNPresults[nodeID][pos] = counts
+				
+				if counts == (0,0,0,0):
+					self.SNPresults[nodeID][pos] = "-"
+				else:
+					self.SNPresults[nodeID][pos] = max(zip("ATCG", counts), key=lambda x:x[1])[0]
 		LOG.info("Got nodes: " + ", ".join(map(str, self.SNPresults)))
 	
 	def traverseTree(self):
@@ -295,8 +300,7 @@ class MetaCanSNPer(Logged):
 					
 					nodeScores[child.node] = nodeScores[parent.node]
 					for nodeID, pos, anc, der, *_ in self.database.SNPsByNode[child.node]:
-						baseCounts = self.SNPresults[nodeID].get(pos, (0,0,0,0))
-						base = max(zip("ATCG", baseCounts), key=lambda x:x[1])[0]
+						base = self.SNPresults[nodeID][pos]
 						if der == base:
 							nodeScores[child.node] += award[0]
 						elif anc == base:
@@ -357,7 +361,7 @@ class MetaCanSNPer(Logged):
 			for nodeID, position, ancestral, derived, chromosome in self.database[NodeID, Position, AncestralBase, DerivedBase, Chromosome, GenomeID == genomeID]:
 				if Globals.DRY_RUN:
 					continue
-				N = self.SNPresults[nodeID].get(position, "-")
+				N = self.SNPresults[nodeID][position]
 				genotype = self.database[Genotype, NodeID==nodeID]
 				if Globals.MAX_DEBUG: self.LOG.debug(f"Got {genotype=} and base={N!r} for {nodeID=}")
 
