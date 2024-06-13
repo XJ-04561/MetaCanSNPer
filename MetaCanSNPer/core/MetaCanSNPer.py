@@ -41,7 +41,7 @@ class MetaCanSNPer(Logged):
 	queryName : str = Default["Lib.query"](lambda self:self.Lib.queryName)
 	sessionName : str = Default["Lib.query"](lambda self:self.Lib.sessionName)
 	
-	SNPresults : dict = Default["Lib.query"](lambda self:dict())
+	SNPresults : dict = Default["Lib.query"](lambda self:defaultdict(dict))
 	exceptions : list[Exception]
 
 	@overload
@@ -264,16 +264,15 @@ class MetaCanSNPer(Logged):
 		LOG.info(f"Result of SNPCalling in: {self.Lib.resultSNPs}")
 
 		for genome, filePath in self.Lib.resultSNPs.items():
-			for nodeID in self.database[NodeID, Genome==genome]:
-				if nodeID not in self.SNPresults:
-					self.SNPresults[nodeID] = {}
 			if Globals.DRY_RUN:
 				continue
-			for (chrom, pos), ref in getSNPdata(filePath, key=["CHROM", "POS"], values="REF"):
-				LOG.debug(f"({chrom}, {pos}), {ref}")
+			vcfFile = openVCF(filePath, "r")
+			for chrom, pos, baseCounts in vcfFile["CHROM", "POS", "AD"]:
+				counts = sum(baseCounts)
+				LOG.debug(f"(CHROM, POS, Allele-readDepth (A, T, C, G) ) {chrom}, {pos}, {counts} = {' + '.join(map(str, baseCounts))}")
 				chromID = list(self.database[ChromosomeID, Chromosome==chrom, Genome==genome])[0]
 				nodeID = self.database[NodeID, Position==pos, ChromosomeID==chromID]
-				self.SNPresults[nodeID][pos] = ref
+				self.SNPresults[nodeID][pos] = counts
 		LOG.info("Got nodes: " + ", ".join(map(str, self.SNPresults)))
 	
 	def traverseTree(self):
@@ -283,7 +282,7 @@ class MetaCanSNPer(Logged):
 		paths = []
 		nodeScores = {rootNode.node : 0}
 
-		award = (1, -1, 0)
+		award = (2, -1, 0)
 
 		miscCalls = []
 		paths.append([rootNode])
@@ -296,17 +295,23 @@ class MetaCanSNPer(Logged):
 					
 					nodeScores[child.node] = nodeScores[parent.node]
 					for nodeID, pos, anc, der, *_ in self.database.SNPsByNode[child.node]:
-						base = self.SNPresults[nodeID].get(pos, "-")
-						
+						baseCounts = self.SNPresults[nodeID].get(pos, (0,0,0,0))
+						base = max(zip("ATCG", baseCounts), key=lambda x:x[1])[0]
 						if der == base:
 							nodeScores[child.node] += award[0]
 						elif anc == base:
 							nodeScores[child.node] += award[1]
 						elif base == "-":
-							pass
+							nodeScores[child.node] += award[2]
 						else:
 							miscCalls.append((nodeID, pos, anc, der, base))
 					paths[-1].append(child)
+		
+		for n, generation in enumerate(paths):
+			if n == 0: continue
+			for node in generation:
+				nodeScores[node.node] = nodeScores[node.node] / n
+		
 		if miscCalls:
 			self.LOG.warning("These nodes had non-recognized bases:\n\t NODE_ID, POS, ANCESTRAL, DERIVED, TARGET\n\t" + "\n\t".join(map(str, miscCalls)))
 		paths = paths[:-1]
