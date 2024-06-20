@@ -252,7 +252,7 @@ def initializeData(args : NameSpace) -> list[tuple[str]]:
 	from MetaCanSNPer.core.DirectoryLibrary import DirectoryLibrary
 	
 	if args.crossValidate is None:
-		return args.query
+		return [args.query]
 	elif args.crossValidate > 1:
 		from MetaCanSNPer.modules.FastqSplitter import splitFastq
 		query = FileList(args.query)
@@ -281,12 +281,14 @@ def initializeMainObjects(args : NameSpace, filenames : list[tuple[str]]|None=No
 	
 	with TerminalUpdater(f"Checking database {database}:", category="DatabaseDownloader", hooks=mObj.hooks, names=[database], printer=LoadingBar, length=30, out=sys.stdout if ISATTY else DEV_NULL):
 		mObj.setDatabase(args.database)
-
+	for instance in instances[1:]:
+		instance.setDatabase(args.database)
 	if args.sessionName is not None: mObj.setSessionName(args.sessionName)
 
 	with TerminalUpdater(f"Checking Reference Genomes:", category="ReferenceDownloader", hooks=mObj.hooks, names=list(map(lambda a:f"{a}.fna", mObj.database[ReferencesTable.AssemblyName])), printer=LoadingBar, out=sys.stdout if ISATTY else DEV_NULL):
 		mObj.setReferenceFiles()
-	
+	for instance in instances[1:]:
+		instance.setReferenceFiles(args.database)
 	return instances
 
 def runJobs(instances : list[MetaCanSNPer], args : NameSpace, argsDict : dict):
