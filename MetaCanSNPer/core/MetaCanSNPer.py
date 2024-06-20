@@ -37,7 +37,7 @@ class MetaCanSNPer(Logged):
 	referenceFiles = property(lambda self:self.Lib.references)
 	references = property(lambda self:self.database.references, doc="""Fetch names of reference genomes in connected database.""")
 
-	query = property(lambda self:self.Lib.query, lambda self, value:setattr(self.Lib, "query", value), lambda self:delattr(self.Lib, "query"), DirectoryLibrary.query.__doc__)
+	query : FileList = property(lambda self:self.Lib.query, lambda self, value:setattr(self.Lib, "query", value), lambda self:delattr(self.Lib, "query"), DirectoryLibrary.query.__doc__)
 	queryName : str = Default["Lib.query"](lambda self:self.Lib.queryName)
 	sessionName : str = Default["Lib.query"](lambda self:self.Lib.sessionName)
 	

@@ -45,6 +45,7 @@ class NameSpace(argparse.Namespace):
 	sessionName : str
 	
 	saveTemp : bool
+	crossValidate : int
 	debug : bool
 	verbose : bool
 	suppress : bool
@@ -72,6 +73,7 @@ class NameSpace(argparse.Namespace):
 				listSoftware : bool = False,
 				version : bool = False,
 				saveTemp : bool = False,
+				crossValidate : int|None = None,
 				debug : bool = False,
 				verbose : bool = False,
 				suppress : bool = False,
@@ -110,39 +112,40 @@ parser.add_argument("--list", dest="listSoftware", action="store_true", help="To
 # The 'if True:' structures are used to minimize and expand sections in an IDE.
 requiredArguments = parser.add_argument_group("Required arguments")
 if True:
-	requiredArguments.add_argument("--query", nargs="+",	metavar="query",		required=True, help="Raw sequence data file supported by the intended Aligner/Mapper.")
-	requiredArguments.add_argument("--organism",			metavar="organism",		required=True, help="Name of organism queried. (Use \"_\" in place of spaces)")
+	requiredArguments.add_argument("--query", nargs="+",	metavar=("FILE", "FILES"),		required=True, help="Raw sequence data file supported by the intended Aligner/Mapper.")
+	requiredArguments.add_argument("--organism",			metavar="NAME",		required=True, help="Name of organism queried. (Use \"_\" in place of spaces)")
 
 servicesArguments = parser.add_argument_group("Choosing Software to run", description="If no software is given, a "
 											  "default will be used from your personal default flags or from a "
 											  "settingsFile specified by the '--settingsFile' flag.")
 if True:
-	servicesArguments.add_argument("--mapper",				metavar="mapper",		help="Name of installed and supported Mapper software.")
-	servicesArguments.add_argument("--aligner",				metavar="aligner",		help="Name of installed and supported Alignment software.")
-	servicesArguments.add_argument("--snpCaller",			metavar="snpCaller",	help="Name of installed and supported SNP Calling software.")
+	servicesArguments.add_argument("--mapper",				metavar="NAME",		help="Name of installed and supported Mapper software.")
+	servicesArguments.add_argument("--aligner",				metavar="NAME",		help="Name of installed and supported Alignment software.")
+	servicesArguments.add_argument("--snpCaller",			metavar="NAME",	help="Name of installed and supported SNP Calling software.")
 
 optionalArguments = parser.add_argument_group("Optional arguments")
 if True:
-	optionalArguments.add_argument("-d", "--database",	metavar="database",								help="Filename of CanSNP database to be used.")
-	optionalArguments.add_argument("--saveTemp",		action="store_true",							help="Don't dispose of temporary directories/files.")
-	optionalArguments.add_argument("--settingsFile",	metavar="settingsFile",							help="Path to .TOML file containing settings for MetaCanSNPer. Check the 'defaultConfig.toml' to see what can be included in a settings file.")
+	optionalArguments.add_argument("-d", "--database",	metavar="FILE",							help="Filename of CanSNP database to be used.")
+	optionalArguments.add_argument("--saveTemp",		action="store_true",					help="Don't dispose of temporary directories/files.")
+	optionalArguments.add_argument("--crossValidate",	metavar="INTEGER",	type=int,			help="Call SNPs based on N number of sub-samples of the query data.")
+	optionalArguments.add_argument("--settingsFile",	metavar="FILE",							help="Path to .TOML file containing settings for MetaCanSNPer. Check the 'defaultConfig.toml' to see what can be included in a settings file.")
 
 	# Not used by the argparser, but is used for the help-page and for splitting the argv
-	mapperOptions = optionalArguments.add_argument("--mapperOptions",		metavar="Mapper options",		help=MAPPER_OPTIONS_EXPLAINER)
-	alignerOptions = optionalArguments.add_argument("--alignerOptions",		metavar="Aligner options",		help=ALIGNER_OPTIONS_EXPLAINER)
-	snpCallerOptions = optionalArguments.add_argument("--snpCallerOptions",	metavar="SNP Caller options",	help=SNP_CALLER_OPTIONS_EXPLAINER)
+	mapperOptions = optionalArguments.add_argument("--mapperOptions",		metavar="FLAGS",		help=MAPPER_OPTIONS_EXPLAINER)
+	alignerOptions = optionalArguments.add_argument("--alignerOptions",		metavar="FLAGS",		help=ALIGNER_OPTIONS_EXPLAINER)
+	snpCallerOptions = optionalArguments.add_argument("--snpCallerOptions",	metavar="FLAGS",		help=SNP_CALLER_OPTIONS_EXPLAINER)
 
 directoryOptions = parser.add_argument_group("Directory Options")
 if True:
-	directoryOptions.add_argument("-W", "--workDir",		metavar="DIR", default=None, help="Work directory")
-	directoryOptions.add_argument("-U", "--userDir",		metavar="DIR", default=None, help="User directory")
-	directoryOptions.add_argument("-I", "--installDir",		metavar="DIR", default=None, help="Installation directory")
-	directoryOptions.add_argument("-Q", "--targetDir",		metavar="DIR", default=None, help="Target (Query) directory")
-	directoryOptions.add_argument("-T", "--tmpDir",			metavar="DIR", default=None, help="Temporary directory")
-	directoryOptions.add_argument("-R", "--refDir",			metavar="DIR", default=None, help="References directory")
-	directoryOptions.add_argument("-D", "--databaseDir",	metavar="DIR", default=None, help="Databases directory")
-	directoryOptions.add_argument("-O", "--outDir",			metavar="DIR", default=None, help="Output directory")
-	directoryOptions.add_argument("-S", "--sessionName",	metavar="DIR", default=None, help="Session Name/Directory")
+	directoryOptions.add_argument("-W", "--workDir",		metavar="DIRECTORY", default=None, help="Work directory")
+	directoryOptions.add_argument("-U", "--userDir",		metavar="DIRECTORY", default=None, help="User directory")
+	directoryOptions.add_argument("-I", "--installDir",		metavar="DIRECTORY", default=None, help="Installation directory")
+	directoryOptions.add_argument("-Q", "--targetDir",		metavar="DIRECTORY", default=None, help="Target (Query) directory")
+	directoryOptions.add_argument("-T", "--tmpDir",			metavar="DIRECTORY", default=None, help="Temporary directory")
+	directoryOptions.add_argument("-R", "--refDir",			metavar="DIRECTORY", default=None, help="References directory")
+	directoryOptions.add_argument("-D", "--databaseDir",	metavar="DIRECTORY", default=None, help="Databases directory")
+	directoryOptions.add_argument("-O", "--outDir",			metavar="DIRECTORY", default=None, help="Output directory")
+	directoryOptions.add_argument("-S", "--sessionName",	metavar="DIRECTORY", default=None, help="Session Name/Directory")
 
 debugOptions = parser.add_argument_group("Logging and debug options")
 if True:
@@ -152,7 +155,7 @@ if True:
 	debugOptions.add_argument("--silent",	action="store_true",	help="Disables printing to terminal except for any error messages which might appear.")
 	debugOptions.add_argument("--dry-run",	action="store_true",	help="Don't run the processes of the mapper/aligner/snpCaller, just run a randomised (1 - 5 sec) `sleep` call.")
 
-def checkDependencies(args):
+def checkDependencies(args : NameSpace):
 
 	import shutil
 	from MetaCanSNPer.core.Wrappers import Aligner, Mapper, SNPCaller
@@ -244,10 +247,35 @@ def handleOptions(args : NameSpace):
 	else:
 		pass # The default logging level for the logging package is logging.WARNING
 
-def initializeMainObject(args : NameSpace) -> MetaCanSNPer:
+def initializeData(args : NameSpace) -> list[tuple[str]]:
+
+	from MetaCanSNPer.core.DirectoryLibrary import DirectoryLibrary
+	
+	if args.crossValidate is None:
+		return args.query
+	elif args.crossValidate > 1:
+		from MetaCanSNPer.modules.FastqSplitter import splitFastq
+		query = FileList(args.query)
+		with TerminalUpdater(f"Creating Sub-samples:", category="SplitFastq", names=[query.name], printer=LoadingBar, length=65, out=sys.stdout if ISATTY else DEV_NULL) as TU:
+			newFiles = splitFastq(args.crossValidate, query, hooks=TU.hooks)
+		return newFiles
+	else:
+		raise ValueError(f"Numbers of subsamples specified to --crossValidate must be 1 (No subsampling) or greater.")
+
+
+def initializeMainObjects(args : NameSpace, filenames : list[tuple[str]]|None=None) -> list[MetaCanSNPer]:
 
 	from MetaCanSNPer.modules.Database import ReferencesTable
-	mObj = MetaCanSNPer(args.organism, args.query, settings=vars(args), settingsFile=args.settingsFile)
+	if filenames is None:
+		filenames : list[tuple[str]] = [tuple(args.query)]
+
+	
+	for query in filenames:
+		mObj = MetaCanSNPer(args.organism, query, settings=vars(args), settingsFile=args.settingsFile)
+		break
+	instances : list[MetaCanSNPer] = [mObj]
+	for query in filenames[1:]:
+		instances.append(MetaCanSNPer(args.organism, query, lib=mObj.Lib, hooks=mObj.hooks, settings=vars(args), settingsFile=args.settingsFile))
 
 	database = args.database or mObj.databaseName
 	
@@ -259,33 +287,85 @@ def initializeMainObject(args : NameSpace) -> MetaCanSNPer:
 	with TerminalUpdater(f"Checking Reference Genomes:", category="ReferenceDownloader", hooks=mObj.hooks, names=list(map(lambda a:f"{a}.fna", mObj.database[ReferencesTable.AssemblyName])), printer=LoadingBar, out=sys.stdout if ISATTY else DEV_NULL):
 		mObj.setReferenceFiles()
 	
-	return mObj
+	return instances
 
-def runJob(mObj : MetaCanSNPer, args : NameSpace, argsDict : dict):
+def runJobs(instances : list[MetaCanSNPer], args : NameSpace, argsDict : dict):
 	
 	from MetaCanSNPer.modules.Database import ReferencesTable
-	genomes = list(mObj.database[ReferencesTable.Genome])
-	
-	if args.mapper or mObj.query[0].ext.lower() in ["fastq", "fq", "fastq.gz", "fq.gz"]:
-		with TerminalUpdater(f"Creating Mappings:", category="Mappers", hooks=mObj.hooks, names=genomes, printer=Spinner, out=sys.stdout if ISATTY else DEV_NULL):
-			
-			mObj.createMap(softwareName=args.mapper or mObj.settings["mapper"], flags=argsDict.get("--mapperOptions", {}))
-	
-	elif args.aligner:
-		with TerminalUpdater(f"Creating Alignments:", category="Aligners", hooks=mObj.hooks, names=genomes, printer=Spinner, out=sys.stdout if ISATTY else DEV_NULL):
-			
-			mObj.createAlignment(softwareName=args.aligner or mObj.settings["aligner"], flags=argsDict.get("--alignerOptions", {}))
-	
-	with TerminalUpdater(f"Calling SNPs:", category="SNPCallers", hooks=mObj.hooks, names=genomes, printer=Spinner, out=sys.stdout if ISATTY else DEV_NULL):
-		mObj.callSNPs(softwareName=args.snpCaller or mObj.settings["snpCaller"], flags=argsDict.get("--snpCallerOptions", {}))
+	instances
+	genomes = list(instances[0].database[ReferencesTable.Genome])
+	if len(instances) == 1:
+		mObj = instances[0]
+		
+		if args.mapper or mObj.query[0].ext.lower() in ["fastq", "fq", "fastq.gz", "fq.gz"]:
+			with TerminalUpdater(f"Creating Mappings:", category="Mappers", hooks=mObj.hooks, names=genomes, printer=Spinner, out=sys.stdout if ISATTY else DEV_NULL):
+				
+				mObj.createMap(softwareName=args.mapper or mObj.settings["mapper"], flags=argsDict.get("--mapperOptions", {}))
+		
+		elif args.aligner:
+			with TerminalUpdater(f"Creating Alignments:", category="Aligners", hooks=mObj.hooks, names=genomes, printer=Spinner, out=sys.stdout if ISATTY else DEV_NULL):
+				
+				mObj.createAlignment(softwareName=args.aligner or mObj.settings["aligner"], flags=argsDict.get("--alignerOptions", {}))
+		
+		with TerminalUpdater(f"Calling SNPs:", category="SNPCallers", hooks=mObj.hooks, names=genomes, printer=Spinner, out=sys.stdout if ISATTY else DEV_NULL):
+			mObj.callSNPs(softwareName=args.snpCaller or mObj.settings["snpCaller"], flags=argsDict.get("--snpCallerOptions", {}))
 
-def saveResults(mObj : MetaCanSNPer, args : argparse.Namespace):
+	else:
+		from MetaCanSNPer.core.Hooks import Hooks
+		jobs = len(instances)
+		LocalHooks = Hooks()
+		
+		if args.mapper or instances[0].query[0].ext.lower() in ["fastq", "fq", "fastq.gz", "fq.gz"]:
+			with TerminalUpdater(f"Creating Mappings:", category="Mappers", hooks=LocalHooks, names=genomes, printer=LoadingBar, length=30, out=sys.stdout if ISATTY else DEV_NULL):
+				for genome in genomes:
+					LocalHooks.trigger("MappersStarting", {"name" : genome, "value" : 0})
+				for i, mObj in enumerate(instances):
+					mObj.createMap(softwareName=args.mapper or mObj.settings["mapper"], flags=argsDict.get("--mapperOptions", {}))
 
-	with TerminalUpdater(f"Saving Results:", category="SavingResults", hooks=mObj.hooks, names=[mObj.queryName], printer=Spinner, out=sys.stdout if ISATTY else DEV_NULL):
-		mObj.saveSNPdata()
-		outDir = mObj.saveResults()
-		mObj.hooks.trigger("SavingResultsFinished", {"name" : mObj.queryName})
-	return outDir
+					for genome in genomes:
+						LocalHooks.trigger("MappersProgress", {"name" : genome, "value" : (i+1) / jobs})
+				for genome in genomes:
+					LocalHooks.trigger("MappersFinished", {"name" : genome, "value" : 3})
+		
+		elif args.aligner:
+			with TerminalUpdater(f"Creating Alignments:", category="Aligners", hooks=LocalHooks, names=genomes, printer=LoadingBar, length=30, out=sys.stdout if ISATTY else DEV_NULL):
+				for genome in genomes:
+					LocalHooks.trigger("AlignersStarting", {"name" : genome, "value" : 0})
+				for i, mObj in enumerate(instances):
+					mObj.createAlignment(softwareName=args.aligner or mObj.settings["aligner"], flags=argsDict.get("--alignerOptions", {}))
+
+					for genome in genomes:
+						LocalHooks.trigger("AlignersProgress", {"name" : genome, "value" : (i+1) / jobs})
+				for genome in genomes:
+					LocalHooks.trigger("AlignersFinished", {"name" : genome, "value" : 3})
+		
+		with TerminalUpdater(f"Calling SNPs:", category="SNPCallers", hooks=LocalHooks, names=genomes, printer=LoadingBar, length=30, out=sys.stdout if ISATTY else DEV_NULL):
+			for genome in genomes:
+				LocalHooks.trigger("SNPCallersStarting", {"name" : genome, "value" : 0})
+			for i, mObj in enumerate(instances):
+				mObj.callSNPs(softwareName=args.snpCaller or mObj.settings["snpCaller"], flags=argsDict.get("--snpCallerOptions", {}))
+
+				for genome in genomes:
+					LocalHooks.trigger("SNPCallersProgress", {"name" : genome, "value" : (i+1) / jobs})
+			for genome in genomes:
+				LocalHooks.trigger("SNPCallersFinished", {"name" : genome, "value" : 3})
+			
+
+def saveResults(instances : list[MetaCanSNPer], args : NameSpace):
+	
+	from MetaCanSNPer.core.Hooks import Hooks
+	jobs = len(instances)
+	LocalHooks = Hooks()
+	name = FileList(args.query).name
+	outDirs = []
+	with TerminalUpdater(f"Saving Results:", category="SavingResults", hooks=LocalHooks, names=[name], printer=LoadingBar, length=65, out=sys.stdout if ISATTY else DEV_NULL):
+		LocalHooks.trigger("SavingResultsStarting", {"name" : name, "value" : 0})
+		for i, mObj in enumerate(instances):
+			mObj.saveSNPdata()
+			outDirs.append(mObj.saveResults())
+			LocalHooks.trigger("SavingResultsProgress", {"name" : name, "value" : (i+1) / jobs})
+		LocalHooks.trigger("SavingResultsFinished", {"name" : name, "value" : 0})
+	return outDirs
 
 def main(argVector : list[str]=sys.argv) -> int:
 	
@@ -308,17 +388,26 @@ def main(argVector : list[str]=sys.argv) -> int:
 		
 		handleOptions(args)
 
-		mObj = initializeMainObject(args)
+		filenames = initializeData(args)
 
-		runJob(mObj, args, argsDict)
+		instances = initializeMainObjects(args, filenames=filenames)
 
-		outDir = saveResults(mObj, args)
+		runJobs(instances, args, argsDict)
+
+		outDirs = saveResults(instances, args)
 	except Exception as e:
 		LOGGER.exception(e)
 
-		if "mObj" in globals():
-			for exc in mObj.exceptions:
-				print(f"{type(exc).__name__}: {exc}", file=sys.stderr)
+		if "instances" in globals():
+			for mObj in instances:
+				for exc in mObj.exceptions:
+					break
+				else:
+					continue
+				for exc in mObj.exceptions:
+					print(f"{type(exc).__name__}: {exc}", file=sys.stderr)
+				break
+
 
 		if not args.silent or not ISATTY: print(f"{SOFTWARE_NAME} ended before completing query. ", end="")
 		print("Exception occurred: \n", file=sys.stderr)
@@ -335,7 +424,8 @@ def main(argVector : list[str]=sys.argv) -> int:
 		exit(1)
 	else:
 		if not args.silent or not ISATTY:
-			print(f"{SOFTWARE_NAME} finished in {timer() - startTime:.3f} seconds! Results exported to: {outDir}")
+			nt = "\n\t"
+			print(f"{SOFTWARE_NAME} finished in {timer() - startTime:.3f} seconds! Results exported to:\n\t{nt.join(outDirs)}")
 	finally:
 		print()
 	
