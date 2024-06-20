@@ -250,13 +250,14 @@ def handleOptions(args : NameSpace):
 def initializeData(args : NameSpace) -> list[tuple[str]]:
 
 	from MetaCanSNPer.core.DirectoryLibrary import DirectoryLibrary
+	from MetaCanSNPer.core.Hooks import GlobalHooks
 	
 	if args.crossValidate is None:
 		return [args.query]
 	elif args.crossValidate > 1:
 		from MetaCanSNPer.modules.FastqSplitter import splitFastq
 		query = FileList(args.query)
-		with TerminalUpdater(f"Creating Sub-samples:", category="SplitFastq", names=[query.name], printer=LoadingBar, length=65, out=sys.stdout if ISATTY else DEV_NULL) as TU:
+		with TerminalUpdater(f"Creating Sub-samples:", category="SplitFastq", names=[query.name], hooks=GlobalHooks, printer=LoadingBar, length=65, out=sys.stdout if ISATTY else DEV_NULL) as TU:
 			newFiles = splitFastq(args.crossValidate, query, hooks=TU.hooks)
 		return newFiles
 	else:
