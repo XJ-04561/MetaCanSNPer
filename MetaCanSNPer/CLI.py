@@ -50,7 +50,7 @@ class NameSpace(argparse.Namespace):
 	verbose : bool
 	suppress : bool
 	silent : bool
-	dry_run : bool
+	dryRun : bool
 
 	@overload
 	def __init__(self,
@@ -78,7 +78,7 @@ class NameSpace(argparse.Namespace):
 				verbose : bool = False,
 				suppress : bool = False,
 				silent : bool = False,
-				dry_run : bool = False
+				dryRun : bool = False
 				): ...
 
 	__init__ = argparse.Namespace.__init__
@@ -153,7 +153,7 @@ if True:
 	debugOptions.add_argument("--debug",	action="store_true",	help="Debug output")
 	debugOptions.add_argument("--suppress",	action="store_true",	help="Suppress warnings")
 	debugOptions.add_argument("--silent",	action="store_true",	help="Disables printing to terminal except for any error messages which might appear.")
-	debugOptions.add_argument("--dry-run",	action="store_true",	help="Don't run the processes of the mapper/aligner/snpCaller, just run a randomised (1 - 5 sec) `sleep` call.")
+	debugOptions.add_argument("--dryRun",	action="store_true",	help="Don't run the processes of the mapper/aligner/snpCaller, just run a randomised (1 - 5 sec) `sleep` call.")
 
 def checkDependencies(args : NameSpace):
 
@@ -231,8 +231,8 @@ def handleOptions(args : NameSpace):
 		for snpCaller in SNPCaller.__subclasses__():	print(f"\t{snpCaller.softwareName}")
 		exit()
 
-	if args.dry_run:
-		Globals.DRY_RUN = args.dry_run # Don't run the processes of the mapper/aligner/snpCaller, just run a randomised `sleep` call
+	if args.dryRun:
+		Globals.DRY_RUN = args.dryRun # Don't run the processes of the mapper/aligner/snpCaller, just run a randomised `sleep` call
 	if args.saveTemp:
 		Globals.PPGlobals.DISPOSE = False # Don't dispose of temporary directories/files.
 	
@@ -250,13 +250,14 @@ def handleOptions(args : NameSpace):
 def initializeData(args : NameSpace) -> list[tuple[str]]:
 
 	from MetaCanSNPer.core.DirectoryLibrary import DirectoryLibrary
+	from MetaCanSNPer.core.Hooks import GlobalHooks
 	
 	if args.crossValidate is None:
 		return [args.query]
 	elif args.crossValidate > 1:
 		from MetaCanSNPer.modules.FastqSplitter import splitFastq
 		query = FileList(args.query)
-		with TerminalUpdater(f"Creating Sub-samples:", category="SplitFastq", names=[query.name], printer=LoadingBar, length=65, out=sys.stdout if ISATTY else DEV_NULL) as TU:
+		with TerminalUpdater(f"Creating Sub-samples:", category="SplitFastq", names=[query.name], hooks=GlobalHooks, printer=LoadingBar, length=65, out=sys.stdout if ISATTY else DEV_NULL) as TU:
 			newFiles = splitFastq(args.crossValidate, query, hooks=TU.hooks)
 		return newFiles
 	else:
@@ -269,26 +270,33 @@ def initializeMainObjects(args : NameSpace, filenames : list[tuple[str]]|None=No
 	if filenames is None:
 		filenames : list[tuple[str]] = [tuple(args.query)]
 
-	
 	for query in filenames:
 		mObj = MetaCanSNPer(args.organism, query, settings=vars(args), settingsFile=args.settingsFile)
 		break
 	instances : list[MetaCanSNPer] = [mObj]
-	for query in filenames[1:]:
-		instances.append(MetaCanSNPer(args.organism, query, lib=mObj.Lib, hooks=mObj.hooks, settings=vars(args), settingsFile=args.settingsFile))
 
+	for i, query in enumerate(filenames[1:]):
+		newObj = MetaCanSNPer(args.organism, query, hooks=mObj.hooks, settings=vars(args), settingsFile=args.settingsFile)
+		newObj.setOutDir(newObj.Lib.outDir / newObj.sessionName)
+		newObj.sessionName = f"{i+2}-{len(filenames)}"
+		instances.append(newObj)
+		
+	if len(filenames) > 1:
+		mObj.setOutDir(mObj.Lib.outDir / mObj.sessionName)
+		mObj.sessionName = f"1-{len(filenames)}"
+	
 	database = args.database or mObj.databaseName
 	
-	with TerminalUpdater(f"Checking database {database}:", category="DatabaseDownloader", hooks=mObj.hooks, names=[database], printer=LoadingBar, length=30, out=sys.stdout if ISATTY else DEV_NULL):
+	with TerminalUpdater(f"Checking database {database!r}:", category="DatabaseDownloader", hooks=mObj.hooks, names=[database], printer=LoadingBar, length=30, out=sys.stdout if ISATTY else DEV_NULL):
 		mObj.setDatabase(args.database)
-	for instance in instances[1:]:
-		instance.setDatabase(args.database)
-	if args.sessionName is not None: mObj.setSessionName(args.sessionName)
 
 	with TerminalUpdater(f"Checking Reference Genomes:", category="ReferenceDownloader", hooks=mObj.hooks, names=list(map(lambda a:f"{a}.fna", mObj.database[ReferencesTable.AssemblyName])), printer=LoadingBar, out=sys.stdout if ISATTY else DEV_NULL):
 		mObj.setReferenceFiles()
+	
 	for instance in instances[1:]:
-		instance.setReferenceFiles(args.database)
+		instance.setDatabase(args.database)
+		instance.setReferenceFiles()
+	
 	return instances
 
 def runJobs(instances : list[MetaCanSNPer], args : NameSpace, argsDict : dict):
@@ -329,7 +337,7 @@ def runJobs(instances : list[MetaCanSNPer], args : NameSpace, argsDict : dict):
 				for genome in genomes:
 					LocalHooks.trigger("MappersFinished", {"name" : genome, "value" : 3})
 		
-		elif args.aligner:
+		if args.aligner or instances[0].query[0].ext.lower() in ["fasta", "fna", "fasta.gz", "fna.gz"]:
 			with TerminalUpdater(f"Creating Alignments:", category="Aligners", hooks=LocalHooks, names=genomes, printer=LoadingBar, length=30, out=sys.stdout if ISATTY else DEV_NULL):
 				for genome in genomes:
 					LocalHooks.trigger("AlignersStarting", {"name" : genome, "value" : 0})
@@ -385,7 +393,7 @@ def main(argVector : list[str]=sys.argv) -> int:
 	print(f"\nRunning {SOFTWARE_NAME}...\n")
 
 	try:
-		if not args.dry_run:
+		if not args.dryRun:
 			checkDependencies(args)
 		
 		handleOptions(args)

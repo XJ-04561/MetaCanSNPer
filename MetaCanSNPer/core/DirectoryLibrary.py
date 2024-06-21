@@ -29,12 +29,12 @@ class DirectoryLibrary(SoftwareLibrary, Logged):
 	sessionName : str = cached_property(lambda self : f"Sample-{self.queryName}-{time.strftime('%Y-%m-%d_%H-%M-%S', time.localtime())}")
 	"""Defaults to 'Sample-[QUERY_NAME]-[CURRENT_DATE]'"""
 	
-	targetDir : PathGroup
-	refDir : PathGroup
-	SNPDir : PathGroup
-	databaseDir : PathGroup
-	tmpDir : PathGroup
-	outDir : PathGroup
+	targetDir : DirectoryGroup
+	refDir : DirectoryGroup
+	SNPDir : DirectoryGroup
+	databaseDir : DirectoryGroup
+	tmpDir : DirectoryGroup
+	outDir : DirectoryGroup
 	resultDir : DirectoryPath
 	logDir : DirectoryPath
 
@@ -48,7 +48,7 @@ class DirectoryLibrary(SoftwareLibrary, Logged):
 		except:
 			raise AttributeError("Attribute not yet set 'query'")
 	@query.setter
-	def query(self, value : str|list):
+	def query(self, value : str|Iterable[str]):
 		if isinstance(value, str):
 			value = [value]
 
@@ -137,13 +137,13 @@ class DirectoryLibrary(SoftwareLibrary, Logged):
 		super().__init__(**{name:value for name, value in kwargs.items() if value is not None})
 		self.LOG = self.LOG.getChild(f"[{self.sessionName}]")
 		
-		self.targetDir.create(purpose="w")
-		self.refDir.create(purpose="w")
-		self.SNPDir.create(purpose="w")
-		self.databaseDir.create(purpose="w")
-		self.tmpDir.create(purpose="w")
-		self.outDir.create(purpose="w")
-		self.logDir.create(purpose="w")
+		# self.targetDir.create(purpose="w")
+		self.refDir.writable
+		self.SNPDir.writable
+		self.databaseDir.writable
+		# self.tmpDir.create(purpose="w")
+		# self.outDir.create(purpose="w")
+		# self.logDir.create(purpose="w")
 
 	if Globals.MAX_DEBUG:
 		def __getattribute__(self, name):

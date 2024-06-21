@@ -31,7 +31,7 @@ from PseudoPathy.Paths import FileList
 from collections import namedtuple
 
 from types import FunctionType, MethodType
-import random, logging, re, time, os, sys, shutil, itertools, logging.handlers as logHandlers
+import random, logging, re, time, os, sys, shutil, itertools, logging.handlers as logHandlers, math
 from functools import cache, cached_property
 from typing import Iterable, Callable, Any, Generator, Literal, AnyStr, TextIO, BinaryIO, overload
 from time import sleep
