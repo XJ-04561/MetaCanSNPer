@@ -326,7 +326,7 @@ def runJobs(instances, func, args, argsDict, category, names, message, hooks):
 		_iter = instances
 		for _ in range(bool(len(instances)%Globals.PARALLEL_LIMIT) + len(instances)//Globals.PARALLEL_LIMIT):
 			for mObj in zip(range(Globals.PARALLEL_LIMIT), _iter):
-				t = Thread(target=runAndUpdate, args=(mObj, func, commonLock, args[category] or mObj.settings[category[-1:]], argsDict.get(f"--{category[-1:]}Options", {}), TU, category, jobs))
+				t = Thread(target=runAndUpdate, args=(mObj, func, commonLock, args[category[:-1]] or mObj.settings[category[:-1]], argsDict.get(f"--{category[:-1]}Options", {}), TU, category, jobs))
 				t.start()
 				threads.append(t)
 			for t in threads:

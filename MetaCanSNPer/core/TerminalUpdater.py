@@ -180,7 +180,7 @@ class Indicator(Logged):
 	finishSymbol : str
 	_threads : dict[str,float]
 	condition : Condition
-	finishedThreads : set
+	finishedThreads : set = property(lambda self:set(filter(lambda x:self.threads[x] in (None, 2, 3), self.threads)))
 	names : list[str]
 	rowTemplate : str
 	rowLock : Lock
@@ -212,7 +212,6 @@ class Indicator(Logged):
 			self.shortKeys = [name if len(name) < self.length else name[:self.length-3]+"..." for name in self.names]
 			self.N = len(self.names)
 			self.entries = list(map(lambda _:" "*self.innerLength, range(self.N)))
-			self.finishedThreads.intersection_update(self._threads)
 		try:
 			self.condition.notify()
 		except:
@@ -244,7 +243,6 @@ class Indicator(Logged):
 
 		self.length = length
 
-		self.finishedThreads = set()
 		self.threads = threads
 	
 	@property
@@ -545,7 +543,6 @@ class TerminalUpdater(Logged):
 
 	def skippedCallback(self, eventInfo : dict[str,Any]):
 		if eventInfo["name"] in self.threads:
-			self.printer.finishedThreads.add(eventInfo["name"])
 			self.threads[eventInfo["name"]] = 2
 
 	def startingCallback(self, eventInfo : dict[str,Any]):
@@ -562,13 +559,11 @@ class TerminalUpdater(Logged):
 
 	def finishedCallback(self, eventInfo : dict[str,Any]):
 		if eventInfo["name"] in self.threads:
-			self.printer.finishedThreads.add(eventInfo["name"])
 			self.threads[eventInfo["name"]] = 3
 
 	def failedCallback(self, eventInfo : dict[str,Any]):
 		if eventInfo["name"] in self.threads:
 			self.threads[eventInfo["name"]] = None
-			self.printer.finishedThreads.add(eventInfo["name"])
 	
 	def setPrinter(self, printer : Indicator=Spinner, *args, **kwargs):
 		self.printer = printer(self.threads, *args, **({"out":self.out, "message":self.message} | kwargs))
