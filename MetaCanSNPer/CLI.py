@@ -282,9 +282,11 @@ def initializeMainObjects(args : NameSpace, filenames : list[tuple[str]]|None=No
 	LocalHooks = Hooks()
 	settings = vars(args)
 	if args.saveTemp and N > 1 and settings.get("tmpDir") is None:
-		settings["tmpDir"] = (SoftwareLibrary().userCacheDir / groupSessionName).writable
+		tmpDir = (SoftwareLibrary().userCacheDir / groupSessionName / subSessionName).writable
+	else:
+		tmpDir = None
 	instances : list[MetaCanSNPer] = [
-		MetaCanSNPer(args.organism, query, settings=settings, settingsFile=args.settingsFile, sessionName=subSessionName.format(i+1))
+		MetaCanSNPer(args.organism, query, settings=settings, settingsFile=args.settingsFile, sessionName=subSessionName.format(i+1), tmpDir=tmpDir)
 		for i, (query, hooks) in enumerate(filenames)
 	]
 	mObj = MetaCanSNPer(args.organism, args.query, hooks=LocalHooks)

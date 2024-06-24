@@ -129,8 +129,8 @@ class Hooks(Logged):
 						except Exception as e:
 							if hasattr(e, "add_note"): e.add_note(f"This occurred while calling the hook {hook!r} tied to {eventType=} with {eventInfo=}")
 							self.LOG.exception(e)
-				else:
-					self.LOG.warning(f"{eventType=} triggered, but no hooks registered in {self!r}")
+				# else:
+				# 	self.LOG.warning(f"{eventType=} triggered, but no hooks registered in {self!r}")
 				self._eventQueue.task_done()
 			except EmptyQueueException:
 				pass
