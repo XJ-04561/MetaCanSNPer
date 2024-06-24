@@ -295,9 +295,10 @@ def initializeMainObjects(args : NameSpace, filenames : list[tuple[str]]|None=No
 	
 	with TerminalUpdater(f"Checking database {database!r}:", category="DatabaseDownloader", hooks=LocalHooks, names=[database], printer=LoadingBar, length=30, out=sys.stdout if ISATTY else DEV_NULL) as TU:
 		mObj.setDatabase(database, sequential=True)
-		LocalHooks.trigger("DatabaseDownloaderProgress", {"name" : database, "value" : 1.0})
+		LocalHooks.trigger("DatabaseDownloaderPostProcess", {"name" : database, "value" : 1.0})
 		for obj in instances:
-			obj.setDatabase(database)
+			obj.databaseName = mObj.databaseName
+			obj.database = mObj.database
 		LocalHooks.trigger("DatabaseDownloaderFinished", {"name" : database, "value" : 3})
 
 	assemblyNames = [assemblyName for *_, assemblyName in mObj.database.references]
