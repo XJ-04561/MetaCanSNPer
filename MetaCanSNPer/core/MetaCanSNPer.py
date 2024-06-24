@@ -63,7 +63,7 @@ class MetaCanSNPer(Logged):
 		self.hooks.addHook("ReportError", target=lambda eventInfo : self.exceptions.append(eventInfo["exception"]))
 		self.settings = DEFAULT_SETTINGS.copy()
 		
-		if settingsFilename := kwargs.pop("settingsFile"):
+		if settingsFilename := kwargs.pop("settingsFile", None):
 			if not os.path.exists(settingsFilename):
 				raise FileNotFoundError(f"Could not find the settingsFile {settingsFilename!r}")
 			self.settings |= loadFlattenedTOML(settingsFilename)
