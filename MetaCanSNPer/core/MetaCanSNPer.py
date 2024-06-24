@@ -68,7 +68,7 @@ class MetaCanSNPer(Logged):
 				raise FileNotFoundError(f"Could not find the settingsFile {kwargs['settingsFile']!r}")
 			self.settings |= loadFlattenedTOML(kwargs["settingsFile"])
 			
-		for flag, value in kwargs.get("settings", {}).items():
+		for flag, value in kwargs.pop("settings", {}).items():
 			if isinstance(value, bool) or value:
 				self.settings[flag] = value
 
