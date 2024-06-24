@@ -262,7 +262,7 @@ def initializeData(args : NameSpace) -> list[tuple[str]]:
 		DL = DirectoryLibrary(args.organism, args.query)
 		outDir = DL.dataDir.create("SubSampling").create(DL.queryName)
 		with TerminalUpdater(f"Creating Sub-samples:", category="SplitFastq", names=[query.name], hooks=GlobalHooks, printer=LoadingBar, length=65, out=sys.stdout if ISATTY else DEV_NULL) as TU:
-			newFiles = splitFastq(args.crossValidate, query, out=outDir, hooks=TU.hooks)
+			newFiles = splitFastq(args.crossValidate, query, outDir=outDir, hooks=TU.hooks)
 		return newFiles
 	else:
 		raise ValueError(f"Numbers of subsamples specified to --crossValidate must be 1 (No subsampling) or greater.")
