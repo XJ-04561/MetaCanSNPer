@@ -289,23 +289,24 @@ def initializeMainObjects(args : NameSpace, filenames : list[tuple[str]]|None=No
 	
 	database = args.database or mObj.databaseName
 	
-	with TerminalUpdater(f"Checking database {database!r}:", category="DatabaseDownloader", hooks=mObj.hooks, names=[database], printer=LoadingBar, length=30, out=sys.stdout if ISATTY else DEV_NULL) as TU:
+	with TerminalUpdater(f"Checking database {database!r}:", category="DatabaseDownloader", hooks=LocalHooks, names=[database], printer=LoadingBar, length=30, out=sys.stdout if ISATTY else DEV_NULL) as TU:
 		mObj.setDatabase(database)
 		exitStatus = TU.threads[database]
-		mObj.hooks.trigger("DatabaseDownloaderPostProcess", {"name" : database, "value" : 1.0})
+		LocalHooks.trigger("DatabaseDownloaderProgress", {"name" : database, "value" : 1.0})
 		for obj in instances:
 			obj.setDatabase(database)
-		mObj.hooks.trigger("DatabaseDownloaderProgress", {"name" : database, "value" : exitStatus})
+		LocalHooks.trigger("DatabaseDownloaderProgress", {"name" : database, "value" : exitStatus})
 
 	genomes = mObj.database[ReferencesTable.AssemblyName]
-	with TerminalUpdater(f"Checking Reference Genomes:", category="ReferenceDownloader", hooks=mObj.hooks, names=list(map(lambda a:f"{a}.fna", genomes)), printer=LoadingBar, out=sys.stdout if ISATTY else DEV_NULL):
+	with TerminalUpdater(f"Checking Reference Genomes:", category="ReferenceDownloader", hooks=LocalHooks, names=list(map(lambda a:f"{a}.fna", genomes)), printer=LoadingBar, out=sys.stdout if ISATTY else DEV_NULL) as TU:
+		sleep(0.2)
 		mObj.setReferenceFiles()
 		for refFile in TU.threadNames:
-			mObj.hooks.trigger("ReferenceDownloaderPostProcess", {"name" : refFile, "value" : 1.0})
+			LocalHooks.trigger("ReferenceDownloaderProgress", {"name" : refFile, "value" : 1.0})
 		for instance in instances:
 			instance.setReferenceFiles()
 		for refFile, exitStatus in TU.threads.items():
-			mObj.hooks.trigger("ReferenceDownloaderProgress", {"name" : refFile, "value" : exitStatus})
+			LocalHooks.trigger("ReferenceDownloaderProgress", {"name" : refFile, "value" : exitStatus})
 	del mObj
 	return groupSessionName, instances
 
@@ -325,7 +326,7 @@ def runJobs(instances, func, args, argsDict, category, names, message, hooks):
 		threads = []
 		_iter = instances
 		for _ in range(bool(len(instances)%Globals.PARALLEL_LIMIT) + len(instances)//Globals.PARALLEL_LIMIT):
-			for mObj in zip(range(Globals.PARALLEL_LIMIT), _iter):
+			for i, mObj in zip(range(Globals.PARALLEL_LIMIT), _iter):
 				t = Thread(target=runAndUpdate, args=(mObj, func, commonLock, args[category[:-1]] or mObj.settings[category[:-1]], argsDict.get(f"--{category[:-1]}Options", {}), TU, category, jobs))
 				t.start()
 				threads.append(t)
