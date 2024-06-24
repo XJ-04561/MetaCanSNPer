@@ -68,11 +68,11 @@ class MetaCanSNPer(Logged):
 				raise FileNotFoundError(f"Could not find the settingsFile {kwargs['settingsFile']!r}")
 			self.settings |= loadFlattenedTOML(kwargs["settingsFile"])
 			
-		for flag, value in (kwargs.get("settings", {}) | kwargs).items():
+		for flag, value in kwargs.get("settings", {}).items():
 			if isinstance(value, bool) or value:
 				self.settings[flag] = value
 
-		self.Lib = DirectoryLibrary(organism, query, settings=self.settings, hooks=self.hooks)
+		self.Lib = DirectoryLibrary(organism, query, settings=self.settings, hooks=self.hooks, **kwargs)
 
 		self.LOG = self.LOG.getChild(f"[{self.Lib.queryName}]")
 
