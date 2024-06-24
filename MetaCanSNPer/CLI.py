@@ -280,9 +280,11 @@ def initializeMainObjects(args : NameSpace, filenames : list[tuple[str]]|None=No
 	groupSessionName = f"Sample-{queryName}-{args.organism}-{time.strftime('%Y-%m-%d_%H-%M-%S', time.localtime())}"
 	subSessionName = f"SubSample[{{}}-{N}]-"+groupSessionName.split("-", 1)[-1]
 	LocalHooks = Hooks()
-	
+	settings = vars(args)
+	if args.saveTemp and N > 1 and settings.get("tmpDir") is None:
+		settings["tmpDir"] = (SoftwareLibrary().userCacheDir / groupSessionName).writable
 	instances : list[MetaCanSNPer] = [
-		MetaCanSNPer(args.organism, query, settings=vars(args), settingsFile=args.settingsFile, sessionName=subSessionName.format(i+1))
+		MetaCanSNPer(args.organism, query, settings=settings, settingsFile=args.settingsFile, sessionName=subSessionName.format(i+1))
 		for i, (query, hooks) in enumerate(filenames)
 	]
 	mObj = MetaCanSNPer(args.organism, args.query, hooks=LocalHooks)
@@ -299,6 +301,7 @@ def initializeMainObjects(args : NameSpace, filenames : list[tuple[str]]|None=No
 
 	genomes = mObj.database[ReferencesTable.AssemblyName]
 	with TerminalUpdater(f"Checking Reference Genomes:", category="ReferenceDownloader", hooks=LocalHooks, names=list(map(lambda a:f"{a}.fna", genomes)), printer=LoadingBar, length=30, out=sys.stdout if ISATTY else DEV_NULL) as TU:
+		LocalHooks.trigger("ReferenceDownloaderStarting", {"name" : refFile, "value" : 0.0})
 		mObj.setReferenceFiles(sequential=True)
 		for refFile in TU.threadNames:
 			LocalHooks.trigger("ReferenceDownloaderProgress", {"name" : refFile, "value" : 1.0})
