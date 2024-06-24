@@ -434,6 +434,7 @@ def main(argVector : list[str]=sys.argv) -> int:
 from functools import wraps
 @wraps(main)
 def _main_wrapper(mainFunc, *args, **kwargs):
+	errno = 1
 	try:
 		errno = mainFunc(*args, **kwargs)
 	except Exception as e:
