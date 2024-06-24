@@ -298,7 +298,7 @@ def initializeMainObjects(args : NameSpace, filenames : list[tuple[str]]|None=No
 		LocalHooks.trigger("DatabaseDownloaderPostProcess", {"name" : database, "value" : 1.0})
 		for obj in instances:
 			obj.databaseName = mObj.databaseName
-			obj.database = mObj.database
+			obj.Lib.database = obj.database = mObj.database
 		LocalHooks.trigger("DatabaseDownloaderFinished", {"name" : database, "value" : 3})
 
 	assemblyNames = [assemblyName for *_, assemblyName in mObj.database.references]
