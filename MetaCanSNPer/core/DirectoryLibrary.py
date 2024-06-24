@@ -26,7 +26,7 @@ class DirectoryLibrary(SoftwareLibrary, Logged):
 	"""The data file being queried. Can be multiple files in the case of Illumina and other datasets split into parts."""
 	queryName : str = cached_property(lambda self : self.query.name)
 	"""Defaults to a sequence alignment of the query files involved."""
-	sessionName : str = cached_property(lambda self : f"Sample-{self.queryName}-{self.organism}-{time.strftime('%Y-%m-%d_%H-%M-%S', time.localtime())}")
+	sessionName : str = Default["query"](lambda self : f"Sample-{self.queryName}-{self.organism}-{time.strftime('%Y-%m-%d_%H-%M-%S', time.localtime())}")
 	"""Defaults to 'Sample-[QUERY_NAME]-[CURRENT_DATE]'"""
 	
 	targetDir : DirectoryGroup
@@ -134,7 +134,7 @@ class DirectoryLibrary(SoftwareLibrary, Logged):
 		self.organism = organism
 		self.settings |= settings
 
-		super().__init__(**{name:value for name, value in kwargs.items() if value is not None})
+		super().__init__(**{name:value for name, value in kwargs.items() if value is not None}, **{name:value for name, value in self.settings.items() if value is not None})
 		self.LOG = self.LOG.getChild(f"[{self.sessionName}]")
 		
 		# self.targetDir.create(purpose="w")
