@@ -318,7 +318,8 @@ def runAndUpdate(mObj, func, lock, softwareName, flags, TU, category, jobs):
 				TU.hooks.trigger(f"{category}Progress", {"name" : name, "value" : value + 1 / jobs}, block=True)
 	except Exception as e:
 		LOGGER.exception(e)
-		TU.hooks.trigger(f"{category}Failed", {"name" : name, "value" : None})
+		for name, value in TU.threads.items():
+			TU.hooks.trigger(f"{category}Failed", {"name" : name, "value" : None})
 
 def runJobs(instances, func, args, argsDict, category, names, message, hooks):
 	jobs = len(instances)
