@@ -300,7 +300,6 @@ def initializeMainObjects(args : NameSpace, filenames : list[tuple[str]]|None=No
 			obj.setDatabase(database)
 		LocalHooks.trigger("DatabaseDownloaderFinished", {"name" : database, "value" : 3})
 
-	with TerminalUpdater(f"Checking Reference Genomes:", category="ReferenceDownloader", hooks=LocalHooks, names=list(map(lambda a:f"{a}.fna", genomes)), printer=LoadingBar, length=30, out=sys.stdout if ISATTY else DEV_NULL) as TU:
 	assemblyNames = [assemblyName for *_, assemblyName in mObj.database.references]
 	with TerminalUpdater(f"Checking Reference Genomes:", category="ReferenceDownloader", hooks=LocalHooks, names=list(map(lambda a:f"{a}.fna", assemblyNames)), printer=LoadingBar, length=30, out=sys.stdout if ISATTY else DEV_NULL) as TU:
 		for refFile in TU.threadNames:
