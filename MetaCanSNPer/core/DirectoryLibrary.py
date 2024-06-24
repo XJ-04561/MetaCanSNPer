@@ -43,10 +43,7 @@ class DirectoryLibrary(SoftwareLibrary, Logged):
 	
 	@property
 	def query(self):
-		try:
-			return self.__dict__["query"]
-		except:
-			raise AttributeError("Attribute not yet set 'query'")
+		return self.__dict__["query"]
 	@query.setter
 	def query(self, value : str|Iterable[str]):
 		if isinstance(value, str):
@@ -77,7 +74,9 @@ class DirectoryLibrary(SoftwareLibrary, Logged):
 	
 	@Default["userCacheDir", "sessionName"]
 	def tmpDir(self) -> DirectoryPath:
-		if self.settings.get("saveTemp"):
+		if self.settings.get("tmpDir"):
+			return DirectoryPath(self.settings.get("tmpDir"))
+		elif self.settings.get("saveTemp"):
 			return self.userCacheDir.writable / self.sessionName
 		else:
 			return PseudoPathyFunctions.createTempDir(f"{self.organism}_{self.queryName}", dir=self.userCacheDir.writable)
@@ -92,9 +91,9 @@ class DirectoryLibrary(SoftwareLibrary, Logged):
 		This will automatically change to reflect those two values. ([OUTPUT_DIR]/[SESSION_NAME]/)"""
 		return UniqueDirectoryPath(self.outDir / self.sessionName)
 
-	@Default["outDir", "sessionName"]
+	@Default["tmpDir", "sessionName"]
 	def logDir(self) -> DirectoryPath:
-		return UniqueDirectoryPath(self.userCacheDir.writable / self.sessionName)
+		return UniqueDirectoryPath(self.tmpDir)
 	
 	@logDir.setter
 	def logDir(self, value):
