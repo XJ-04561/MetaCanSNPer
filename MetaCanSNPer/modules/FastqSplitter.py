@@ -35,7 +35,8 @@ def splitFastq(N : int, filenames : FileList[FilePath], outDir : DirectoryPath=N
 		name, ext = os.path.basename(filepath)[1:].split(".", 1)
 		splitNames.append((os.path.join(outDir or os.path.dirname(filepath), os.path.basename(filepath)[0]+name), ext))
 
-	outNames = [tuple(f"{name}-{i+1}-{N}.{ext}" for name, ext in splitNames) for i in range(N)]
+	NLength = len(str(N))
+	outNames = [tuple(f"{name}-{str(i+1).zfill(NLength)}-{N}.{ext}" for name, ext in splitNames) for i in range(N)]
 
 	
 	dataFiles : list[BinaryIO] = [dataOpen(name, "rb") for name in filenames]
