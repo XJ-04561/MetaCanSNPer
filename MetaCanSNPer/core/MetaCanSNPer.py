@@ -106,7 +106,7 @@ class MetaCanSNPer(Logged):
 	def setOrganism(self, organism : str):
 		self.Lib.organism = self.organism = organism
 		
-	def setDatabase(self, databaseName : str=None):
+	def setDatabase(self, databaseName : str=None, sequential : bool=False):
 		"""databaseName Defaults to `{organism}.db`"""
 
 		if databaseName is not None:
@@ -131,7 +131,7 @@ class MetaCanSNPer(Logged):
 			
 			outDir = self.Lib.databaseDir.writable
 			self.databasePath = outDir / databaseName
-			DD = DatabaseDownloader(outDir, hooks=self.hooks)
+			DD = DatabaseDownloader(outDir, hooks=self.hooks, sequential=sequential)
 
 			DD.download(databaseName, databaseName)
 			
@@ -143,14 +143,14 @@ class MetaCanSNPer(Logged):
 			nt = "\n\t"
 			self.LOG.debug(f"Database {self.databaseName} has attributes:\n{nt.join([name+' = '+str(getattr(self.database, name)) for name in dir(self.database) if not name.startswith('_')])}")
 	
-	def setReferenceFiles(self, references : Iterable[tuple[int,str,str,str,str,str]]=None):
+	def setReferenceFiles(self, references : Iterable[tuple[int,str,str,str,str,str]]=None, sequential : bool=False):
 
 		if not references:
 			assert hasattr(self, "database"), "Database not yet set. Setting references requires either a table of references as an argument or that a database is connected."
 			references = self.database.references
 
 		directory = self.Lib.refDir.writable
-		DD = ReferenceDownloader(directory, hooks=self.hooks)
+		DD = ReferenceDownloader(directory, hooks=self.hooks, sequential=sequential)
 
 		del self.Lib.references
 		
