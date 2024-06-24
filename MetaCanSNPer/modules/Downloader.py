@@ -123,8 +123,9 @@ class Job(Logged):
 	filename : str
 	out : Path = Path(".")
 	reportHook : Callable = None
+	sequential : bool
 
-	def __init__(self, query, filename, conn, reportHook=None, out=None, *, logger=None):
+	def __init__(self, query, filename, conn, reportHook=None, out=None, *, logger=None, sequential=False):
 		
 		if logger is not None:
 			self.LOG = logger.getChild(type(self).__name__.split(".")[-1])
@@ -136,6 +137,7 @@ class Job(Logged):
 			self.reportHook = reportHook
 		if out:
 			self.out = out
+		self.sequential = sequential
 	
 	def reserveQueue(self):
 		try:
@@ -169,7 +171,8 @@ class Job(Logged):
 	
 	def updateProgress(self, prog : float):
 		self._queueConnection.execute("UPDATE queueTable SET progress = ?, modified = UNIXEPOCH() WHERE name = ?;", [prog, self.filename])
-		self.reportHook(prog)
+		if prog is None or prog <= 1.0 or not self.sequential:
+			self.reportHook(prog)
 
 	def getProgress(self):
 		ret = self._queueConnection.execute("SELECT progress FROM queueTable WHERE name = ?;", [self.filename]).fetchone()
@@ -184,10 +187,12 @@ class Job(Logged):
 			if self.isDead():
 				self.reportHook(None)
 				break
-			self.reportHook(self.getProgress())
+			if (prog:=self.getProgress()) is None or prog <= 1.0 or not self.sequential:
+				self.reportHook()
 			sleep(timeStep)
 		else:
-			self.reportHook(3.0)
+			if not self.sequential:
+				self.reportHook(3.0)
 	
 	def run(self, sources : list[tuple[str, type[URL]]], postProcess : Callable=None):
 
@@ -210,7 +215,7 @@ class Job(Logged):
 							raise e
 					elif self.out / filename != (self.out / self.filename):
 						os.rename(self.out / filename, self.out / self.filename)
-					self.updateProgress(3.0)
+					if not self.sequential: self.updateProgress(3.0)
 					return self.out / filename, sourceName
 				except HTTPError as e:
 					self.LOG.info(f"Couldn't download from source={sourceName}, url: {sourceLink.format(query=self.query)}, due to {e.args}")
@@ -235,11 +240,12 @@ class Downloader(Logged):
 	database : Path = f"{__module__}_QUEUE.db"
 	jobs : list
 	hooks : Hooks = Hooks.GlobalHooks
+	sequential : bool
 
 	_queueConnection : ThreadConnection
 	_threads : list[Thread]= []
 
-	def __init__(self, directory=directory, *, reportHook=None, logger=None, hooks=None, threads=None):
+	def __init__(self, directory=directory, *, reportHook=None, logger=None, hooks=None, threads=None, sequential=False):
 
 		if pAccess(directory, "rw"):
 			self.directory = directory
@@ -258,6 +264,7 @@ class Downloader(Logged):
 		if hooks:
 			self.hooks = hooks
 		self._threads = threads if threads is not None else []
+		self.sequential = sequential
 		self.LOG.info(f"Created {type(self)} object at 0x{id(self):0>16X}")
 
 	def __del__(self):
@@ -287,7 +294,7 @@ class Downloader(Logged):
 		else:
 			reportHook = DownloaderReportHook(getattr(self, "__name__", getattr(self.__class__, "__name__")), self.hooks, filename)
 		
-		job = Job(query, filename, conn=self._queueConnection, reportHook=reportHook, out=self.directory, logger=self.LOG)
+		job = Job(query, filename, conn=self._queueConnection, reportHook=reportHook, out=self.directory, logger=self.LOG, sequential=self.sequential)
 		self.jobs.append(job)
 
 		while not job.reserveQueue():

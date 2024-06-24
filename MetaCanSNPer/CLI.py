@@ -299,7 +299,7 @@ def initializeMainObjects(args : NameSpace, filenames : list[tuple[str]]|None=No
 
 	genomes = mObj.database[ReferencesTable.AssemblyName]
 	with TerminalUpdater(f"Checking Reference Genomes:", category="ReferenceDownloader", hooks=LocalHooks, names=list(map(lambda a:f"{a}.fna", genomes)), printer=LoadingBar, length=30, out=sys.stdout if ISATTY else DEV_NULL) as TU:
-		sleep(0.2)
+		sleep(0.1)
 		mObj.setReferenceFiles()
 		for refFile in TU.threadNames:
 			LocalHooks.trigger("ReferenceDownloaderProgress", {"name" : refFile, "value" : 1.0})
@@ -316,10 +316,12 @@ def runAndUpdate(mObj, func, lock, softwareName, flags, TU, category, jobs):
 		with lock:
 			for name, value in TU.threads.items():
 				TU.hooks.trigger(f"{category}Progress", {"name" : name, "value" : value + 1 / jobs}, block=True)
+		return 0
 	except Exception as e:
 		LOGGER.exception(e)
 		for name, value in TU.threads.items():
 			TU.hooks.trigger(f"{category}Failed", {"name" : name, "value" : None})
+		return 1
 
 def runJobs(instances, func, args, argsDict, category, names, message, hooks):
 	jobs = len(instances)
@@ -332,11 +334,14 @@ def runJobs(instances, func, args, argsDict, category, names, message, hooks):
 		_iter = instances
 		for _ in range(bool(len(instances)%Globals.PARALLEL_LIMIT) + len(instances)//Globals.PARALLEL_LIMIT):
 			for i, mObj in zip(range(Globals.PARALLEL_LIMIT), _iter):
-				t = Thread(target=runAndUpdate, args=(mObj, func, commonLock, args[category[:-1]] or mObj.settings[category[:-1]], argsDict.get(f"--{category[:-1]}Options", {}), TU, category, jobs))
-				t.start()
-				threads.append(t)
-			for t in threads:
-				t.join()
+				if runAndUpdate(mObj, func, commonLock, args[category[:-1]] or mObj.settings[category[:-1]], argsDict.get(f"--{category[:-1]}Options", {}), TU, category, jobs):
+					raise ChildProcessError(f"{category.capitalize()} process failed.")
+			# 	t = Thread(target=runAndUpdate, args=(mObj, func, commonLock, args[category[:-1]] or mObj.settings[category[:-1]], argsDict.get(f"--{category[:-1]}Options", {}), TU, category, jobs))
+			# 	t.start()
+			# 	threads.append(t)
+			# for t in threads:
+			# 	t.join()
+
 			threads.clear()
 		for name in names:
 			hooks.trigger(f"{category}Finished", {"name" : name, "value" : 3})
