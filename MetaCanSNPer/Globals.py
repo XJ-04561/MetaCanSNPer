@@ -56,6 +56,7 @@ _NOT_SET = object()
 PYTHON_VERSION = tuple(sys.version_info[:3])
 DEBUG = False
 MAX_DEBUG = False
+PARALLEL_LIMIT = 10
 SQLOOPGlobals.MAX_DEBUG = MAX_DEBUG
 LOGGING_FILEPATH = UniqueFilePath(DirectoryPath(user_log_dir(SOFTWARE_NAME)).writable, time.strftime("MetaCanSNPer-%Y-%m-%d--%H-%M-%S.log", time.localtime()))
 LOGGING_FILEHANDLER = logging.FileHandler(LOGGING_FILEPATH)

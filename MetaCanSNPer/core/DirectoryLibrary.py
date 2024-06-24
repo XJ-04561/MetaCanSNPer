@@ -26,7 +26,7 @@ class DirectoryLibrary(SoftwareLibrary, Logged):
 	"""The data file being queried. Can be multiple files in the case of Illumina and other datasets split into parts."""
 	queryName : str = cached_property(lambda self : self.query.name)
 	"""Defaults to a sequence alignment of the query files involved."""
-	sessionName : str = cached_property(lambda self : f"Sample-{self.queryName}-{time.strftime('%Y-%m-%d_%H-%M-%S', time.localtime())}")
+	sessionName : str = cached_property(lambda self : f"Sample-{self.queryName}-{self.organism}-{time.strftime('%Y-%m-%d_%H-%M-%S', time.localtime())}")
 	"""Defaults to 'Sample-[QUERY_NAME]-[CURRENT_DATE]'"""
 	
 	targetDir : DirectoryGroup
@@ -78,7 +78,7 @@ class DirectoryLibrary(SoftwareLibrary, Logged):
 	@Default["userCacheDir"]
 	def tmpDir(self) -> DirectoryPath:
 		if self.settings.get("saveTemp"):
-			return self.userCacheDir.writable / f"{self.organism}_{self.queryName}"
+			return self.userCacheDir.writable / self.sessionName
 		else:
 			return PseudoPathyFunctions.createTempDir(f"{self.organism}_{self.queryName}", dir=self.userCacheDir.writable)
 	
@@ -90,7 +90,7 @@ class DirectoryLibrary(SoftwareLibrary, Logged):
 	def resultDir(self) -> DirectoryPath:
 		"""Should not be overriden, instead look to instance.outputDir and instance.sessionName separately.
 		This will automatically change to reflect those two values. ([OUTPUT_DIR]/[SESSION_NAME]/)"""
-		return self.outDir / self.sessionName
+		return UniqueDirectoryPath(self.outDir / self.sessionName)
 
 	@Default["outDir", "sessionName"]
 	def logDir(self) -> DirectoryPath:

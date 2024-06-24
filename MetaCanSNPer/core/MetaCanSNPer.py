@@ -80,10 +80,10 @@ class MetaCanSNPer(Logged):
 
 		requiredDeps = []
 
-		if not self.settings.get("mapper") and not self.settings.get("aligner"):
-			raise ValueError("No aligner or mapper has been provided through flags or settings-files.")
-		elif not self.settings.get("snpCaller"):
-			raise ValueError("No SNP caller has been provided through flags or settings-files.")
+		# if not self.settings.get("mapper") and not self.settings.get("aligner"):
+		# 	raise ValueError("No aligner or mapper has been provided through flags or settings-files.")
+		# elif not self.settings.get("snpCaller"):
+		# 	raise ValueError("No SNP caller has been provided through flags or settings-files.")
 		
 		if not self.settings.get("dryRun"):
 			if self.settings.get("mapper"):

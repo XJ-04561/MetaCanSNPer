@@ -268,45 +268,77 @@ def initializeData(args : NameSpace) -> list[tuple[str]]:
 		raise ValueError(f"Numbers of subsamples specified to --crossValidate must be 1 (No subsampling) or greater.")
 
 
-def initializeMainObjects(args : NameSpace, filenames : list[tuple[str]]|None=None) -> list[MetaCanSNPer]:
+def initializeMainObjects(args : NameSpace, filenames : list[tuple[str]]|None=None) -> tuple[str,list[MetaCanSNPer]]:
 
 	from MetaCanSNPer.modules.Database import ReferencesTable
+	from MetaCanSNPer.core.Hooks import GlobalHooks, Hooks
 	if filenames is None:
 		filenames : list[tuple[str]] = [tuple(args.query)]
-
-	for query in filenames:
-		mObj = MetaCanSNPer(args.organism, query, settings=vars(args), settingsFile=args.settingsFile)
-		break
-	instances : list[MetaCanSNPer] = [mObj]
-
-	for i, query in enumerate(filenames[1:]):
-		newObj = MetaCanSNPer(args.organism, query, hooks=mObj.hooks, settings=vars(args), settingsFile=args.settingsFile)
-		newObj.setOutDir(newObj.Lib.outDir / newObj.sessionName)
-		newObj.sessionName = f"{i+2}-{len(filenames)}"
-		instances.append(newObj)
-		
-	if len(filenames) > 1:
-		mObj.setOutDir(mObj.Lib.outDir / mObj.sessionName)
-		mObj.sessionName = f"1-{len(filenames)}"
+	N = len(filenames)
+	
+	queryName = FileList(args.query).name
+	groupSessionName = f"Sample-{queryName}-{args.organism}-{time.strftime('%Y-%m-%d_%H-%M-%S', time.localtime())}"
+	subSessionName = f"SubSample[{{}}-{N}]-"+groupSessionName.split("-", 1)[-1]
+	LocalHooks = Hooks()
+	
+	instances : list[MetaCanSNPer] = [
+		MetaCanSNPer(args.organism, query, settings=vars(args), settingsFile=args.settingsFile, sessionName=subSessionName.format(i+1))
+		for i, (query, hooks) in enumerate(filenames)
+	]
+	mObj = MetaCanSNPer(args.organism, args.query, hooks=LocalHooks)
 	
 	database = args.database or mObj.databaseName
 	
-	with TerminalUpdater(f"Checking database {database!r}:", category="DatabaseDownloader", hooks=mObj.hooks, names=[database], printer=LoadingBar, length=30, out=sys.stdout if ISATTY else DEV_NULL):
-		mObj.setDatabase(args.database)
+	with TerminalUpdater(f"Checking database {database!r}:", category="DatabaseDownloader", hooks=mObj.hooks, names=[database], printer=LoadingBar, length=30, out=sys.stdout if ISATTY else DEV_NULL) as TU:
+		mObj.setDatabase(database)
+		exitStatus = TU.threads[database]
+		mObj.hooks.trigger("DatabaseDownloaderPostProcess", {"name" : database, "value" : 1.0})
+		for obj in instances:
+			obj.setDatabase(database)
+		mObj.hooks.trigger("DatabaseDownloaderProgress", {"name" : database, "value" : exitStatus})
 
-	with TerminalUpdater(f"Checking Reference Genomes:", category="ReferenceDownloader", hooks=mObj.hooks, names=list(map(lambda a:f"{a}.fna", mObj.database[ReferencesTable.AssemblyName])), printer=LoadingBar, out=sys.stdout if ISATTY else DEV_NULL):
+	genomes = mObj.database[ReferencesTable.AssemblyName]
+	with TerminalUpdater(f"Checking Reference Genomes:", category="ReferenceDownloader", hooks=mObj.hooks, names=list(map(lambda a:f"{a}.fna", genomes)), printer=LoadingBar, out=sys.stdout if ISATTY else DEV_NULL):
 		mObj.setReferenceFiles()
-	
-	for instance in instances[1:]:
-		instance.setDatabase(args.database)
-		instance.setReferenceFiles()
-	
-	return instances
+		for refFile in TU.threadNames:
+			mObj.hooks.trigger("ReferenceDownloaderPostProcess", {"name" : refFile, "value" : 1.0})
+		for instance in instances:
+			instance.setReferenceFiles()
+		for refFile, exitStatus in TU.threads.items():
+			mObj.hooks.trigger("ReferenceDownloaderProgress", {"name" : refFile, "value" : exitStatus})
+	del mObj
+	return groupSessionName, instances
 
-def runJobs(instances : list[MetaCanSNPer], args : NameSpace, argsDict : dict):
+def runAndUpdate(mObj, func, lock, softwareName, flags, TU, category, jobs):
+	func(mObj, softwareName=softwareName, flags=flags)
+	with lock:
+		for name, value in TU.threads.items():
+			TU.hooks.trigger(f"{category}Progress", {"name" : name, "value" : value + 1 / jobs}, block=True)
+
+def runJobs(instances, func, args, argsDict, category, names, message, hooks):
+	jobs = len(instances)
+	commonLock = Lock()
+	
+	with TerminalUpdater(message, category=category, hooks=hooks, names=names, printer=LoadingBar, length=30, out=sys.stdout if ISATTY else DEV_NULL) as TU:
+		for name in names:
+			hooks.trigger(f"{category}Starting", {"name" : name, "value" : 0})
+		threads = []
+		_iter = instances
+		for _ in range(bool(len(instances)%Globals.PARALLEL_LIMIT) + len(instances)//Globals.PARALLEL_LIMIT):
+			for mObj in zip(range(Globals.PARALLEL_LIMIT), _iter):
+				t = Thread(target=runAndUpdate, args=(mObj, func, commonLock, args[category] or mObj.settings[category[-1:]], argsDict.get(f"--{category[-1:]}Options", {}), TU, category, jobs))
+				t.start()
+				threads.append(t)
+			for t in threads:
+				t.join()
+			threads.clear()
+		for name in names:
+			hooks.trigger(f"{category}Finished", {"name" : name, "value" : 3})
+
+def runPrograms(instances : list[MetaCanSNPer], args : NameSpace, argsDict : dict):
 	
 	from MetaCanSNPer.modules.Database import ReferencesTable
-	instances
+	
 	genomes = list(instances[0].database[ReferencesTable.Genome])
 	if len(instances) == 1:
 		mObj = instances[0]
@@ -326,46 +358,18 @@ def runJobs(instances : list[MetaCanSNPer], args : NameSpace, argsDict : dict):
 
 	else:
 		from MetaCanSNPer.core.Hooks import Hooks
-		jobs = len(instances)
 		LocalHooks = Hooks()
 		
 		if args.mapper or instances[0].query[0].ext.lower() in ["fastq", "fq", "fastq.gz", "fq.gz"]:
-			with TerminalUpdater(f"Creating Mappings:", category="Mappers", hooks=LocalHooks, names=genomes, printer=LoadingBar, length=30, out=sys.stdout if ISATTY else DEV_NULL):
-				for genome in genomes:
-					LocalHooks.trigger("MappersStarting", {"name" : genome, "value" : 0})
-				for i, mObj in enumerate(instances):
-					mObj.createMap(softwareName=args.mapper or mObj.settings["mapper"], flags=argsDict.get("--mapperOptions", {}))
-
-					for genome in genomes:
-						LocalHooks.trigger("MappersProgress", {"name" : genome, "value" : (i+1) / jobs})
-				for genome in genomes:
-					LocalHooks.trigger("MappersFinished", {"name" : genome, "value" : 3})
+			runJobs(instances, MetaCanSNPer.createMap, args, argsDict, "mappers", genomes, "Creating Mappings:", LocalHooks)
 		
 		if args.aligner or instances[0].query[0].ext.lower() in ["fasta", "fna", "fasta.gz", "fna.gz"]:
-			with TerminalUpdater(f"Creating Alignments:", category="Aligners", hooks=LocalHooks, names=genomes, printer=LoadingBar, length=30, out=sys.stdout if ISATTY else DEV_NULL):
-				for genome in genomes:
-					LocalHooks.trigger("AlignersStarting", {"name" : genome, "value" : 0})
-				for i, mObj in enumerate(instances):
-					mObj.createAlignment(softwareName=args.aligner or mObj.settings["aligner"], flags=argsDict.get("--alignerOptions", {}))
+			runJobs(instances, MetaCanSNPer.createAlignment, args, argsDict, "aligners", genomes, "Creating Alignments:", LocalHooks)
 
-					for genome in genomes:
-						LocalHooks.trigger("AlignersProgress", {"name" : genome, "value" : (i+1) / jobs})
-				for genome in genomes:
-					LocalHooks.trigger("AlignersFinished", {"name" : genome, "value" : 3})
-		
-		with TerminalUpdater(f"Calling SNPs:", category="SNPCallers", hooks=LocalHooks, names=genomes, printer=LoadingBar, length=30, out=sys.stdout if ISATTY else DEV_NULL):
-			for genome in genomes:
-				LocalHooks.trigger("SNPCallersStarting", {"name" : genome, "value" : 0})
-			for i, mObj in enumerate(instances):
-				mObj.callSNPs(softwareName=args.snpCaller or mObj.settings["snpCaller"], flags=argsDict.get("--snpCallerOptions", {}))
-
-				for genome in genomes:
-					LocalHooks.trigger("SNPCallersProgress", {"name" : genome, "value" : (i+1) / jobs})
-			for genome in genomes:
-				LocalHooks.trigger("SNPCallersFinished", {"name" : genome, "value" : 3})
+		runJobs(instances, MetaCanSNPer.callSNPs, args, argsDict, "snpCallers", genomes, "Calling SNPs:", LocalHooks)
 			
 
-def saveResults(instances : list[MetaCanSNPer], args : NameSpace) -> Path:
+def saveResults(instances : list[MetaCanSNPer], args : NameSpace, sessionName : str) -> Path:
 	
 	from MetaCanSNPer.core.Hooks import Hooks
 	jobs = len(instances)
@@ -380,13 +384,13 @@ def saveResults(instances : list[MetaCanSNPer], args : NameSpace) -> Path:
 			LocalHooks.trigger("SavingResultsProgress", {"name" : name, "value" : (i+1) / jobs})
 		LocalHooks.trigger("SavingResultsFinished", {"name" : name, "value" : 0})
 	if len(outDirs) > 1:
-		realOutDir = outDirs[0].Lib.outDir.writable
+		realOutDir = outDirs[0].outDir.create(sessionName)
 		for dirpath, dirnames, filenames in os.walk(outDirs[0]):
 			for filename in filenames:
-				newOut = os.path.join(realOutDir, filename.split(".")[0])
+				newOut = os.path.join(realOutDir, filename.split(".", 1)[0])
 				os.makedirs(newOut)
 				for mObj in instances:
-					os.rename(os.path.join(dirpath, filename), os.path.join(newOut, mObj.sessionName+filename.split(".", 1)[-1]))
+					os.rename(os.path.join(dirpath, filename), os.path.join(newOut, f"{mObj.sessionName}.{filename.split('.', 1)[-1]}"))
 		for d in outDirs:
 			try:
 				os.rmdir(d)
@@ -418,11 +422,11 @@ def main(argVector : list[str]=sys.argv) -> int:
 
 	filenames = initializeData(args)
 
-	instances = initializeMainObjects(args, filenames=filenames)
+	sessionName, instances = initializeMainObjects(args, filenames=filenames)
 
-	runJobs(instances, args, argsDict)
+	runPrograms(instances, args, argsDict)
 
-	outDir = saveResults(instances, args)
+	outDir = saveResults(instances, args, sessionName)
 
 	if args.crossValidate and not args.saveTemp:
 		shutil.rmtree(os.path.dirname(filenames[0]), ignore_errors=True)

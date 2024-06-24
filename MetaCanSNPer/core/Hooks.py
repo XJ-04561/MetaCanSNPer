@@ -102,7 +102,7 @@ class Hooks(Logged):
 		else:
 			return False
 	
-	def trigger(self, eventType : str|tuple, eventInfo : dict):
+	def trigger(self, eventType : str|tuple, eventInfo : dict, *, block=False):
 		
 		if isinstance(eventType, str):
 			self.LOG.debug(f"Event triggered: {eventType=}, {eventInfo=}")
@@ -114,6 +114,8 @@ class Hooks(Logged):
 		else:
 			self.LOG.exception(TypeError(f"eventType must be either a str or a tuple of str. not {eventType!r}\n{eventInfo=}"))
 			raise TypeError(f"eventType must be either a str or a tuple of str. not {eventType!r}\n{eventInfo=}")
+		if block is True:
+			self._eventQueue.join()
 	
 	def mainLoop(self):
 		
@@ -129,11 +131,13 @@ class Hooks(Logged):
 							self.LOG.exception(e)
 				else:
 					self.LOG.warning(f"{eventType=} triggered, but no hooks registered in {self!r}")
+				self._eventQueue.task_done()
 			except EmptyQueueException:
 				pass
 			except Exception as e:
 				e.add_note(f"This exception occurred in hooks thread '{getattr(current_thread(), 'name', 'N/A')}'")
 				self.LOG.exception(e)
+				self._eventQueue.task_done()
 		self.LOG.info(f"Hooks thread {getattr(current_thread(), 'name', 'N/A')} stopped running")
 
 
