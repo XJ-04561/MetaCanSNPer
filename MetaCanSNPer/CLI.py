@@ -238,6 +238,8 @@ def handleOptions(args : NameSpace):
 	
 	if args.debug:
 		logging.basicConfig(level=logging.DEBUG)
+		LOGGING_FILEHANDLER.setLevel(logging.DEBUG)
+		Globals.DEBUG = True
 		Globals.MAX_DEBUG = True
 		Globals.SQLOOPGlobals.MAX_DEBUG = True
 	elif args.verbose:
@@ -249,7 +251,6 @@ def handleOptions(args : NameSpace):
 
 def initializeData(args : NameSpace) -> list[tuple[str]]:
 
-	from MetaCanSNPer.core.DirectoryLibrary import DirectoryLibrary
 	from MetaCanSNPer.core.Hooks import GlobalHooks
 	
 	if args.crossValidate is None:
@@ -361,7 +362,7 @@ def runJobs(instances : list[MetaCanSNPer], args : NameSpace, argsDict : dict):
 				LocalHooks.trigger("SNPCallersFinished", {"name" : genome, "value" : 3})
 			
 
-def saveResults(instances : list[MetaCanSNPer], args : NameSpace):
+def saveResults(instances : list[MetaCanSNPer], args : NameSpace) -> Path:
 	
 	from MetaCanSNPer.core.Hooks import Hooks
 	jobs = len(instances)
@@ -375,7 +376,22 @@ def saveResults(instances : list[MetaCanSNPer], args : NameSpace):
 			outDirs.append(mObj.saveResults())
 			LocalHooks.trigger("SavingResultsProgress", {"name" : name, "value" : (i+1) / jobs})
 		LocalHooks.trigger("SavingResultsFinished", {"name" : name, "value" : 0})
-	return outDirs
+	if len(outDirs) > 1:
+		realOutDir = outDirs[0].Lib.outDir.writable
+		for dirpath, dirnames, filenames in os.walk(outDirs[0]):
+			for filename in filenames:
+				newOut = os.path.join(realOutDir, filename.split(".")[0])
+				os.makedirs(newOut)
+			for mObj in instances:
+				os.rename(os.path.join(dirpath, filename), os.path.join(newOut, mObj.sessionName+filename.split(".", 1)[-1]))
+		for d in outDirs:
+			try:
+				os.rmdir(d)
+			except:
+				pass
+		return DirectoryPath(realOutDir)
+	else:
+		return DirectoryPath(outDirs[0])
 
 def main(argVector : list[str]=sys.argv) -> int:
 	
@@ -390,53 +406,50 @@ def main(argVector : list[str]=sys.argv) -> int:
 
 	args : NameSpace = parser.parse_args(argsDict["args"], namespace=NameSpace())
 
-	print(f"\nRunning {SOFTWARE_NAME}...\n")
+	print(f"\nRunning {SOFTWARE_NAME}...\n", file=sys.stderr)
 
+	if not args.dryRun:
+		checkDependencies(args)
+	
+	handleOptions(args)
+
+	filenames = initializeData(args)
+
+	instances = initializeMainObjects(args, filenames=filenames)
+
+	runJobs(instances, args, argsDict)
+
+	outDir = saveResults(instances, args)
+
+	print(f"Results exported to:\n\t{outDir}", file=sys.stderr)
+
+	return 0
+
+from functools import wraps
+@wraps(main)
+def _main_wrapper(mainFunc, *args, **kwargs):
 	try:
-		if not args.dryRun:
-			checkDependencies(args)
-		
-		handleOptions(args)
-
-		filenames = initializeData(args)
-
-		instances = initializeMainObjects(args, filenames=filenames)
-
-		runJobs(instances, args, argsDict)
-
-		outDirs = saveResults(instances, args)
+		errno = mainFunc(*args, **kwargs)
 	except Exception as e:
 		LOGGER.exception(e)
 
-		if "instances" in globals():
-			for mObj in instances:
-				for exc in mObj.exceptions:
-					break
-				else:
-					continue
-				for exc in mObj.exceptions:
-					print(f"{type(exc).__name__}: {exc}", file=sys.stderr)
-				break
-
-
-		if not args.silent or not ISATTY: print(f"{SOFTWARE_NAME} ended before completing query. ", end="")
-		print("Exception occurred: \n", file=sys.stderr)
-
-		if args.debug:
-			pattern = re.compile(r"(\[[\w.]+\])( \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3} - ERROR: )(.*?)(?=Traceback|\[[\w.]+\] \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3} - \w+?:|\$)", flags=re.DOTALL+re.MULTILINE)
-			printableExcepts = set()
-			for err in pattern.finditer(open(LOGGING_FILEPATH, "r").read()):
-				printableExcepts.add(f"{err.group(1)} ERROR: {err.group(3)}")
-			for exc in printableExcepts:
-				print(exc, file=sys.stderr)
+		message = str(e)
+		indentation = "    "
+		rowLength = 80 - len(indentation)
+		rows = bool(len(message) % rowLength) + len(message) // rowLength
+		message = f"\n{indentation}".join(message[i*rowLength:(i+1)*rowLength] for i in range(rows))
+		if not Globals.DEBUG:
+			Globals.LOGGING_ERRORHANDLER.flush()
+			print("".join(Globals.LOGGING_ERRORMESSAGES), file=sys.stderr)
+			print(f"{SOFTWARE_NAME} ended before completing query. Exceptions that occurred are listed above.", file=sys.stderr)
 		else:
-			print(f"{type(e).__name__}: "+str(e), file=sys.stderr)
-		exit(1)
+			print(f"{SOFTWARE_NAME} ended before completing query. ", file=sys.stderr)
+			print(f"Due to `{e.__class__.__name__}`:\n{message}", file=sys.stderr)
+		print(flush=True, file=sys.stderr)
+		errno = getattr(e, "errno", 1)
 	else:
-		if not args.silent or not ISATTY:
-			nt = "\n\t"
-			print(f"{SOFTWARE_NAME} finished in {timer() - startTime:.3f} seconds! Results exported to:\n\t{nt.join(outDirs)}")
+		print(f"{SOFTWARE_NAME} finished in {timer() - startTime:.3f} seconds!", flush=True, file=sys.stderr)
 	finally:
-		print()
-	
-	return 0
+		exit(errno)
+
+main = _main_wrapper.__get__(main)

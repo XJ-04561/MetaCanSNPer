@@ -20,6 +20,9 @@ __status__ 		= "Prototype"
 SOFTWARE_NAME = "MetaCanSNPer"
 DRY_RUN = False
 RUNNING = True
+SOFTWARE_RETURNCODES : dict[tuple[type[Exception],tuple[str]], int]
+
+import logging.handlers
 from This import this
 from PseudoPathy.PathShortHands import *
 import PseudoPathy.Globals as PPGlobals
@@ -44,13 +47,24 @@ else:
 from appdirs import user_log_dir, user_config_dir, site_config_dir
 from threading import Lock
 
+class FileLikeList(list):
+	def write(self, *args, **kwargs):
+		self.extend(args)
+	def flush(self): pass
+
 _NOT_SET = object()
 PYTHON_VERSION = tuple(sys.version_info[:3])
+DEBUG = False
 MAX_DEBUG = False
 SQLOOPGlobals.MAX_DEBUG = MAX_DEBUG
 LOGGING_FILEPATH = UniqueFilePath(DirectoryPath(user_log_dir(SOFTWARE_NAME)).writable, time.strftime("MetaCanSNPer-%Y-%m-%d--%H-%M-%S.log", time.localtime()))
 LOGGING_FILEHANDLER = logging.FileHandler(LOGGING_FILEPATH)
-logging.basicConfig(handlers=[LOGGING_FILEHANDLER], format="[%(name)s] %(asctime)s - %(levelname)s: %(message)s", level=logging.DEBUG)
+LOGGING_FILEHANDLER.setLevel(logging.WARNING)
+LOGGING_ERRORMESSAGES = FileLikeList()
+LOGGING_ERRORHANDLER = logging.StreamHandler(stream=LOGGING_ERRORMESSAGES)
+LOGGING_ERRORHANDLER.terminator = f"\n\n{'*'*80}\n\n"
+LOGGING_ERRORHANDLER.setLevel(logging.ERROR)
+logging.basicConfig(handlers=[LOGGING_FILEHANDLER, LOGGING_ERRORHANDLER], format="[%(name)s] %(asctime)s - %(levelname)s: %(message)s", level=logging.DEBUG)
 if PYTHON_VERSION < (3, 12):
 	class batched:
 		def __init__(self, iterable, n):
