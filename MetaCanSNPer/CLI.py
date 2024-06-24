@@ -298,7 +298,7 @@ def initializeMainObjects(args : NameSpace, filenames : list[tuple[str]]|None=No
 		LocalHooks.trigger("DatabaseDownloaderProgress", {"name" : database, "value" : exitStatus})
 
 	genomes = mObj.database[ReferencesTable.AssemblyName]
-	with TerminalUpdater(f"Checking Reference Genomes:", category="ReferenceDownloader", hooks=LocalHooks, names=list(map(lambda a:f"{a}.fna", genomes)), printer=LoadingBar, out=sys.stdout if ISATTY else DEV_NULL) as TU:
+	with TerminalUpdater(f"Checking Reference Genomes:", category="ReferenceDownloader", hooks=LocalHooks, names=list(map(lambda a:f"{a}.fna", genomes)), printer=LoadingBar, length=30, out=sys.stdout if ISATTY else DEV_NULL) as TU:
 		sleep(0.2)
 		mObj.setReferenceFiles()
 		for refFile in TU.threadNames:
@@ -311,10 +311,14 @@ def initializeMainObjects(args : NameSpace, filenames : list[tuple[str]]|None=No
 	return groupSessionName, instances
 
 def runAndUpdate(mObj, func, lock, softwareName, flags, TU, category, jobs):
-	func(mObj, softwareName=softwareName, flags=flags)
-	with lock:
-		for name, value in TU.threads.items():
-			TU.hooks.trigger(f"{category}Progress", {"name" : name, "value" : value + 1 / jobs}, block=True)
+	try:
+		func(mObj, softwareName=softwareName, flags=flags)
+		with lock:
+			for name, value in TU.threads.items():
+				TU.hooks.trigger(f"{category}Progress", {"name" : name, "value" : value + 1 / jobs}, block=True)
+	except Exception as e:
+		LOGGER.exception(e)
+		TU.hooks.trigger(f"{category}Failed", {"name" : name, "value" : None})
 
 def runJobs(instances, func, args, argsDict, category, names, message, hooks):
 	jobs = len(instances)
