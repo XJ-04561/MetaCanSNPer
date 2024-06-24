@@ -59,14 +59,14 @@ class MetaCanSNPer(Logged):
 
 		self.LOG.info(f"Initializing MetaCanSNPer object at 0x{id(self):0>16X}.")
 		self.exceptions = []
-		self.hooks = kwargs.get("hooks", self.hooks)
+		self.hooks = kwargs.pop("hooks", self.hooks)
 		self.hooks.addHook("ReportError", target=lambda eventInfo : self.exceptions.append(eventInfo["exception"]))
 		self.settings = DEFAULT_SETTINGS.copy()
 		
-		if kwargs.get("settingsFile"):
-			if not os.path.exists(kwargs["settingsFile"]):
-				raise FileNotFoundError(f"Could not find the settingsFile {kwargs['settingsFile']!r}")
-			self.settings |= loadFlattenedTOML(kwargs["settingsFile"])
+		if settingsFilename := kwargs.pop("settingsFile"):
+			if not os.path.exists(settingsFilename):
+				raise FileNotFoundError(f"Could not find the settingsFile {settingsFilename!r}")
+			self.settings |= loadFlattenedTOML(settingsFilename)
 			
 		for flag, value in kwargs.pop("settings", {}).items():
 			if isinstance(value, bool) or value:
