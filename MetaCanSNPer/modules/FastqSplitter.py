@@ -18,7 +18,7 @@ def equalSampling(N, randomiser : random.Random):
 		for i in randomiser.choices(choices, weights, k=100):
 			yield i
 
-def splitFastq(N : int, filenames : FileList[FilePath], hooks=GlobalHooks, randomiser=None, steps : int=100) -> list[tuple[str]]:
+def splitFastq(N : int, filenames : FileList[FilePath], outDir : DirectoryPath=None, hooks=GlobalHooks, randomiser=None, steps : int=100) -> list[tuple[str]]:
 	if all(filename.endswith(".gz") for filename in filenames):
 		dataOpen = gunzip.gzip.open
 	elif not any(filename.endswith(".gz") for filename in filenames):
@@ -33,7 +33,7 @@ def splitFastq(N : int, filenames : FileList[FilePath], hooks=GlobalHooks, rando
 	splitNames = []
 	for filepath in filenames:
 		name, ext = os.path.basename(filepath)[1:].split(".", 1)
-		splitNames.append((os.path.join(os.path.dirname(filepath), os.path.basename(filepath)[0]+name), ext))
+		splitNames.append((os.path.join(outDir or os.path.dirname(filepath), os.path.basename(filepath)[0]+name), ext))
 
 	outNames = [tuple(f"{name}-{i+1}-{N}.{ext}" for name, ext in splitNames) for i in range(N)]
 

@@ -258,8 +258,11 @@ def initializeData(args : NameSpace) -> list[tuple[str]]:
 	elif args.crossValidate > 1:
 		from MetaCanSNPer.modules.FastqSplitter import splitFastq
 		query = FileList(args.query)
+		from MetaCanSNPer.core.DirectoryLibrary import DirectoryLibrary
+		DL = DirectoryLibrary(args.query, args.organism)
+		outDir = DL.dataDir.create("SubSampling").create(DL.queryName)
 		with TerminalUpdater(f"Creating Sub-samples:", category="SplitFastq", names=[query.name], hooks=GlobalHooks, printer=LoadingBar, length=65, out=sys.stdout if ISATTY else DEV_NULL) as TU:
-			newFiles = splitFastq(args.crossValidate, query, hooks=TU.hooks)
+			newFiles = splitFastq(args.crossValidate, query, out=outDir, hooks=TU.hooks)
 		return newFiles
 	else:
 		raise ValueError(f"Numbers of subsamples specified to --crossValidate must be 1 (No subsampling) or greater.")
@@ -420,6 +423,9 @@ def main(argVector : list[str]=sys.argv) -> int:
 	runJobs(instances, args, argsDict)
 
 	outDir = saveResults(instances, args)
+
+	if args.crossValidate and not args.saveTemp:
+		shutil.rmtree(os.path.dirname(filenames[0]), ignore_errors=True)
 
 	print(f"Results exported to:\n\t{outDir}", file=sys.stderr)
 
