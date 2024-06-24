@@ -158,7 +158,8 @@ class MetaCanSNPer(Logged):
 			filename = f"{assemblyName}.fna"
 			if self.Lib.references[genome]:
 				self.LOG.debug(f"Reference genome already exists! {self.Lib.references[genome]}")
-				self.hooks.trigger("ReferenceDownloaderSkipped", {"name" : filename, "value" : 2})
+				if not sequential:
+					self.hooks.trigger("ReferenceDownloaderSkipped", {"name" : filename, "value" : 2})
 				continue
 			
 			DD.download((genbankID, assemblyName), filename)

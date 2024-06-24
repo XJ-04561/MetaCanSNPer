@@ -27,7 +27,7 @@ class DirectoryLibrary(SoftwareLibrary, Logged):
 	queryName : str = cached_property(lambda self : self.query.name)
 	"""Defaults to a sequence alignment of the query files involved."""
 	sessionName : str = Default["query"](lambda self : f"Sample-{self.queryName}-{self.organism}-{time.strftime('%Y-%m-%d_%H-%M-%S', time.localtime())}")
-	"""Defaults to 'Sample-[QUERY_NAME]-[CURRENT_DATE]'"""
+	"""Defaults to 'Sample-[QUERY_NAME]-[ORGANISM_NAME]-[CURRENT_DATE]'"""
 	
 	targetDir : DirectoryGroup
 	refDir : DirectoryGroup
@@ -75,7 +75,7 @@ class DirectoryLibrary(SoftwareLibrary, Logged):
 	def databaseDir(self) -> DirectoryGroup:
 		return self.dataDir / "Databases"
 	
-	@Default["userCacheDir"]
+	@Default["userCacheDir", "sessionName"]
 	def tmpDir(self) -> DirectoryPath:
 		if self.settings.get("saveTemp"):
 			return self.userCacheDir.writable / self.sessionName
