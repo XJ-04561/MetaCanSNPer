@@ -257,7 +257,7 @@ class ProcessWrapper(Logged):
 			else:
 				self.hooks.trigger(f"{self.category}Progress", {"name" : genome, "value" : 0.0})
 		except Exception as e:
-			e.add_note(f"This occurred in event callback with {eventInfo=}")
+			if hasattr(e, "add_note"): e.add_note(f"This occurred in event callback with {eventInfo=}")
 			self.LOG.exception(e, stacklevel=logging.DEBUG)
 
 	def formatCommands(self) -> tuple[list[Any], list[str], list[tuple[tuple[str,str],str]]]:

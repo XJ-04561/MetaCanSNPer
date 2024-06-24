@@ -42,7 +42,7 @@ class Command(Logged):
 				self.commands = None
 			
 		except Exception as e:
-			e.add_note(f"{type(self).__name__} failed to initialize.")
+			if hasattr(e, "add_note"): e.add_note(f"{type(self).__name__} failed to initialize.")
 			self.LOG.exception(e)
 			raise e
 	
@@ -129,7 +129,7 @@ class Commands(Logged):
 			
 			self._list = [self.nextType(l, category, hooks, logDir=logDir) for l in _list if len(l) > 0]
 		except Exception as e:
-			e.add_note(f"{type(self).__name__} failed to initialize.")
+			if hasattr(e, "add_note"): e.add_note(f"{type(self).__name__} failed to initialize.")
 			self.LOG.exception(e)
 			raise e
 	
@@ -192,7 +192,7 @@ class DumpCommands(Commands):
 				raise ValueError(f"Output dumped more or less than once using '>' in one command. Command: {'>'.join(map(''.join, self._list))}")
 			self.LOG.debug(f"{self.command=}, {self.outFile=}, {self.logFile=}")
 		except Exception as e:
-			e.add_note(f"{type(self).__name__} failed to initialize.")
+			if hasattr(e, "add_note"): e.add_note(f"{type(self).__name__} failed to initialize.")
 			self.LOG.exception(e)
 			raise e
 		
@@ -295,7 +295,7 @@ class SequentialCommands(Commands):
 			self.thread = Thread(target=self.run, daemon=True)
 			self.thread.start()
 		except Exception as e:
-			e.add_note(f"{type(self).__name__} failed to `.start()`.")
+			if hasattr(e, "add_note"): e.add_note(f"{type(self).__name__} failed to `.start()`.")
 			self.LOG.exception(e)
 			raise e
 	
@@ -315,7 +315,7 @@ class SequentialCommands(Commands):
 			if type(e) is FileNotFoundError:
 				self.hooks.trigger(f"ReportError", {"exception" : e})
 			try:
-				e.add_note(f"<In Thread running: {self.raw!r}>")
+				if hasattr(e, "add_note"): e.add_note(f"<In Thread running: {self.raw!r}>")
 				self.LOG.exception(e)
 			except:
 				self.LOG.exception(e)
@@ -366,7 +366,7 @@ class ParallelCommands(Commands):
 			
 			self._list = {name:self.nextType(command, category, hooks, logDir=logDir / illegalPattern.sub("-", str(name))) for name, command in _list.items()}
 		except Exception as e:
-			e.add_note(f"{type(self).__name__} failed to initialize.")
+			if hasattr(e, "add_note"): e.add_note(f"{type(self).__name__} failed to initialize.")
 			self.LOG.exception(e)
 			raise e
 	

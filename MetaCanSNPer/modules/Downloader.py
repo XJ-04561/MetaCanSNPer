@@ -18,7 +18,7 @@ def correctDatabase(filename, finalFilename):
 	if not database.valid:
 		e = database.exception
 		if not isinstance(e, NoChromosomesInDatabase):
-			e.add_note(f"Tables hash: {database.tablesHash}\nIndexes Hash: {database.indexesHash}")
+			if hasattr(e, "add_note"): e.add_note(f"Tables hash: {database.tablesHash}\nIndexes Hash: {database.indexesHash}")
 			raise e
 	database.close()
 	if filename != finalFilename:
@@ -79,7 +79,7 @@ class ThreadDescriptor(Logged):
 			self.func(*args, **kwargs)
 		except Exception as e:
 			current_thread().exception = e
-			e.add_note(f"This exception occured in a thread running the following function call: {printCall(self.func, args, kwargs)}")
+			if hasattr(e, "add_note"): e.add_note(f"This exception occured in a thread running the following function call: {printCall(self.func, args, kwargs)}")
 			self.LOG.exception(e)
 
 	def wait(self):
@@ -210,7 +210,7 @@ class Job(Logged):
 						try:
 							postProcess(self.out / filename, self.out / self.filename)
 						except Exception as e:
-							e.add_note(f"This occurred while processing {outFile} downloaded from {sourceLink.format(query=self.query)}")
+							if hasattr(e, "add_note"): e.add_note(f"This occurred while processing {outFile} downloaded from {sourceLink.format(query=self.query)}")
 							self.LOG.exception(e)
 							raise e
 					elif self.out / filename != (self.out / self.filename):
