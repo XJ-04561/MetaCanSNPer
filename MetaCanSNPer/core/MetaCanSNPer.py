@@ -16,16 +16,18 @@ import MetaCanSNPer.core.Mappers as Mappers
 import MetaCanSNPer.core.SNPCallers as SNPCallers
 from MetaCanSNPer.core.TerminalUpdater import TerminalUpdater
 
-from MetaCanSNPer.modules.Database import MetaCanSNPerDatabase, TreeTable, NodeID, Position, GenomeID, AncestralBase, DerivedBase, Chromosome, Genotype, ChromosomeID, Genome
+from MetaCanSNPer.modules.Database import MetaCanSNPerDatabase, TreeTable, NodeID, Position, GenomeID, AncestralBase, DerivedBase, Chromosome, Genotype, ChromosomeID, Genome, Parent
 from MetaCanSNPer.modules.Downloader import DatabaseDownloader, DownloaderReportHook, ReferenceDownloader
 
 
 class MetaCanSNPer(Logged):
 	
-	hooks = GlobalHooks
+	hooks : Hooks = GlobalHooks
 
 	outputTemplate = "{refName}_{queryName}.{outFormat}"
-	organism : str
+	organism : str = property(lambda self:self.Lib.organism,
+							  lambda self, value: setattr(self.Lib, "organism", value),
+							  lambda self: delattr(self.Lib, "organism"))
 
 	settings : dict
 	Lib : DirectoryLibrary
@@ -35,20 +37,25 @@ class MetaCanSNPer(Logged):
 	databaseName : str = Default["organism"](lambda self:f"{self.organism}.db")
 	
 	referenceFiles = property(lambda self:self.Lib.references)
-	references = property(lambda self:self.database.references, doc="""Fetch names of reference genomes in connected database.""")
+	references = property(lambda self:self.database.references,
+						  doc="""Fetch names of reference genomes in connected database.""")
 
-	query : FileList = property(lambda self:self.Lib.query, lambda self, value:setattr(self.Lib, "query", value), lambda self:delattr(self.Lib, "query"), DirectoryLibrary.query.__doc__)
+	query : FileList = property(lambda self:self.Lib.query,
+								lambda self, value:setattr(self.Lib, "query", value),
+								lambda self:delattr(self.Lib, "query"), DirectoryLibrary.query.__doc__)
 	queryName : str = Default["Lib.query"](lambda self:self.Lib.queryName)
-	sessionName : str = Default["Lib.query"](lambda self:self.Lib.sessionName)
+	sessionName : str = property(lambda self:self.Lib.sessionName,
+								 lambda self, value: setattr(self.Lib, "sessionName", value),
+								 lambda self: delattr(self.Lib, "sessionName"))
 	
 	SNPresults : dict = Default["Lib.query"](lambda self:defaultdict(dict))
 	exceptions : list[Exception]
 
 	@overload
-	def __init__(self, /, organism : str, query : list[str]|str, *, lib : DirectoryLibrary=None, database : str=None,
+	def __init__(self, /, organism : str, query : Iterable[str]|str, *, lib : DirectoryLibrary=None, database : str=None,
 			  	hooks : Hooks=None, settings : dict={}, settingsFile : str=None, sessionName : str=None): ...
 
-	def __init__(self, /, organism : str, query : list[str]|str, **kwargs):
+	def __init__(self, /, organism : str, query : Iterable[str]|str, **kwargs):
 
 		self.LOG.info(f"Initializing MetaCanSNPer object at 0x{id(self):0>16X}.")
 		self.exceptions = []
@@ -78,7 +85,7 @@ class MetaCanSNPer(Logged):
 		elif not self.settings.get("snpCaller"):
 			raise ValueError("No SNP caller has been provided through flags or settings-files.")
 		
-		if not self.settings.get("dry_run"):
+		if not self.settings.get("dryRun"):
 			if self.settings.get("mapper"):
 				requiredDeps.extend(Mapper.get(self.settings["mapper"]).dependencies)
 			if self.settings.get("aligner"):
@@ -267,30 +274,49 @@ class MetaCanSNPer(Logged):
 			if Globals.DRY_RUN:
 				continue
 			vcfFile = openVCF(filePath, "r")
-			for chrom, pos, baseCounts in vcfFile["CHROM", "POS", "AD"]:
-				counts = sum(baseCounts)
-				LOG.debug(f"(CHROM, POS, Allele-readDepth (A, T, C, G) ) {chrom}, {pos}, {counts} = {' + '.join(map(str, baseCounts))}")
+			for chrom, pos, counts in vcfFile["CHROM", "POS", "AD"]:
+				depth = sum(counts)
+				LOG.debug(f"(CHROM, POS, Allele-readDepth (A, T, C, G) ) {chrom}, {pos}, {depth} = {' + '.join(map(str, counts))}")
 				
-				chromID = list(self.database[ChromosomeID, Chromosome==chrom, Genome==genome])[0]
-				nodeID = self.database[NodeID, Position==pos, ChromosomeID==chromID]
+				chromID = next(self.database[ChromosomeID, Chromosome==chrom, Genome==genome], None)
+				nodeID, derivedBase, ancestralBase = self.database[NodeID, DerivedBase, AncestralBase, Position==pos, ChromosomeID==chromID]
 				
-				if counts == (0,0,0,0):
-					self.SNPresults[nodeID][pos] = "-"
-				else:
-					self.SNPresults[nodeID][pos] = max(zip("ATCG", counts), key=lambda x:x[1])[0]
+				match derivedBase:
+					case "A":
+						derivedReads = counts[0]
+					case "T":
+						derivedReads = counts[1]
+					case "C":
+						derivedReads = counts[2]
+					case "G":
+						derivedReads = counts[3]
+					case _:
+						derivedReads = 0
+				match ancestralBase:
+					case "A":
+						ancestralReads = counts[0]
+					case "T":
+						ancestralReads = counts[1]
+					case "C":
+						ancestralReads = counts[2]
+					case "G":
+						ancestralReads = counts[3]
+					case _:
+						ancestralReads = 0
+				self.SNPresults[nodeID][pos] = (derivedReads, ancestralReads, counts, depth)
+		
 		LOG.info("Got nodes: " + ", ".join(map(str, self.SNPresults)))
 	
-	def traverseTree(self):
+	def traverseTree(self) -> tuple[int,dict[int,list[int,int,list[int,int,int,int],int]]]:
 		'''Depth-first tree search.'''
 		self.LOG.info(f"Traversing tree to get Genotype called.")
+		
 		rootNode = self.database.tree
-		paths = []
-		nodeScores = {rootNode.node : 0}
+		assert next(rootNode.children, False)
 
-		award = (2, -1, 0)
-
-		miscCalls = []
-		paths.append([rootNode])
+		nodeScores = {rootNode.node : [0,0,[0,0,0,0],0]}
+		
+		paths = [[rootNode]]
 		while paths[-1] != []:
 			paths.append([])
 			for parent in paths[-2]:
@@ -298,40 +324,108 @@ class MetaCanSNPer(Logged):
 					if Globals.DRY_RUN:
 						continue
 					
-					nodeScores[child.node] = nodeScores[parent.node]
-					for nodeID, pos, anc, der, *_ in self.database.SNPsByNode[child.node]:
-						base = self.SNPresults[nodeID][pos]
-						if der == base:
-							nodeScores[child.node] += award[0]
-						elif anc == base:
-							nodeScores[child.node] += award[1]
-						elif base == "-":
-							nodeScores[child.node] += award[2]
-						else:
-							miscCalls.append((nodeID, pos, anc, der, base))
+					nodeScores[child.node] = [0,0,[0,0,0,0],0]
+					for nodeID, pos, *_ in self.database.SNPsByNode[child.node]:
+						derived, ancestral, counts, depth = self.SNPresults[nodeID][pos]
+						nodeScores[child.node][0] += derived
+						nodeScores[child.node][1] += ancestral
+						nodeScores[child.node][2] = tuple(n+o for n, o in zip(counts, nodeScores[child.node][2]))
+						nodeScores[child.node][3] += depth
 					paths[-1].append(child)
 		
-		if miscCalls:
-			self.LOG.warning("These nodes had non-recognized bases:\n\t NODE_ID, POS, ANCESTRAL, DERIVED, TARGET\n\t" + "\n\t".join(map(str, miscCalls)))
 		paths = paths[:-1]
-		self.LOG.info(f"Finished traversing tree.")
-		return max(nodeScores.items(), key=lambda x: x[1]), nodeScores
-
-	'''Functions'''
+		
+		averageDepth = sum(x[3] for x in nodeScores.values()) / (len(nodeScores)-1)
+		for nodeID, (derived, ancestral, counts, depth) in reversed(list(nodeScores.items())):
+			if derived == max(counts) and derived > averageDepth * 0.25:
+				self.LOG.info(f"Finished traversing tree.")
+				return nodeID, nodeScores
+		else:
+			self.LOG.info(f"Finished traversing tree.")
+			return rootNode.node, nodeScores
 
 	def saveResults(self, dst : str=None):
 		
 		outDir = dst or self.Lib.resultDir.writable
 		self.LOG.debug(f"open({outDir!r} / {self.Lib.queryName!r}+'_final.tsv', 'w')")
 		with open((outDir) / self.Lib.queryName+"_final.tsv", "w") as finalFile:
-			(finalNodeID, score), scores = self.traverseTree()
-			res = self.database[Genotype, TreeTable, NodeID == finalNodeID]
+			finalNodeID, scores = self.traverseTree()
 			
-			finalFile.write("{:<20}{score}\n".format(res, score=score))
-			if self.settings.get("debug"):
-				finalFile.write("\n")
-				for nodeID in scores:
-					finalFile.write("{:<20}{score}\n".format(self.database[Genotype, TreeTable, NodeID == nodeID], score=scores[nodeID]))
+			genotype = self.database[Genotype, TreeTable, NodeID == finalNodeID]
+			derived, ancestral, counts, depth = scores[finalNodeID]
+			
+			if derived > 1:
+				logRatio = format(math.log10(derived)/math.log10(depth), ".3f")
+			else:
+				logRatio = "NaN"
+			finalFile.write(f"{'Genotype':<20} {'log_10(Called)/log_10(Depth)':>30} {'Called':>20} {'Ancestral':>20} {'Non-Canonical Bases':>20} {'Depth':>20}\n")
+			finalFile.write(f"{genotype:<20} {logRatio:>30} {derived:>20} {ancestral:>20} {depth-(derived+ancestral):>20} {depth:>20}\n\n")
+			for nodeID, (derived, ancestral, counts, depth) in scores.items():
+				genotype = self.database[Genotype, TreeTable, NodeID == nodeID]
+				
+				if derived > 1:
+					logRatio = format(math.log10(derived)/math.log10(depth), ".3f")
+				else:
+					logRatio = "NaN"
+				finalFile.write(f"{genotype:<20} {logRatio:>30} {derived:>20} {ancestral:>20} {depth-(derived+ancestral):>20} {depth:>20}\n")
+		
+		# Export graph to GraphML format.
+
+		HEADER = ("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+		"<graphml xmlns=\"http://graphml.graphdrawing.org/xmlns\"  \n"
+		"    xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n"
+		"    xsi:schemaLocation=\"http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd\">\n"
+		"  <key id=\"genotype\" for=\"node\" attr.name=\"Variant\" attr.type=\"string\"/>\n"
+		"  <key id=\"called\" for=\"edge\" attr.name=\"Called SNP\" attr.type=\"int\">\n"
+		"    <default>NaN</default>\n"
+		"  </key>\n"
+		"  <key id=\"ancestral\" for=\"edge\" attr.name=\"Ancestral Bases\" attr.type=\"int\">\n"
+		"    <default>NaN</default>\n"
+		"  </key>\n"
+		"  <key id=\"nonCanon\" for=\"edge\" attr.name=\"Non-Canonical Bases\" attr.type=\"int\">\n"
+		"    <default>NaN</default>\n"
+		"  </key>\n"
+		"  <key id=\"depth\" for=\"edge\" attr.name=\"Read Depth\" attr.type=\"int\">\n"
+		"    <default>NaN</default>\n"
+		"  </key>\n"
+		"  <key id=\"ratio\" for=\"edge\" attr.name=\"Ratio Called/Depth\" attr.type=\"float\">\n"
+		"    <default>NaN</default>\n"
+		"  </key>\n"
+		"  <key id=\"logRatio\" for=\"edge\" attr.name=\"Ratio log_10(Called)/log_10(Depth)\" attr.type=\"float\">\n"
+		"    <default>NaN</default>\n"
+		"  </key>\n"
+		f"  <graph id=\"{self.queryName}\" edgedefault=\"directed\">\n")
+		nodeEntries = []
+		edges = []
+		for nodeID, (derived, ancestral, counts, depth) in scores.items():
+			parent, genotype = self.database[Parent, Genotype, NodeID == nodeID]
+			assert isinstance(genotype, str), f"{nodeID=} should have a genotype string, but instead had {genotype=}"
+			nodeEntries.append(
+				f"    <node id=\"{nodeID}\">\n"
+				f"      <data id=\"genotype\">{genotype}</data>\n"
+				"    </node>\n"
+			)
+			
+			edges.append(
+				f"    <edge id=\"{genotype}\" source=\"{parent}\" target=\"{nodeID}\">\n"
+				f"      <data id=\"called\">{derived}</data>\n"
+				f"      <data id=\"ancestral\">{ancestral}</data>\n"
+				f"      <data id=\"nonCanon\">{depth-(derived+ancestral)}</data>\n"
+				f"      <data id=\"depth\">{depth}</data>\n"
+				f"      <data id=\"ratio\">{derived/depth if depth > 0 else 'NaN'}</data>\n"
+				f"      <data id=\"logRatio\">{math.log10(derived)/math.log10(depth) if derived > 1 else 'NaN'}</data>\n"
+				f"    </edge>\n"
+			)
+		FOOTER = ("  </graph>\n"
+		"</graphml>\n")
+		with open((outDir) / self.Lib.queryName+".graphml.xml", "w") as graphFile:
+			graphFile.write(HEADER)
+			for nodeEntry in nodeEntries:
+				graphFile.write(nodeEntry)
+			for edge in edges:
+				graphFile.write(edge)
+			graphFile.write(FOOTER)
+		
 		return outDir
 
 	def saveSNPdata(self, dst : str=None):
@@ -356,11 +450,12 @@ class MetaCanSNPer(Logged):
 			for nodeID, position, ancestral, derived, chromosome in self.database[NodeID, Position, AncestralBase, DerivedBase, Chromosome, GenomeID == genomeID]:
 				if Globals.DRY_RUN:
 					continue
-				N = self.SNPresults[nodeID][position]
+				*_, counts, depth = self.SNPresults[nodeID][position]
 				genotype = self.database[Genotype, NodeID==nodeID]
-				if Globals.MAX_DEBUG: self.LOG.debug(f"Got {genotype=} and base={N!r} for {nodeID=}")
-
-				entry = f"{genotype}\t{genome}\t{chromosome}\t{position}\t{ancestral}\t{derived}\t{N}\n"
+				if Globals.MAX_DEBUG: self.LOG.debug(f"Got {genotype=} and baseCounts={counts} for {nodeID=}")
+				
+				N = 'ATCG'[max(range(4), key=counts.__getitem__)]
+				entry = f"{genotype}\t{genome}\t{chromosome}\t{position}\t{ancestral}\t{derived}\t{N}\t{', '.join(c+'='+str(n) for c,n in zip('ATCG', counts))}\n"
 				if N == derived or N == ancestral:
 					called.write(entry)
 				elif N.isalpha():
