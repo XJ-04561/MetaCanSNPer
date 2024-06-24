@@ -1,4 +1,5 @@
 import os
+from MetaCanSNPer.core.DirectoryLibrary import DirectoryLibrary
 
 def CanSNP2VCF(lib : "DirectoryLibrary", force : bool=False):
 	from MetaCanSNPer.modules.Database import Chromosome, Position, GenomeID, ChromosomesTable
@@ -28,8 +29,3 @@ def CanSNP2VCF(lib : "DirectoryLibrary", force : bool=False):
 				vcfFile.add(CHROM=chromosome, POS=position, REF="N", ALT=("A", "T", "C", "G"))
 			
 		lib.targetSNPs[genome] = filePath
-
-try:
-	from MetaCanSNPer.core.DirectoryLibrary import DirectoryLibrary
-except:
-	pass
