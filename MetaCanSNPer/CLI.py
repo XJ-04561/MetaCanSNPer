@@ -259,7 +259,7 @@ def initializeData(args : NameSpace) -> list[tuple[str]]:
 		from MetaCanSNPer.modules.FastqSplitter import splitFastq
 		query = FileList(args.query)
 		from MetaCanSNPer.core.DirectoryLibrary import DirectoryLibrary
-		DL = DirectoryLibrary(args.query, args.organism)
+		DL = DirectoryLibrary(args.organism, args.query)
 		outDir = DL.dataDir.create("SubSampling").create(DL.queryName)
 		with TerminalUpdater(f"Creating Sub-samples:", category="SplitFastq", names=[query.name], hooks=GlobalHooks, printer=LoadingBar, length=65, out=sys.stdout if ISATTY else DEV_NULL) as TU:
 			newFiles = splitFastq(args.crossValidate, query, out=outDir, hooks=TU.hooks)
@@ -385,8 +385,8 @@ def saveResults(instances : list[MetaCanSNPer], args : NameSpace) -> Path:
 			for filename in filenames:
 				newOut = os.path.join(realOutDir, filename.split(".")[0])
 				os.makedirs(newOut)
-			for mObj in instances:
-				os.rename(os.path.join(dirpath, filename), os.path.join(newOut, mObj.sessionName+filename.split(".", 1)[-1]))
+				for mObj in instances:
+					os.rename(os.path.join(dirpath, filename), os.path.join(newOut, mObj.sessionName+filename.split(".", 1)[-1]))
 		for d in outDirs:
 			try:
 				os.rmdir(d)
