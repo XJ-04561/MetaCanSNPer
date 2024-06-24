@@ -293,15 +293,15 @@ def initializeMainObjects(args : NameSpace, filenames : list[tuple[str]]|None=No
 	
 	with TerminalUpdater(f"Checking database {database!r}:", category="DatabaseDownloader", hooks=LocalHooks, names=[database], printer=LoadingBar, length=30, out=sys.stdout if ISATTY else DEV_NULL) as TU:
 		mObj.setDatabase(database, sequential=True)
-		exitStatus = TU.threads[database]
 		LocalHooks.trigger("DatabaseDownloaderProgress", {"name" : database, "value" : 1.0})
 		for obj in instances:
 			obj.setDatabase(database)
-		LocalHooks.trigger("DatabaseDownloaderProgress", {"name" : database, "value" : exitStatus})
+		LocalHooks.trigger("DatabaseDownloaderFinished", {"name" : database, "value" : 3})
 
-	genomes = mObj.database[ReferencesTable.AssemblyName]
+	genomes = mObj.database[ReferencesTable.AssemblyName, ReferencesTable]
 	with TerminalUpdater(f"Checking Reference Genomes:", category="ReferenceDownloader", hooks=LocalHooks, names=list(map(lambda a:f"{a}.fna", genomes)), printer=LoadingBar, length=30, out=sys.stdout if ISATTY else DEV_NULL) as TU:
-		LocalHooks.trigger("ReferenceDownloaderStarting", {"name" : refFile, "value" : 0.0})
+		for refFile in TU.threadNames:
+			LocalHooks.trigger("ReferenceDownloaderStarting", {"name" : refFile, "value" : 0.0})
 		mObj.setReferenceFiles(sequential=True)
 		for refFile in TU.threadNames:
 			LocalHooks.trigger("ReferenceDownloaderProgress", {"name" : refFile, "value" : 1.0})
