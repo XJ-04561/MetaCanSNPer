@@ -278,7 +278,7 @@ def initializeMainObjects(args : NameSpace, filenames : list[tuple[str]]|None=No
 	
 	queryName = FileList(args.query).name
 	groupSessionName = f"Sample-{queryName}-{args.organism}-{time.strftime('%Y-%m-%d_%H-%M-%S', time.localtime())}"
-	subSessionName = f"SubSample[{{}}-{N}]-"+groupSessionName.split("-", 1)[-1]
+	subSessionName = f"SubSample[{{i}}-{N}]-"+groupSessionName.split("-", 1)[-1]
 	LocalHooks = Hooks()
 	settings = vars(args)
 	if args.saveTemp and N > 1 and settings.get("tmpDir") is None:
@@ -286,7 +286,7 @@ def initializeMainObjects(args : NameSpace, filenames : list[tuple[str]]|None=No
 	else:
 		tmpDir = None
 	instances : list[MetaCanSNPer] = [
-		MetaCanSNPer(args.organism, query, settings=settings, settingsFile=args.settingsFile, sessionName=subSessionName.format(i+1), tmpDir=tmpDir)
+		MetaCanSNPer(args.organism, query, settings=settings, settingsFile=args.settingsFile, sessionName=subSessionName.format(i=i+1), tmpDir=tmpDir.format(i=i+1) if tmpDir is not None else None)
 		for i, (query, hooks) in enumerate(filenames)
 	]
 	mObj = MetaCanSNPer(args.organism, args.query, hooks=LocalHooks)
