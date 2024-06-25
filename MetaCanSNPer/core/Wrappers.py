@@ -1,7 +1,7 @@
 
 import os, shutil, re
 from typing import Any, Iterable, Callable, TypeVar
-from threading import Semaphore, ThreadError, Thread
+from threading import Semaphore, ThreadError, Thread, Event
 
 import MetaCanSNPer.core.ErrorFixes as ErrorFixes
 from MetaCanSNPer.core.DirectoryLibrary import DirectoryLibrary
@@ -65,6 +65,7 @@ class ProcessWrapper(Logged):
 		self.history = {}
 		self.skip = set()
 		self.outputs = out
+		self.outputEvents = {}
 		self._hooksList = {}
 		self.flags = flags
 		self.settings = settings
@@ -115,9 +116,11 @@ class ProcessWrapper(Logged):
 			if name not in self.history:
 				self.history[name] = []
 				self.outputs[name] = None
+				self.outputEvents[name] = Event()
 			if self.settings.get("saveTemp") is True and pExists(outFile):
 				self.history[name].append(0)
 				self.outputs[name] = outFile
+				self.outputEvents[name].set()
 				self.skip.add(name)
 
 				self.hooks.trigger(f"{self.category}Skipped", {"name" : name, "value" : 2})
@@ -140,7 +143,8 @@ class ProcessWrapper(Logged):
 	def wait(self, timeout=None):
 		
 		if self.command is not None:
-			self.command.wait(timeout=timeout)
+			for name in self.outputEvents:
+				self.outputEvents[name].wait()
 
 	def finished(self):
 		if self.command is None:
@@ -224,45 +228,42 @@ class ProcessWrapper(Logged):
 	
 	def updateOutput(self, eventInfo, outputs: dict[str, str]):
 		
-		try:
+		if (genome := eventInfo["name"]) not in self.command:
+			self.LOG.debug(f'{eventInfo["name"]} not in {self}')
+			return
+		elif eventInfo["instance"] is not self.command:
+			self.LOG.debug(f'{self.command is not eventInfo.get("Command") =}')
+			return
+		self.semaphore.release()
+		if self.command.returncodes[genome] == 0:
+			outFile = outputs[genome]
 			
-			if (genome := eventInfo["name"]) not in self.command:
-				self.LOG.debug(f'{eventInfo["name"]} not in {self}')
-				return
-			elif eventInfo["instance"] is not self.command:
-				self.LOG.debug(f'{self.command is not eventInfo.get("Command") =}')
-				return
-			self.semaphore.release()
-			if self.command.returncodes[genome] == 0:
-				outFile = outputs[genome]
-				
-				if self.settings.get("saveTemp") is True:
-					for fileName in os.listdir(self.Lib.tmpDir.find(f".{self.softwareName}", purpose="w") / illegalPattern.sub("-", genome)):
-						try:
-							os.rename(
-								(self.Lib.tmpDir / f".{self.softwareName}" / illegalPattern.sub("-", genome)).find(fileName),
-								(self.Lib.tmpDir / self.softwareName / illegalPattern.sub("-", genome)).writable / fileName
-							)
-						except:
-							pass
+			if self.settings.get("saveTemp") is True:
+				for fileName in os.listdir(self.Lib.tmpDir.find(f".{self.softwareName}", purpose="w") / illegalPattern.sub("-", genome)):
+					try:
+						os.rename(
+							(self.Lib.tmpDir / f".{self.softwareName}" / illegalPattern.sub("-", genome)).find(fileName),
+							(self.Lib.tmpDir / self.softwareName / illegalPattern.sub("-", genome)).writable / fileName
+						)
+					except:
+						pass
 
-				self.outputs[genome] = outFile
-				self.hooks.trigger(f"{self.category}Finished", {"name" : genome})
-			elif self.command.returncodes[genome] not in self.solutions:
-				if self.settings.get("saveTemp") is True:
-					outFile = outputs[genome]
-					for dPath in self.Lib.tmpDir / f".{self.softwareName}" / illegalPattern.sub("-", genome):
-						if pExists(dPath):
-							try:
-								shutil.rmtree(dPath, ignore_errors=True)
-							except:
-								pass
-				self.hooks.trigger(f"{self.category}Failed", {"name" : genome})
-			else:
-				self.hooks.trigger(f"{self.category}Progress", {"name" : genome, "value" : 0.0})
-		except Exception as e:
-			if hasattr(e, "add_note"): e.add_note(f"This occurred in event callback with {eventInfo=}")
-			self.LOG.exception(e, stacklevel=logging.DEBUG)
+			self.outputs[genome] = outFile
+			self.hooks.trigger(f"{self.category}Finished", {"name" : genome})
+		elif self.command.returncodes[genome] not in self.solutions:
+			if self.settings.get("saveTemp") is True:
+				outFile = outputs[genome]
+				for dPath in self.Lib.tmpDir / f".{self.softwareName}" / illegalPattern.sub("-", genome):
+					if not pExists(dPath):
+						continue
+					try:
+						shutil.rmtree(dPath, ignore_errors=True)
+					except:
+						pass
+			self.hooks.trigger(f"{self.category}Failed", {"name" : genome})
+		else:
+			self.hooks.trigger(f"{self.category}Progress", {"name" : genome, "value" : 0.0})
+		self.outputEvents[genome].set()
 
 	def formatCommands(self) -> tuple[list[Any], list[str], list[tuple[tuple[str,str],str]]]:
 		
