@@ -289,7 +289,7 @@ def initializeMainObjects(args : NameSpace, filenames : list[tuple[str]]|None=No
 	settings = vars(args)
 	mObj = MetaCanSNPer(args.organism, args.query, hooks=LocalHooks)
 	
-	if args.subSample != [1, 1]:
+	if args.subSample == [1, 1]:
 		groupSessionName = mObj.sessionName
 		instances = [mObj]
 	else:
