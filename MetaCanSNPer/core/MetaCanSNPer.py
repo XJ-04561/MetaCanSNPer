@@ -119,7 +119,8 @@ class MetaCanSNPer(Logged):
 		for directory in self.Lib.databaseDir:
 			if os.path.exists(directory / databaseName):
 				self.LOG.debug(f"{databaseName} in {directory}")
-				if MetaCanSNPerDatabase(directory / databaseName, "r", organism=self.organism).valid:
+				database = MetaCanSNPerDatabase(directory / databaseName, "r", organism=self.organism)
+				if database.valid:
 					self.LOG.debug(f"{directory / databaseName} is valid")
 					self.hooks.trigger("DatabaseDownloaderSkipped", {"name" : databaseName, "value" : 2})
 					self.databasePath = directory / databaseName
@@ -136,8 +137,9 @@ class MetaCanSNPer(Logged):
 			DD.download(databaseName, databaseName)
 			
 			DD.wait()
+			database = MetaCanSNPerDatabase(self.databasePath, "r", organism=self.organism)
 		
-		self.Lib.database = self.database = MetaCanSNPerDatabase(self.databasePath, "r", organism=self.organism)
+		self.Lib.database = self.database = database
 		self.LOG.info(f"Database {self.databaseName} loaded from: {self.databasePath}!")
 		if Globals.MAX_DEBUG:
 			nt = "\n\t"

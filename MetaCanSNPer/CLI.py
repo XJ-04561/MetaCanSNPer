@@ -3,7 +3,7 @@
 from timeit import default_timer as timer
 startTime = timer()
 import logging, sys, argparse, traceback
-from threading import Thread
+from threading import Thread, Event
 from time import sleep
 from typing import Callable
 import re
@@ -277,17 +277,27 @@ def initializeMainObjects(args : NameSpace, filenames : list[tuple[str]]|None=No
 	N = len(filenames)
 	
 	queryName = FileList(args.query).name
-	groupSessionName = f"Sample-{queryName}-{args.organism}-{time.strftime('%Y-%m-%d_%H-%M-%S', time.localtime())}"
-	subSessionName = f"SubSample[{{i}}-{N}]-"+groupSessionName.split("-", 1)[-1]
+	if args.saveTemp:
+		groupSessionName = f"SubSample[{N}]-{args.organism}-{queryName}"
+		subSessionName = f"SubSample[{{i}}-{N}]-{args.organism}-{queryName}"
+	else:
+		timeString = time.strftime('%Y-%m-%d_%H-%M-%S', time.localtime())
+		groupSessionName = f"Sample-{queryName}-{args.organism}-{timeString}"
+		subSessionName = f"SubSample[{{i}}-{N}]-{queryName}-{args.organism}-{timeString}"
 	LocalHooks = Hooks()
 	settings = vars(args)
 	if args.saveTemp and N > 1 and settings.get("tmpDir") is None:
-		tmpDir = (SoftwareLibrary().userCacheDir / groupSessionName / subSessionName).writable
+		tmpDir = SoftwareLibrary(SOFTWARE_NAME=SOFTWARE_NAME).userCacheDir / groupSessionName
 	else:
 		tmpDir = None
 	instances : list[MetaCanSNPer] = [
-		MetaCanSNPer(args.organism, query, settings=settings, settingsFile=args.settingsFile, sessionName=subSessionName.format(i=i+1), tmpDir=tmpDir.format(i=i+1) if tmpDir is not None else None)
-		for i, (query, hooks) in enumerate(filenames)
+		MetaCanSNPer(
+			args.organism, query,
+			settings=settings, settingsFile=args.settingsFile,
+			hooks=GlobalHooks if N == 1 else Hooks(),
+			sessionName=subSessionName.format(i=i+1),
+			tmpDir=tmpDir / subSessionName.format(i=i+1) if tmpDir is not None else None)
+		for i, query in enumerate(filenames)
 	]
 	mObj = MetaCanSNPer(args.organism, args.query, hooks=LocalHooks)
 	
@@ -315,7 +325,7 @@ def initializeMainObjects(args : NameSpace, filenames : list[tuple[str]]|None=No
 	del mObj
 	return groupSessionName, instances
 
-def runAndUpdate(mObj, func, lock, softwareName, flags, TU, category, jobs):
+def runAndUpdate(mObj, failedEvent, func, lock, softwareName, flags, TU, category, jobs):
 	try:
 		func(mObj, softwareName=softwareName, flags=flags)
 		with lock:
@@ -324,6 +334,7 @@ def runAndUpdate(mObj, func, lock, softwareName, flags, TU, category, jobs):
 		return 0
 	except Exception as e:
 		LOGGER.exception(e)
+		failedEvent.set()
 		for name, value in TU.threads.items():
 			TU.hooks.trigger(f"{category}Failed", {"name" : name, "value" : None})
 		return 1
@@ -335,19 +346,23 @@ def runJobs(instances, func, args, argsDict, category, names, message, hooks):
 	with TerminalUpdater(message, category=category, hooks=hooks, names=names, printer=LoadingBar, length=30, out=sys.stdout if ISATTY else DEV_NULL) as TU:
 		for name in names:
 			hooks.trigger(f"{category}Starting", {"name" : name, "value" : 0})
-		threads = []
-		_iter = instances
-		for _ in range(bool(len(instances)%Globals.PARALLEL_LIMIT) + len(instances)//Globals.PARALLEL_LIMIT):
-			for i, mObj in zip(range(Globals.PARALLEL_LIMIT), _iter):
-				if runAndUpdate(mObj, func, commonLock, args[category[:-1]] or mObj.settings[category[:-1]], argsDict.get(f"--{category[:-1]}Options", {}), TU, category, jobs):
-					raise ChildProcessError(f"{category.capitalize()} process failed.")
-			# 	t = Thread(target=runAndUpdate, args=(mObj, func, commonLock, args[category[:-1]] or mObj.settings[category[:-1]], argsDict.get(f"--{category[:-1]}Options", {}), TU, category, jobs))
-			# 	t.start()
-			# 	threads.append(t)
-			# for t in threads:
-			# 	t.join()
-
-			threads.clear()
+		failedEvent = Event()
+		for mObj in instances:
+			if 0 != runAndUpdate(mObj, failedEvent, func, commonLock, args[category[:-1]] or mObj.settings[category[:-1]], argsDict.get(f"--{category[:-1]}Options", {}), TU, category, jobs):
+				raise ChildProcessError(f"{category.capitalize()} process failed.")
+		# threads = []
+		# failedEvent = Event()
+		# _iter = iter(instances)
+		# for _ in range(bool(len(instances)%Globals.PARALLEL_LIMIT) + len(instances)//Globals.PARALLEL_LIMIT):
+		# 	for i, mObj in zip(range(Globals.PARALLEL_LIMIT), _iter):
+		# 		t = Thread(target=runAndUpdate, args=(mObj, failedEvent, func, commonLock, args[category[:-1]] or mObj.settings[category[:-1]], argsDict.get(f"--{category[:-1]}Options", {}), TU, category, jobs))
+		# 		t.start()
+		# 		threads.append(t)
+		# 	for t in threads:
+		# 		t.join()
+		# 	if failedEvent.isSet():
+		# 		raise ChildProcessError(f"{category.capitalize()} process failed.")
+		# 	threads.clear()
 		for name in names:
 			hooks.trigger(f"{category}Finished", {"name" : name, "value" : 3})
 

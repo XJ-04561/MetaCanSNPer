@@ -2,7 +2,7 @@
 
 
 from subprocess import Popen, PIPE, CompletedProcess
-from threading import Thread, Condition
+from threading import Thread, Condition, Event
 
 from MetaCanSNPer.core.Hooks import Hooks, GlobalHooks
 from MetaCanSNPer.Globals import *
@@ -30,6 +30,8 @@ class Command(Logged):
 			self.raw = args if type(args) is str else " & ".join(args)
 			self.category = category
 			self.hooks = hooks
+			self.finished = Event()
+			self.returnLock = Lock()
 			self.names = names
 			self.returncodes = {}
 			self.exceptions = {}
@@ -73,8 +75,11 @@ class Command(Logged):
 	def parallelFinished(self, eventInfo):
 		for name in self.commands:
 			if eventInfo["instance"] is self.commands[name]:
-				self.returncodes[name] = eventInfo["value"]
-				self.hooks.trigger(f"{self.category}CommandFinished", {"name" : name, "instance" : self, "value" : self.returncodes[name]})
+				with self.returnLock:
+					self.returncodes[name] = eventInfo["value"]
+					self.hooks.trigger(f"{self.category}CommandFinished", {"name" : name, "instance" : self, "value" : self.returncodes[name]}, block=True)
+					if len(self.returncodes) == len(self.commands):
+						self.finished.set()
 				break
 
 	def start(self):
@@ -90,8 +95,9 @@ class Command(Logged):
 			self.commands.run()
 	
 	def wait(self, timeout=None):
-		if self.commands is not None:
+		if self.commands is not None and len(self.commands) > 0:
 			self.commands.wait(timeout=timeout)
+			self.finished.wait(timeout=timeout)
 
 class Commands(Logged):
 	"""Only meant to be inherited from"""
@@ -372,6 +378,8 @@ class ParallelCommands(Commands):
 	
 	def __contains__(self, name):
 		return name in self._list
+	def __len__(self):
+		return len(self._list)
 
 	def start(self):
 		self.LOG.info(f"Starting {self}")

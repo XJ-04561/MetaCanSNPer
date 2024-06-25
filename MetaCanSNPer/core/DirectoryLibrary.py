@@ -93,7 +93,7 @@ class DirectoryLibrary(SoftwareLibrary, Logged):
 
 	@Default["tmpDir", "sessionName"]
 	def logDir(self) -> DirectoryPath:
-		return UniqueDirectoryPath(self.tmpDir)
+		return self.tmpDir / "SoftwareLogs"
 	
 	@logDir.setter
 	def logDir(self, value):
