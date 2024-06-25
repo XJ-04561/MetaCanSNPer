@@ -422,9 +422,11 @@ def saveResults(instances : list[MetaCanSNPer], args : NameSpace, sessionName : 
 			mObj.saveSNPdata()
 			outDirs.append(mObj.saveResults())
 			LocalHooks.trigger("SavingResultsProgress", {"name" : name, "value" : (i+1) / jobs})
-		LocalHooks.trigger("SavingResultsFinished", {"name" : name, "value" : 0})
+		LocalHooks.trigger("SavingResultsFinished", {"name" : name, "value" : 3})
 	if len(outDirs) > 1:
-		realOutDir = outDirs[0].outDir.create(sessionName)
+		from MetaCanSNPer.core.DirectoryLibrary import DirectoryLibrary
+		DL = DirectoryLibrary(args.organism, args.query)
+		realOutDir = DL.outDir.create(sessionName)
 		for dirpath, dirnames, filenames in os.walk(outDirs[0]):
 			for filename in filenames:
 				newOut = os.path.join(realOutDir, filename.split(".", 1)[0])
