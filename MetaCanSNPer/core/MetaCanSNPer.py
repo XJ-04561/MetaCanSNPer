@@ -48,7 +48,7 @@ class MetaCanSNPer(Logged):
 								 lambda self, value: setattr(self.Lib, "sessionName", value),
 								 lambda self: delattr(self.Lib, "sessionName"))
 	
-	SNPresults : dict = Default["Lib.query"](lambda self:defaultdict(defaultdict(lambda :(0,0,(0,0,0,0),0))))
+	SNPresults : dict = Default["Lib.query"](lambda self:defaultdict(lambda :defaultdict(lambda :(0,0,(0,0,0,0),0))))
 	exceptions : list[Exception]
 
 	@overload
