@@ -77,7 +77,7 @@ class Command(Logged):
 			if eventInfo["instance"] is self.commands[name]:
 				with self.returnLock:
 					self.returncodes[name] = eventInfo["value"]
-					self.hooks.trigger(f"{self.category}CommandFinished", {"name" : name, "instance" : self, "value" : self.returncodes[name]}, block=True)
+				self.hooks.trigger(f"{self.category}CommandFinished", {"name" : name, "instance" : self, "value" : self.returncodes[name]}, block=True)
 				break
 
 	def start(self):
