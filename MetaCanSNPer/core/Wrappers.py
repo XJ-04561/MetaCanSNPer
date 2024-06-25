@@ -91,6 +91,11 @@ class ProcessWrapper(Logged):
 						cls.dependencies.add(next(_iter))
 					except:
 						pass
+	
+	def __del__(self):
+		
+		for eventType in self._hooksList:
+			self.hooks.removeHook(self._hooksList[eventType])
 
 	@classmethod
 	def get(cls : "ProcessWrapper", name : str) -> "ProcessWrapper":
@@ -115,7 +120,7 @@ class ProcessWrapper(Logged):
 				self.outputs[name] = outFile
 				self.skip.add(name)
 
-				self.hooks.trigger(f"{self.category}Skipped", {"name" : name, "value" : 2.0})
+				self.hooks.trigger(f"{self.category}Skipped", {"name" : name, "value" : 2})
 
 				names.pop(i), commands.pop(i), outputs.pop(i)
 		self.LOG.debug(f"Initializing commands for:\n{nt.join([str(name)+' -> '+str(output)+' = '+str(command) for name, output, command in zip(names, commands, outputs)])}")

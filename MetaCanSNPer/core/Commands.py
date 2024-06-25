@@ -2,7 +2,7 @@
 
 
 from subprocess import Popen, PIPE, CompletedProcess
-from threading import Thread, Condition, Event
+from threading import Thread, Condition, Event, Semaphore
 
 from MetaCanSNPer.core.Hooks import Hooks, GlobalHooks
 from MetaCanSNPer.Globals import *
@@ -291,39 +291,45 @@ class SequentialCommands(Commands):
 	returncodes : list[int]
 	thread : Thread
 
-	def start(self : "SequentialCommands") -> None:
+	def start(self : "SequentialCommands", finishedEvent : Event=None) -> None:
 		self.LOG.info(f"Starting {self}")
 		self.returncodes = []
 		try:
-			self.thread = Thread(target=self.run, daemon=True)
+			self.thread = Thread(target=self.run, args=(finishedEvent,), daemon=True)
 			self.thread.start()
 		except Exception as e:
 			if hasattr(e, "add_note"): e.add_note(f"{type(self).__name__} failed to `.start()`.")
 			self.LOG.exception(e)
 			raise e
 	
-	def run(self : "SequentialCommands") -> int:
+	def run(self : "SequentialCommands", finishedEvent : Event=None) -> int:
 		try:
-			for i, pc in enumerate(self._list):
-				returncode = pc.run()
-				self.returncodes.append(returncode)
-				if self.separators[i] == ";":
-					pass
-				elif returncode != 0 and self.separators[i] == "&&":
-					break
-				elif returncode == 0 and self.separators[i] == "||":
-					break
-			self.hooks.trigger(f"SequentialCommand{self.category}Finished", {"name" : None, "value" : self.returncodes[-1] if self.returncodes else None, "instance" : self}, block=True)
-		except Exception as e:
-			if type(e) is FileNotFoundError:
-				self.hooks.trigger(f"ReportError", {"exception" : e})
 			try:
-				if hasattr(e, "add_note"): e.add_note(f"<In Thread running: {self.raw!r}>")
-				self.LOG.exception(e)
-			except:
-				self.LOG.exception(e)
-			self.hooks.trigger(f"SequentialCommand{self.category}Finished", {"name" : None, "value" : self.returncodes[-1] if self.returncodes else None, "instance" : self}, block=True)
-		return self.returncodes[-1]
+				for i, pc in enumerate(self._list):
+					returncode = pc.run()
+					self.returncodes.append(returncode)
+					if self.separators[i] == ";":
+						pass
+					elif returncode != 0 and self.separators[i] == "&&":
+						break
+					elif returncode == 0 and self.separators[i] == "||":
+						break
+				self.hooks.trigger(f"SequentialCommand{self.category}Finished", {"name" : None, "value" : self.returncodes[-1] if self.returncodes else None, "instance" : self}, block=True)
+			except Exception as e:
+				if type(e) is FileNotFoundError:
+					self.hooks.trigger(f"ReportError", {"exception" : e})
+				try:
+					if hasattr(e, "add_note"): e.add_note(f"<In Thread running: {self.raw!r}>")
+					self.LOG.exception(e)
+				except:
+					self.LOG.exception(e)
+				self.hooks.trigger(f"SequentialCommand{self.category}Finished", {"name" : None, "value" : self.returncodes[-1] if self.returncodes else None, "instance" : self}, block=True)
+			finally:
+				
+				return self.returncodes[-1]
+		finally:
+			if finishedEvent is not None:
+				finishedEvent.set()
 	
 	def wait(self, timeout=None):
 		
@@ -387,10 +393,12 @@ class ParallelCommands(Commands):
 	
 	def run(self):
 		self.LOG.info(f"Running {self}")
+		events : list[Event] = []
 		for sc in self._list.values():
-			sc.start()
-		for sc in self._list.values():
-			sc.wait()
+			events.append(event := Event())
+			sc.start(finishedEvent=event)
+		for event in events:
+			event.wait()
 	
 	def wait(self, timeout=None):
 
