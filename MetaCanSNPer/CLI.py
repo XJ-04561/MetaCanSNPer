@@ -138,7 +138,7 @@ optionalArguments = parser.add_argument_group("Optional arguments")
 if True:
 	optionalArguments.add_argument("-d", "--database",	metavar="FILE",							help="Filename of CanSNP database to be used.")
 	optionalArguments.add_argument("--saveTemp",		action="store_true",					help="Don't dispose of temporary directories/files.")
-	optionalArguments.add_argument("--subSample", nargs="2", metavar=("N", "M"), type=parseInt,		help="Sub Sample query by a factor of M for N times. Values can be of either type N, N_e**N_p, N_e^N_p.")
+	optionalArguments.add_argument("--subSample", nargs=2, metavar=("N", "M"), type=parseInt,		help="Sub Sample query by a factor of M for N times. Values can be of either type N, N_e**N_p, N_e^N_p.")
 	optionalArguments.add_argument("--settingsFile",	metavar="FILE",							help="Path to .TOML file containing settings for MetaCanSNPer. Check the 'defaultConfig.toml' to see what can be included in a settings file.")
 
 	# Not used by the argparser, but is used for the help-page and for splitting the argv
