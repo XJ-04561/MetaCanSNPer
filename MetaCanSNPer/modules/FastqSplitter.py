@@ -61,7 +61,7 @@ def splitFastq(NM : list[int,int], filenames : FileList[FilePath], outDir : Dire
 		if bytesPerOutfile < sum(byteCounts) / N:
 			break
 
-		traversed = sum(of.writelines(df.readlines(4)) for of, df in zip(outFiles[choice], dataFiles))
+		traversed = sum(of.write(df.readline()) for of, df in zip(outFiles[choice], dataFiles) for _ in range(4))
 		
 		byteCounts[choice] += traversed
 
