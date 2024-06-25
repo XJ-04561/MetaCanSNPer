@@ -427,15 +427,15 @@ def saveResults(instances : list[MetaCanSNPer], args : NameSpace, sessionName : 
 		from MetaCanSNPer.core.DirectoryLibrary import DirectoryLibrary
 		DL = DirectoryLibrary(args.organism, args.query)
 		realOutDir = DL.outDir.create(sessionName)
-		for dirpath, dirnames, filenames in os.walk(outDirs[0]):
-			for filename in filenames:
-				newOut = os.path.join(realOutDir, filename.split(".", 1)[0])
-				os.makedirs(newOut)
-				for mObj in instances:
-					os.rename(os.path.join(dirpath, filename), os.path.join(newOut, f"{mObj.sessionName}.{filename.split('.', 1)[-1]}"))
+		for i, mObj in enumerate(instances):
+			os.makedirs(realOutDir)
+			for dirpath, dirnames, filenames in os.walk(outDirs[0]):
+				for filename in filenames:
+					newName = f"{filename.split('.', 1)[0]}-[{str(i+1).zfill(len(instances))}]" + (f".{filename.split('.', 1)[-1]}" if "." in filename else "")
+					os.rename(os.path.join(dirpath, filename), os.path.join(realOutDir, newName))
 		for d in outDirs:
 			try:
-				os.rmdir(d)
+				shutil.rmtree(d)
 			except:
 				pass
 		return DirectoryPath(realOutDir)
