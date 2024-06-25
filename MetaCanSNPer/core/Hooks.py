@@ -104,7 +104,7 @@ class Hooks(Logged):
 	
 	def trigger(self, eventType : str|tuple, eventInfo : dict, *, block=False):
 		
-		finishEvent = Event() if block is True else None
+		finishEvent = Event() if block is True and current_thread() is not self._worker else None
 		if isinstance(eventType, str):
 			self.LOG.debug(f"Event triggered: {eventType=}, {eventInfo=}")
 			self._eventQueue.put((finishEvent, eventType, eventInfo))
@@ -117,7 +117,7 @@ class Hooks(Logged):
 		else:
 			self.LOG.exception(TypeError(f"eventType must be either a str or a tuple of str. not {eventType!r}\n{eventInfo=}"))
 			raise TypeError(f"eventType must be either a str or a tuple of str. not {eventType!r}\n{eventInfo=}")
-		if block is True:
+		if block is True and current_thread() is not self._worker:
 			finishEvent.wait()
 	
 	def mainLoop(self):
