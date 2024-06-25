@@ -24,9 +24,9 @@ def parseInt(string):
 	if m is None:
 		return int(string)
 	
-	exponent, *rest = m.groups()
-	if rest:
-		return round(float(exponent) ** float(rest[-1]))
+	exponent, operator, power = m.groups()
+	if power is not None:
+		return round(float(exponent) ** float(power))
 	return int(exponent)
 
 class NameSpace(argparse.Namespace):
