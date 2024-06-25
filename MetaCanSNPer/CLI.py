@@ -17,6 +17,17 @@ import MetaCanSNPer.Globals as Globals
 import MetaCanSNPer as package
 
 LOGGER = LOGGER.getChild(__name__.split(".")[-1])
+PARSE_INT_PATTERN = re.compile(r"(\d+(?:[.]\d+)?|(?:\d+)?[.]\d+)(?:([*]{2}|[\^])(\d+(?:[.]\d+)?|(?:\d+)?[.]\d+))?")
+def parseInt(string):
+	"""Parses strings of integers in either of the following three forms: N, N_e**N_p, N_e^N_p."""
+	m = PARSE_INT_PATTERN.match(string)
+	if m is None:
+		return int(string)
+	
+	exponent, *rest = m.groups()
+	if rest:
+		return round(float(exponent) ** float(rest[-1]))
+	return int(exponent)
 
 class NameSpace(argparse.Namespace):
 
@@ -45,7 +56,7 @@ class NameSpace(argparse.Namespace):
 	sessionName : str
 	
 	saveTemp : bool
-	crossValidate : int
+	subSample : int
 	debug : bool
 	verbose : bool
 	suppress : bool
@@ -73,7 +84,7 @@ class NameSpace(argparse.Namespace):
 				listSoftware : bool = False,
 				version : bool = False,
 				saveTemp : bool = False,
-				crossValidate : int|None = None,
+				subSample : int|None = None,
 				debug : bool = False,
 				verbose : bool = False,
 				suppress : bool = False,
@@ -127,7 +138,7 @@ optionalArguments = parser.add_argument_group("Optional arguments")
 if True:
 	optionalArguments.add_argument("-d", "--database",	metavar="FILE",							help="Filename of CanSNP database to be used.")
 	optionalArguments.add_argument("--saveTemp",		action="store_true",					help="Don't dispose of temporary directories/files.")
-	optionalArguments.add_argument("--crossValidate",	metavar="INTEGER",	type=int,			help="Call SNPs based on N number of sub-samples of the query data.")
+	optionalArguments.add_argument("--subSample", nargs="2", metavar=("N", "M"), type=parseInt,		help="Sub Sample query by a factor of M for N times. Values can be of either type N, N_e**N_p, N_e^N_p.")
 	optionalArguments.add_argument("--settingsFile",	metavar="FILE",							help="Path to .TOML file containing settings for MetaCanSNPer. Check the 'defaultConfig.toml' to see what can be included in a settings file.")
 
 	# Not used by the argparser, but is used for the help-page and for splitting the argv
@@ -253,19 +264,17 @@ def initializeData(args : NameSpace) -> list[tuple[str]]:
 
 	from MetaCanSNPer.core.Hooks import GlobalHooks
 	
-	if args.crossValidate is None:
+	if args.subSample is None:
 		return [args.query]
-	elif args.crossValidate > 1:
+	else:
 		from MetaCanSNPer.modules.FastqSplitter import splitFastq
 		query = FileList(args.query)
 		from MetaCanSNPer.core.DirectoryLibrary import DirectoryLibrary
 		DL = DirectoryLibrary(args.organism, args.query)
 		outDir = DL.dataDir.create("SubSampling").create(DL.queryName)
 		with TerminalUpdater(f"Creating Sub-samples:", category="SplitFastq", names=[query.name], hooks=GlobalHooks, printer=LoadingBar, length=65, out=sys.stdout if ISATTY else DEV_NULL) as TU:
-			newFiles = splitFastq(args.crossValidate, query, outDir=outDir, hooks=TU.hooks)
+			newFiles = splitFastq(args.subSample, query, outDir=outDir, hooks=TU.hooks)
 		return newFiles
-	else:
-		raise ValueError(f"Numbers of subsamples specified to --crossValidate must be 1 (No subsampling) or greater.")
 
 
 def initializeMainObjects(args : NameSpace, filenames : list[tuple[str]]|None=None) -> tuple[str,list[MetaCanSNPer]]:
@@ -459,7 +468,7 @@ def main(argVector : list[str]=sys.argv) -> int:
 
 	outDir = saveResults(instances, args, sessionName)
 
-	if args.crossValidate and not args.saveTemp:
+	if args.subSample and not args.saveTemp:
 		shutil.rmtree(os.path.dirname(filenames[0]), ignore_errors=True)
 
 	print(f"Results exported to:\n\t{outDir}", file=sys.stderr)

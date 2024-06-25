@@ -18,7 +18,8 @@ def equalSampling(N, randomiser : random.Random):
 		for i in randomiser.choices(choices, weights, k=100):
 			yield i
 
-def splitFastq(N : int, filenames : FileList[FilePath], outDir : DirectoryPath=None, hooks=GlobalHooks, randomiser=None, steps : int=100) -> list[tuple[str]]:
+def splitFastq(NM : list[int,int], filenames : FileList[FilePath], outDir : DirectoryPath=None, hooks=GlobalHooks, randomiser=None, steps : int=100) -> list[tuple[str]]:
+	[N, M] = NM
 	if all(filename.endswith(".gz") for filename in filenames):
 		dataOpen = gunzip.gzip.open
 	elif not any(filename.endswith(".gz") for filename in filenames):
@@ -47,32 +48,31 @@ def splitFastq(N : int, filenames : FileList[FilePath], outDir : DirectoryPath=N
 		hooks.trigger("SplitFastqSkipped", {"name" : filenames.name, "value" : 2})
 		return outNames
 	
-	nBytes = sum([file.seek(0, 2) for file in dataFiles])
+	nBytes = sum(file.seek(0, 2) for file in dataFiles)
+	bytesPerOutfile = nBytes / M
 	for file in dataFiles:
 		file.seek(0, 0)
 
-	chooser = equalSampling(N, randomiser)
-
 	hooks.trigger("SplitFastqStarting", {"name" : filenames.name, "value" : 0.0})
-	steps : list[float] = [2] + [(steps-i)/steps for i in range(steps+1)]
-	traversed = 1
-	position = 0
-	while traversed > 0:
+	steps : list[float] = [2**6] + [(steps-i)/steps for i in range(steps+1)]
+	byteCounts = [0 for _ in range(N)]
+	
+	for choice in equalSampling(N, randomiser):
+		if bytesPerOutfile < sum(byteCounts) / N:
+			break
+
+		traversed = sum(of.writelines(df.readlines(4)) for of, df in zip(outFiles[choice], dataFiles))
 		
-		traversed = 0
-		choice = next(chooser)
-		for of, df in zip(outFiles[choice], dataFiles):
-			traversed += of.write(df.readline())
-			traversed += of.write(df.readline())
-			traversed += of.write(df.readline())
-			traversed += of.write(df.readline())
-			
-		position += traversed
-		if position / nBytes > steps[-1]:
-			hooks.trigger("SplitFastqProgress", {"name" : filenames.name, "value" : position / nBytes})
+		byteCounts[choice] += traversed
+
+		if traversed == 0: # End of File reached, time to restart
+			for df in dataFiles:
+				df.seek(0)
+		
+		if (sum(byteCounts) / N) / bytesPerOutfile > steps[-1]:
+			hooks.trigger("SplitFastqProgress", {"name" : filenames.name, "value" : min(1.0, (sum(byteCounts) / N) / bytesPerOutfile)})
 			steps.pop()
 
-	chooser.close()
 	for files in outFiles:
 		for file in files:
 			file.close()
