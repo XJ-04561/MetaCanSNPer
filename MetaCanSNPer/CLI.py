@@ -334,31 +334,31 @@ def initializeMainObjects(args : NameSpace, filenames : list[tuple[str]]|None=No
 	del mObj
 	return groupSessionName, instances
 
-def runAndUpdate(mObj, failedEvent, func, lock, softwareName, flags, TU, category, jobs):
+def runAndUpdate(mObj, failedEvent, func, lock, softwareName, flags, TU, categoryName, jobs):
 	try:
 		func(mObj, softwareName=softwareName, flags=flags)
 		with lock:
 			for name, value in TU.threads.items():
-				TU.hooks.trigger(f"{category}Progress", {"name" : name, "value" : value + 1 / jobs}, block=True)
+				TU.hooks.trigger(f"{categoryName}Progress", {"name" : name, "value" : value + 1 / jobs}, block=True)
 		return 0
 	except Exception as e:
 		LOGGER.exception(e)
 		failedEvent.set()
 		for name, value in TU.threads.items():
-			TU.hooks.trigger(f"{category}Failed", {"name" : name, "value" : None})
+			TU.hooks.trigger(f"{categoryName}Failed", {"name" : name, "value" : None})
 		return 1
 
-def runJobs(instances, func, args, argsDict, category, names, message, hooks):
+def runJobs(instances, func, args, argsDict, category, categoryName, names, message, hooks):
 	jobs = len(instances)
 	commonLock = Lock()
 	
-	with TerminalUpdater(message, category=category, hooks=hooks, names=names, printer=LoadingBar, length=30, out=sys.stdout if ISATTY else DEV_NULL) as TU:
+	with TerminalUpdater(message, category=categoryName, hooks=hooks, names=names, printer=LoadingBar, length=30, out=sys.stdout if ISATTY else DEV_NULL) as TU:
 		for name in names:
-			hooks.trigger(f"{category}Starting", {"name" : name, "value" : 0})
+			hooks.trigger(f"{categoryName}Starting", {"name" : name, "value" : 0})
 		failedEvent = Event()
 		for mObj in instances:
-			if 0 != runAndUpdate(mObj, failedEvent, func, commonLock, args[category[:-1]] or mObj.settings[category[:-1]], argsDict.get(f"--{category[:-1]}Options", {}), TU, category, jobs):
-				raise ChildProcessError(f"{category.capitalize()} process failed.")
+			if 0 != runAndUpdate(mObj, failedEvent, func, commonLock, args[category] or mObj.settings[category], argsDict.get(f"--{category}Options", {}), TU, categoryName, jobs):
+				raise ChildProcessError(f"{categoryName} process failed.")
 		# threads = []
 		# failedEvent = Event()
 		# _iter = iter(instances)
@@ -373,7 +373,7 @@ def runJobs(instances, func, args, argsDict, category, names, message, hooks):
 		# 		raise ChildProcessError(f"{category.capitalize()} process failed.")
 		# 	threads.clear()
 		for name in names:
-			hooks.trigger(f"{category}Finished", {"name" : name, "value" : 3})
+			hooks.trigger(f"{categoryName}Finished", {"name" : name, "value" : 3})
 
 def runPrograms(instances : list[MetaCanSNPer], args : NameSpace, argsDict : dict):
 	
@@ -401,12 +401,12 @@ def runPrograms(instances : list[MetaCanSNPer], args : NameSpace, argsDict : dic
 		LocalHooks = Hooks()
 		
 		if args.mapper or instances[0].query[0].ext.lower() in ["fastq", "fq", "fastq.gz", "fq.gz"]:
-			runJobs(instances, MetaCanSNPer.createMap, args, argsDict, "mappers", genomes, "Creating Mappings:", LocalHooks)
+			runJobs(instances, MetaCanSNPer.createMap, args, argsDict, "mapper", "Mappers", genomes, "Creating Mappings:", LocalHooks)
 		
 		if args.aligner or instances[0].query[0].ext.lower() in ["fasta", "fna", "fasta.gz", "fna.gz"]:
-			runJobs(instances, MetaCanSNPer.createAlignment, args, argsDict, "aligners", genomes, "Creating Alignments:", LocalHooks)
+			runJobs(instances, MetaCanSNPer.createAlignment, args, argsDict, "aligner", "Aligners", genomes, "Creating Alignments:", LocalHooks)
 
-		runJobs(instances, MetaCanSNPer.callSNPs, args, argsDict, "snpCallers", genomes, "Calling SNPs:", LocalHooks)
+		runJobs(instances, MetaCanSNPer.callSNPs, args, argsDict, "snpCaller", "SNPCallers", genomes, "Calling SNPs:", LocalHooks)
 			
 
 def saveResults(instances : list[MetaCanSNPer], args : NameSpace, sessionName : str) -> Path:
