@@ -36,7 +36,7 @@ from collections import namedtuple
 from types import FunctionType, MethodType
 import random, logging, re, time, os, sys, shutil, itertools, logging.handlers as logHandlers, math
 from functools import cache, cached_property
-from typing import Iterable, Callable, Any, Generator, Literal, AnyStr, TextIO, BinaryIO, overload
+from typing import Iterable, Callable, Any, Generator, Literal, AnyStr, TextIO, BinaryIO, overload, Iterator
 from time import sleep
 from collections import defaultdict, OrderedDict
 if sys.version_info < (3, 11):
