@@ -89,7 +89,7 @@ class DirectoryLibrary(SoftwareLibrary, Logged):
 	def resultDir(self) -> DirectoryPath:
 		"""Should not be overriden, instead look to instance.outputDir and instance.sessionName separately.
 		This will automatically change to reflect those two values. ([OUTPUT_DIR]/[SESSION_NAME]/)"""
-		return UniqueDirectoryPath(self.outDir / self.sessionName)
+		return self.outDir.create(self.sessionName)
 
 	@Default["tmpDir", "sessionName"]
 	def logDir(self) -> DirectoryPath:
