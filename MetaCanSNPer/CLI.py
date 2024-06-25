@@ -138,7 +138,7 @@ optionalArguments = parser.add_argument_group("Optional arguments")
 if True:
 	optionalArguments.add_argument("-d", "--database",	metavar="FILE",							help="Filename of CanSNP database to be used.")
 	optionalArguments.add_argument("--saveTemp",		action="store_true",					help="Don't dispose of temporary directories/files.")
-	optionalArguments.add_argument("--subSample", nargs=2, metavar=("N", "M"), type=parseInt,		help="Sub Sample query by a factor of M for N times. Values can be of either type N, N_e**N_p, N_e^N_p.")
+	optionalArguments.add_argument("--subSample", nargs=2, metavar=("N", "M"), type=parseInt, default=[1, 1], help="Sub Sample query by a factor of M for N times. Values can be of either type N, N_e**N_p, N_e^N_p.")
 	optionalArguments.add_argument("--settingsFile",	metavar="FILE",							help="Path to .TOML file containing settings for MetaCanSNPer. Check the 'defaultConfig.toml' to see what can be included in a settings file.")
 
 	# Not used by the argparser, but is used for the help-page and for splitting the argv
@@ -264,7 +264,7 @@ def initializeData(args : NameSpace) -> list[tuple[str]]:
 
 	from MetaCanSNPer.core.Hooks import GlobalHooks
 	
-	if args.subSample is None:
+	if args.subSample == [1, 1]:
 		return [args.query]
 	else:
 		from MetaCanSNPer.modules.FastqSplitter import splitFastq
@@ -283,32 +283,36 @@ def initializeMainObjects(args : NameSpace, filenames : list[tuple[str]]|None=No
 	from MetaCanSNPer.core.Hooks import GlobalHooks, Hooks
 	if filenames is None:
 		filenames : list[tuple[str]] = [tuple(args.query)]
-	N = len(filenames)
-	
+	N, M = args.subSample
 	queryName = FileList(args.query).name
-	if args.saveTemp:
-		groupSessionName = f"SubSample[{N}]-{args.organism}-{queryName}"
-		subSessionName = f"SubSample[{{i}}-{N}]-{args.organism}-{queryName}"
-	else:
-		timeString = time.strftime('%Y-%m-%d_%H-%M-%S', time.localtime())
-		groupSessionName = f"Sample-{queryName}-{args.organism}-{timeString}"
-		subSessionName = f"SubSample[{{i}}-{N}]-{queryName}-{args.organism}-{timeString}"
 	LocalHooks = Hooks()
 	settings = vars(args)
-	if args.saveTemp and N > 1 and settings.get("tmpDir") is None:
-		tmpDir = SoftwareLibrary(SOFTWARE_NAME=SOFTWARE_NAME).userCacheDir / groupSessionName
+	mObj = MetaCanSNPer(args.organism, args.query, hooks=LocalHooks)
+	
+	if args.subSample != [1, 1]:
+		groupSessionName = mObj.sessionName
+		instances = [mObj]
 	else:
 		tmpDir = None
-	instances : list[MetaCanSNPer] = [
-		MetaCanSNPer(
-			args.organism, query,
-			settings=settings, settingsFile=args.settingsFile,
-			hooks=GlobalHooks if N == 1 else Hooks(),
-			sessionName=subSessionName.format(i=i+1),
-			tmpDir=tmpDir / subSessionName.format(i=i+1) if tmpDir is not None else None)
-		for i, query in enumerate(filenames)
-	]
-	mObj = MetaCanSNPer(args.organism, args.query, hooks=LocalHooks)
+		if args.saveTemp:
+			groupSessionName = f"SubSample[{N}-{M}]-{args.organism}-{queryName}"
+			subSessionName = f"SubSample[{{i:0>{len(str(N))}}}-{N}-{M}]-{args.organism}-{queryName}"
+			if settings.get("tmpDir") is None:
+				tmpDir = SoftwareLibrary(SOFTWARE_NAME=SOFTWARE_NAME).userCacheDir / groupSessionName
+		else:
+			timeString = time.strftime('%Y-%m-%d_%H-%M-%S', time.localtime())
+			groupSessionName = f"Sample-{queryName}-{args.organism}-{timeString}"
+			subSessionName = f"SubSample[{{i:0>{len(str(N))}}}-{N}-{M}]-{queryName}-{args.organism}-{timeString}"
+		
+		instances : list[MetaCanSNPer] = [
+			MetaCanSNPer(
+				args.organism, query,
+				settings=settings, settingsFile=args.settingsFile,
+				hooks=GlobalHooks if N == 1 else Hooks(),
+				sessionName=subSessionName.format(i=i+1),
+				tmpDir=tmpDir / subSessionName.format(i=i+1) if tmpDir is not None else None)
+			for i, query in enumerate(filenames)
+		]
 	
 	database = args.database or mObj.databaseName
 	
@@ -320,18 +324,16 @@ def initializeMainObjects(args : NameSpace, filenames : list[tuple[str]]|None=No
 			obj.Lib.database = obj.database = mObj.database
 		LocalHooks.trigger("DatabaseDownloaderFinished", {"name" : database, "value" : 3})
 
-	assemblyNames = [assemblyName for *_, assemblyName in mObj.database.references]
-	with TerminalUpdater(f"Checking Reference Genomes:", category="ReferenceDownloader", hooks=LocalHooks, names=list(map(lambda a:f"{a}.fna", assemblyNames)), printer=LoadingBar, length=30, out=sys.stdout if ISATTY else DEV_NULL) as TU:
-		for refFile in TU.threadNames:
-			LocalHooks.trigger("ReferenceDownloaderStarting", {"name" : refFile, "value" : 0.0})
+	refFiles = [f"{assemblyName}.fna" for *_, assemblyName in mObj.database.references]
+	with TerminalUpdater(f"Checking Reference Genomes:", category="ReferenceDownloader", hooks=LocalHooks, names=refFiles, printer=LoadingBar, length=30, out=sys.stdout if ISATTY else DEV_NULL) as TU:
 		mObj.setReferenceFiles(sequential=True)
-		for refFile in TU.threadNames:
+		for refFile in refFiles:
 			LocalHooks.trigger("ReferenceDownloaderProgress", {"name" : refFile, "value" : 1.0})
 		for instance in instances:
 			instance.setReferenceFiles()
-		for refFile in TU.threadNames:
+		for refFile in refFiles:
 			LocalHooks.trigger("ReferenceDownloaderProgress", {"name" : refFile, "value" : 3})
-	del mObj
+	
 	return groupSessionName, instances
 
 def runAndUpdate(mObj, failedEvent, func, lock, softwareName, flags, TU, categoryName, jobs):
@@ -470,7 +472,7 @@ def main(argVector : list[str]=sys.argv) -> int:
 
 	outDir = saveResults(instances, args, sessionName)
 
-	if args.subSample and not args.saveTemp:
+	if args.subSample != [1, 1] and not args.saveTemp:
 		shutil.rmtree(os.path.dirname(filenames[0]), ignore_errors=True)
 
 	print(f"Results exported to:\n\t{outDir}", file=sys.stderr)
