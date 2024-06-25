@@ -282,7 +282,7 @@ def initializeMainObjects(args : NameSpace, filenames : list[tuple[str]]|None=No
 	from MetaCanSNPer.modules.Database import ReferencesTable
 	from MetaCanSNPer.core.Hooks import GlobalHooks, Hooks
 	if filenames is None:
-		filenames : list[tuple[str]] = [tuple(args.query)]
+		filenames : list[tuple[int,int]] = [tuple(args.query)]
 	N, M = args.subSample
 	queryName = FileList(args.query).name
 	LocalHooks = Hooks()
@@ -396,6 +396,7 @@ def runPrograms(instances : list[MetaCanSNPer], args : NameSpace, argsDict : dic
 				mObj.createAlignment(softwareName=args.aligner or mObj.settings["aligner"], flags=argsDict.get("--alignerOptions", {}))
 		
 		with TerminalUpdater(f"Calling SNPs:", category="SNPCallers", hooks=mObj.hooks, names=genomes, printer=Spinner, out=sys.stdout if ISATTY else DEV_NULL):
+			
 			mObj.callSNPs(softwareName=args.snpCaller or mObj.settings["snpCaller"], flags=argsDict.get("--snpCallerOptions", {}))
 
 	else:
@@ -413,22 +414,33 @@ def runPrograms(instances : list[MetaCanSNPer], args : NameSpace, argsDict : dic
 
 def saveResults(instances : list[MetaCanSNPer], args : NameSpace, sessionName : str) -> Path:
 	
-	from MetaCanSNPer.core.Hooks import Hooks
-	jobs = len(instances)
-	LocalHooks = Hooks()
-	name = FileList(args.query).name
-	outDirs = []
-	with TerminalUpdater(f"Saving Results:", category="SavingResults", hooks=LocalHooks, names=[name], printer=LoadingBar, length=65, out=sys.stdout if ISATTY else DEV_NULL):
-		LocalHooks.trigger("SavingResultsStarting", {"name" : name, "value" : 0})
-		for i, mObj in enumerate(instances):
+	if len(instances) == 1:
+		mObj = instances[0]
+
+		with TerminalUpdater(f"Saving Results:", category="SavingResults", hooks=mObj.hooks, names=[name], printer=Spinner, out=sys.stdout if ISATTY else DEV_NULL):
 			mObj.saveSNPdata()
-			outDirs.append(mObj.saveResults())
-			LocalHooks.trigger("SavingResultsProgress", {"name" : name, "value" : (i+1) / jobs})
-		LocalHooks.trigger("SavingResultsFinished", {"name" : name, "value" : 3})
-	if len(outDirs) > 1:
+			outDir = mObj.saveResults()
+
+		return outDir
+	else:
+		from MetaCanSNPer.core.Hooks import Hooks
 		from MetaCanSNPer.core.DirectoryLibrary import DirectoryLibrary
+
 		DL = DirectoryLibrary(args.organism, args.query)
 		realOutDir = DL.outDir.create(sessionName)
+		jobs = len(instances)
+		LocalHooks = Hooks()
+		name = FileList(args.query).name
+		outDirs = []
+
+		with TerminalUpdater(f"Saving Results:", category="SavingResults", hooks=LocalHooks, names=[name], printer=LoadingBar, length=65, out=sys.stdout if ISATTY else DEV_NULL):
+			LocalHooks.trigger("SavingResultsStarting", {"name" : name, "value" : 0})
+			for i, mObj in enumerate(instances):
+				mObj.saveSNPdata()
+				outDirs.append(mObj.saveResults())
+				LocalHooks.trigger("SavingResultsProgress", {"name" : name, "value" : (i+1) / jobs})
+			LocalHooks.trigger("SavingResultsFinished", {"name" : name, "value" : 3})
+		
 		for i, mObj in enumerate(instances):
 			for filename in os.listdir(outDirs[i]):
 				newName = f"{filename.split('.', 1)[0]}-[{str(i+1).zfill(len(str(len(instances))))}]" + (f".{filename.split('.', 1)[-1]}" if "." in filename else "")
@@ -439,8 +451,6 @@ def saveResults(instances : list[MetaCanSNPer], args : NameSpace, sessionName : 
 			except:
 				pass
 		return DirectoryPath(realOutDir)
-	else:
-		return DirectoryPath(outDirs[0])
 
 def main(argVector : list[str]=sys.argv) -> int:
 	
