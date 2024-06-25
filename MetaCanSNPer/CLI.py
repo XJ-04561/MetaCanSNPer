@@ -430,7 +430,7 @@ def saveResults(instances : list[MetaCanSNPer], args : NameSpace, sessionName : 
 		DL = DirectoryLibrary(args.organism, args.query)
 		realOutDir = DL.outDir.create(sessionName)
 		for i, mObj in enumerate(instances):
-			os.makedirs(realOutDir)
+			os.makedirs(realOutDir, exist_ok=True)
 			for dirpath, dirnames, filenames in os.walk(outDirs[0]):
 				for filename in filenames:
 					newName = f"{filename.split('.', 1)[0]}-[{str(i+1).zfill(len(instances))}]" + (f".{filename.split('.', 1)[-1]}" if "." in filename else "")
