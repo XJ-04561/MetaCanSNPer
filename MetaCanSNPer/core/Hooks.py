@@ -2,7 +2,7 @@
 import itertools
 from typing import Callable, Any, overload
 from functools import cache
-from threading import Thread, current_thread
+from threading import Thread, current_thread, Event
 from queue import Queue, Empty as EmptyQueueException
 
 from MetaCanSNPer.Globals import Logged, forceHash
@@ -59,7 +59,7 @@ class Hooks(Logged):
 		_ - All other keywords are available for use, but should not be on relied on for identification or value-passing when the 'value' key is available.
 	"""
 
-	_eventQueue : Queue[tuple[str,dict]]
+	_eventQueue : Queue[tuple[Event,str,dict]]
 	_hooks : dict[str, set[Hook]]
 	_worker : Thread
 	RUNNING : bool
@@ -104,24 +104,27 @@ class Hooks(Logged):
 	
 	def trigger(self, eventType : str|tuple, eventInfo : dict, *, block=False):
 		
+		finishEvent = Event() if block is True else None
 		if isinstance(eventType, str):
 			self.LOG.debug(f"Event triggered: {eventType=}, {eventInfo=}")
-			self._eventQueue.put((eventType, eventInfo))
-		elif isinstance(eventType, tuple):
-			for name in eventType:
+			self._eventQueue.put((finishEvent, eventType, eventInfo))
+		elif isinstance(eventType, tuple) and eventType:
+			for name in eventType[:-1]:
 				self.LOG.debug(f"Event triggered: {name=}, {eventInfo=}")
-				self._eventQueue.put((name, eventInfo))
+				self._eventQueue.put((None, name, eventInfo))
+			self.LOG.debug(f"Event triggered: {eventType[-1]=}, {eventInfo=}")
+			self._eventQueue.put((finishEvent, eventType[-1], eventInfo))
 		else:
 			self.LOG.exception(TypeError(f"eventType must be either a str or a tuple of str. not {eventType!r}\n{eventInfo=}"))
 			raise TypeError(f"eventType must be either a str or a tuple of str. not {eventType!r}\n{eventInfo=}")
 		if block is True:
-			self._eventQueue.join()
+			finishEvent.wait()
 	
 	def mainLoop(self):
 		
 		while self.RUNNING:
 			try:
-				eventType, eventInfo = self._eventQueue.get(timeout=2)
+				finishEvent, eventType, eventInfo = self._eventQueue.get(timeout=2)
 				if self._hooks.get(eventType): 
 					for hook in itertools.takewhile(lambda x:self.RUNNING, self._hooks.get(eventType, [])):
 						try:
@@ -131,13 +134,17 @@ class Hooks(Logged):
 							self.LOG.exception(e)
 				# else:
 				# 	self.LOG.warning(f"{eventType=} triggered, but no hooks registered in {self!r}")
-				self._eventQueue.task_done()
 			except EmptyQueueException:
-				pass
+				continue
 			except Exception as e:
 				if hasattr(e, "add_note"): e.add_note(f"This exception occurred in hooks thread '{getattr(current_thread(), 'name', 'N/A')}'")
 				self.LOG.exception(e)
-				self._eventQueue.task_done()
+			finally:
+				try:
+					if finishEvent is not None:
+						finishEvent.set()
+				except:
+					pass
 		self.LOG.info(f"Hooks thread {getattr(current_thread(), 'name', 'N/A')} stopped running")
 
 
