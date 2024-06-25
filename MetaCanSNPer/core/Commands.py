@@ -78,8 +78,6 @@ class Command(Logged):
 				with self.returnLock:
 					self.returncodes[name] = eventInfo["value"]
 					self.hooks.trigger(f"{self.category}CommandFinished", {"name" : name, "instance" : self, "value" : self.returncodes[name]}, block=True)
-					if len(self.returncodes) == len(self.commands):
-						self.finished.set()
 				break
 
 	def start(self):
@@ -95,9 +93,8 @@ class Command(Logged):
 			self.commands.run()
 	
 	def wait(self, timeout=None):
-		if self.commands is not None and len(self.commands) > 0:
+		if self.commands is not None:
 			self.commands.wait(timeout=timeout)
-			self.finished.wait(timeout=timeout)
 
 class Commands(Logged):
 	"""Only meant to be inherited from"""
@@ -316,7 +313,7 @@ class SequentialCommands(Commands):
 					break
 				elif returncode == 0 and self.separators[i] == "||":
 					break
-			self.hooks.trigger(f"SequentialCommand{self.category}Finished", {"name" : None, "value" : self.returncodes[-1] if self.returncodes else None, "instance" : self})
+			self.hooks.trigger(f"SequentialCommand{self.category}Finished", {"name" : None, "value" : self.returncodes[-1] if self.returncodes else None, "instance" : self}, block=True)
 		except Exception as e:
 			if type(e) is FileNotFoundError:
 				self.hooks.trigger(f"ReportError", {"exception" : e})
@@ -325,7 +322,7 @@ class SequentialCommands(Commands):
 				self.LOG.exception(e)
 			except:
 				self.LOG.exception(e)
-			self.hooks.trigger(f"SequentialCommand{self.category}Finished", {"name" : None, "value" : self.returncodes[-1] if self.returncodes else None, "instance" : self})
+			self.hooks.trigger(f"SequentialCommand{self.category}Finished", {"name" : None, "value" : self.returncodes[-1] if self.returncodes else None, "instance" : self}, block=True)
 		return self.returncodes[-1]
 	
 	def wait(self, timeout=None):
