@@ -424,7 +424,7 @@ class MetaCanSNPer(Logged):
 			)
 		FOOTER = ("  </graph>\n"
 		"</graphml>\n")
-		with open((outDir) / self.Lib.queryName+".graphml.xml", "w") as graphFile:
+		with open((outDir) / "tree.graphml", "w") as graphFile:
 			graphFile.write(HEADER)
 			for nodeEntry in nodeEntries:
 				graphFile.write(nodeEntry)
