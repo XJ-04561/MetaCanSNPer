@@ -353,8 +353,8 @@ class MetaCanSNPer(Logged):
 	def saveResults(self, dst : str=None):
 		
 		outDir = dst or self.Lib.resultDir.writable
-		self.LOG.debug(f"open({outDir!r} / {self.Lib.queryName!r}+'_final.tsv', 'w')")
-		with open((outDir) / self.Lib.queryName+"_final.tsv", "w") as finalFile:
+		self.LOG.debug(f"open({outDir!r} / 'snp_final.tsv', 'w')")
+		with open((outDir) / "snp_final.tsv", "w") as finalFile:
 			finalNodeID, scores = self.traverseTree()
 			
 			genotype = self.database[Genotype, TreeTable, NodeID == finalNodeID]
@@ -440,12 +440,12 @@ class MetaCanSNPer(Logged):
 		outDir = dst or self.Lib.resultDir.writable
 		header = "Name\tReference\tChromosome\tPosition\tAncestral base\tDerived base\tTarget base\n"
 
-		self.LOG.debug(f"open({outDir!r} / {self.Lib.queryName!r}+'_snps.tsv', 'w')")
-		self.LOG.debug(f"open({outDir!r} / {self.Lib.queryName!r}+'_not_called.tsv', 'w')")
-		self.LOG.debug(f"open({outDir!r} / {self.Lib.queryName!r}+'_no_coverage.tsv', 'w')")
-		called = open((outDir) / self.Lib.queryName+"_snps.tsv", "w")
-		notCalled = open((outDir) / self.Lib.queryName+"_not_called.tsv", "w")
-		noCoverage = open((outDir) / self.Lib.queryName+"_no_coverage.tsv", "w")
+		self.LOG.debug(f"open({outDir!r} / 'all_snps.tsv', 'w')")
+		self.LOG.debug(f"open({outDir!r} / 'ancestral_positions.tsv', 'w')")
+		self.LOG.debug(f"open({outDir!r} / 'no_coverage_positions.tsv', 'w')")
+		called = open((outDir) / "all_snps.tsv", "w")
+		notCalled = open((outDir) / "ancestral_positions.tsv", "w")
+		noCoverage = open((outDir) / "no_coverage_positions.tsv", "w")
 		
 		called.write(header)
 		notCalled.write(header)

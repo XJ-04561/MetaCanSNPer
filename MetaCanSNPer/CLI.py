@@ -318,6 +318,7 @@ def initializeMainObjects(args : NameSpace=None, /, *, organism : str|None=None,
 
 	from MetaCanSNPer.modules.Database import ReferencesTable
 	from MetaCanSNPer.core.Hooks import GlobalHooks, Hooks
+	from MetaCanSNPer.core.DirectoryLibrary import DirectoryLibrary
 	
 	organism = organism or args.organism
 	query : FileList[FilePath] = FileList(query or args.query)
@@ -342,10 +343,12 @@ def initializeMainObjects(args : NameSpace=None, /, *, organism : str|None=None,
 		timeString = time.strftime('-%Y-%m-%d_%H-%M-%S', time.localtime())
 		groupSessionName = subSampleName(args.sessionName or queryName, sampleType, *sampleINTs) + timeString
 
+		DL = DirectoryLibrary(organism, query)
+
 		if args.saveTemp:
 			timeString = ""
 			if settings.get("tmpDir") is None:
-				tmpDir = SoftwareLibrary(SOFTWARE_NAME=SOFTWARE_NAME).userCacheDir / groupSessionName
+				tmpDir = DL.userCacheDir / groupSessionName
 		
 		instances : list[MetaCanSNPer] = [
 			MetaCanSNPer(
