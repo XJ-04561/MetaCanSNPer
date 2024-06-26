@@ -524,7 +524,7 @@ def _main_wrapper(mainFunc, *args, **kwargs):
 		rowLength = 80 - len(indentation)
 		rows = bool(len(message) % rowLength) + len(message) // rowLength
 		message = f"\n{indentation}".join(message[i*rowLength:(i+1)*rowLength] for i in range(rows))
-		if not Globals.DEBUG:
+		if Globals.DEBUG:
 			Globals.LOGGING_ERRORHANDLER.flush()
 			print("".join(Globals.LOGGING_ERRORMESSAGES), file=sys.stderr)
 			print(f"{SOFTWARE_NAME} ended before completing query. Exceptions that occurred are listed above.", file=sys.stderr)
