@@ -472,7 +472,7 @@ def saveResults(instances : list[MetaCanSNPer], args : NameSpace, sessionName : 
 				for filename in map(FilePath, os.listdir(outDir)):
 					os.rename(
 						outDir / filename,
-						realOutDir / subSampleName(filename, args.subSampleType, *args[args.subSampleType], index=i+1)
+						realOutDir / filename.replace(".", f"_{str(i+1).zfill(len(str(jobs)))}.", 1)
 					)
 				shutil.rmtree(outDir, ignore_errors=True)
 				LocalHooks.trigger("SavingResultsProgress", {"name" : name, "value" : (i+1) / jobs})
