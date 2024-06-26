@@ -289,7 +289,7 @@ def initializeData( *, organism : str, query : list[FilePath], dilution : list[i
 def initializeData( *, organism : str, query : list[FilePath], bytes : list[int, int]) -> list[tuple[str]]: ...
 def initializeData(args : NameSpace|None=None, /, **kwargs) -> list[FileList[FilePath]]:
 	
-	args = NameSpace((args or {}) | kwargs)
+	args = NameSpace(args._get_kwargs() | kwargs)
 	if not args.subSampled:
 		return [FileList(args.query)]
 
