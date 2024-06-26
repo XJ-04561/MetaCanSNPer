@@ -57,7 +57,7 @@ class NameSpace(argparse.Namespace):
 
 	sessionName : str = None
 	
-	subSampled : bool = property(lambda self: any(self.reads, self.coverage, self.dilution, self.bytes))
+	subSampled : bool = property(lambda self: any([self.reads, self.coverage, self.dilution, self.bytes]))
 	subSampleType : str = property(lambda self: next(filter(self.get, ["reads", "coverage", "dilution", "bytes"]), None))
 	reads : list[int,int] = None
 	coverage : list[int,int,int] = None
