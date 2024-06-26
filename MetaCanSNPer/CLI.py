@@ -306,7 +306,7 @@ def initializeData(args : NameSpace|None=None, /, **kwargs) -> list[FileList[Fil
 	
 	with TerminalUpdater(f"Creating Sub-samples:", category="SplitFastq", names=[DL.queryName], hooks=GlobalHooks, printer=LoadingBar, length=65, out=sys.stdout if ISATTY else DEV_NULL) as TU:
 		
-		newFiles = splitFastq(DL.query, outDir=outDir, hooks=TU.hooks, **{args.subSampleType:args[args.subSampleType]})
+		newFiles = splitFastq(args[args.subSampleType][0], DL.query, outDir=outDir, hooks=TU.hooks, **{args.subSampleType:args[args.subSampleType][1:]})
 
 	return newFiles
 

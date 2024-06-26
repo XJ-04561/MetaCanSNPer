@@ -44,20 +44,24 @@ def subSampleName(name : FilePath|DirectoryPath|str, type : Literal["reads","cov
 		
 		return name + bracketedID + ext
 @overload
-def splitFastq(files : int, source : FilePath|FileList[FilePath], *, reads : int, **kwargs) -> list[tuple[str]]: ...
+def splitFastq(files : int, source : FilePath|FileList[FilePath], *, reads : list[int], **kwargs) -> list[tuple[str]]: ...
 @overload
-def splitFastq(files : int, source : FilePath|FileList[FilePath], *, dilution : int|float, **kwargs) -> list[tuple[str]]: ...
+def splitFastq(files : int, source : FilePath|FileList[FilePath], *, coverage : list[int,int], **kwargs) -> list[tuple[str]]: ...
 @overload
-def splitFastq(files : int, source : FilePath|FileList[FilePath], *, coverage : int, **kwargs) -> list[tuple[str]]: ...
+def splitFastq(files : int, source : FilePath|FileList[FilePath], *, dilution : list[int], **kwargs) -> list[tuple[str]]: ...
+@overload
+def splitFastq(files : int, source : FilePath|FileList[FilePath], *, bytes : list[int], **kwargs) -> list[tuple[str]]: ...
 @overload
 def splitFastq(files : int, source : FilePath|FileList[FilePath], *,
-			   reads : int=None, dilution : int|float=None, coverage : int=None,
+			   reads : list[int]=None, dilution : list[int]=None, coverage : list[int,int]=None, bytes : list[int]=None,
 			   outDir : DirectoryPath=None, hooks=GlobalHooks, randomiser=None, steps : int=100) -> list[tuple[str]]: ...
 def splitFastq(files : int, source : FilePath|FileList[FilePath], *,
-			   reads : int=None, dilution : int|float=None, coverage : int=None,
+			   reads : list[int]|None=None, dilution : list[int]|None=None, coverage : list[int,int]|None=None, bytes : list[int]|None=None,
 			   outDir : DirectoryPath=None, hooks=GlobalHooks, randomiser=None, steps : int=100) -> list[tuple[str]]:
 	if not isinstance(source, list):
 		source = FileList([source])
+	elif isinstance(source, FileList):
+		source = FileList(source)
 	
 	if all(filepath.endswith(".gz") for filepath in source):
 		dataOpen = gunzip.gzip.open
@@ -71,21 +75,23 @@ def splitFastq(files : int, source : FilePath|FileList[FilePath], *,
 		randomiser.seed(hashlib.md5("".join(source).encode("utf-8")).digest())
 	
 	if reads is not None:
-		splitByReads(files, reads, source, dataOpen, randomiser, hooks=hooks)
+		splitByReads(files, reads, source, dataOpen, randomiser, outDir=outDir, hooks=hooks)
 	elif coverage is not None:
-		splitByCoverage(files, coverage, source, dataOpen, randomiser, hooks=hooks)
+		splitByCoverage(files, coverage, source, dataOpen, randomiser, outDir=outDir, hooks=hooks)
+	elif dilution is not None:
+		splitByDilution(files, dilution, source, dataOpen, randomiser, outDir=outDir, hooks=hooks)
 	else:
-		splitByDilution(files, dilution or files, source, dataOpen, randomiser, hooks=hooks)
+		splitByBytes(files, bytes, source, dataOpen, randomiser, outDir=outDir, hooks=hooks)
 
 @overload
-def splitByReads(files : int, reads : int, source : FilePath, dataOpen : Callable[[FilePath, str],TextIO], randomiser : Iterator[int], hooks : Hooks=GlobalHooks, steps : int=100): ...
+def splitByReads(files : int, reads : int, source : FilePath, dataOpen : Callable[[FilePath, str],TextIO], randomiser : Iterator[int], outDir : DirectoryGroup|None=None, hooks : Hooks=GlobalHooks, steps : int=100): ...
 @overload
-def splitByReads(files : int, reads : int, source : FileList[FilePath], dataOpen : Callable[[FilePath, str],TextIO], randomiser : Iterator[int], hooks : Hooks=GlobalHooks, steps : int=100): ...
-def splitByReads(files : int, reads : int, source : FilePath|FileList[FilePath], dataOpen : Callable[[FilePath, str],TextIO], randomiser : Iterator[int], hooks : Hooks=GlobalHooks, steps : int=100):
+def splitByReads(files : int, reads : int, source : FileList[FilePath], dataOpen : Callable[[FilePath, str],TextIO], randomiser : Iterator[int], outDir : DirectoryGroup|None=None, hooks : Hooks=GlobalHooks, steps : int=100): ...
+def splitByReads(files : int, reads : int, source : FilePath|FileList[FilePath], dataOpen : Callable[[FilePath, str],TextIO], randomiser : Iterator[int], outDir : DirectoryGroup|None=None, hooks : Hooks=GlobalHooks, steps : int=100):
 	
 	
 	hooks.trigger("SplitFastqStarting", {"name" : source.name, "value" : 0.0})
-	outNames = [tuple(subSampleName(filepath, "reads", files, reads, index=i+1) for filepath in source) for i in range(files)]
+	outNames = [tuple((outDir or filepath.directory) / subSampleName(filepath, "reads", files, reads, index=i+1) for filepath in source) for i in range(files)]
 
 	if all(os.path.exists(filename) for filenames in outNames for filename in filenames):
 		hooks.trigger("SplitFastqSkipped", {"name" : source.name, "value" : 2})
@@ -128,15 +134,15 @@ def splitByReads(files : int, reads : int, source : FilePath|FileList[FilePath],
 	return outNames
 
 @overload
-def splitByCoverage(files : int, coverage : int, source : FilePath, dataOpen : Callable[[FilePath, str],TextIO], randomiser : Iterator[int], hooks : Hooks=GlobalHooks, steps : int=100): ...
+def splitByCoverage(files : int, coverage : int, source : FilePath, dataOpen : Callable[[FilePath, str],TextIO], randomiser : Iterator[int], outDir : DirectoryGroup|None=None, hooks : Hooks=GlobalHooks, steps : int=100): ...
 @overload
-def splitByCoverage(files : int, coverage : int, source : FileList[FilePath], dataOpen : Callable[[FilePath, str],TextIO], randomiser : Iterator[int], hooks : Hooks=GlobalHooks, steps : int=100): ...
-def splitByCoverage(files : int, coverage : int, source : FilePath|FileList[FilePath], dataOpen : Callable[[FilePath, str],TextIO], randomiser : Iterator[int], hooks : Hooks=GlobalHooks, steps : int=100):
+def splitByCoverage(files : int, coverage : int, source : FileList[FilePath], dataOpen : Callable[[FilePath, str],TextIO], randomiser : Iterator[int], outDir : DirectoryGroup|None=None, hooks : Hooks=GlobalHooks, steps : int=100): ...
+def splitByCoverage(files : int, coverage : int, source : FilePath|FileList[FilePath], dataOpen : Callable[[FilePath, str],TextIO], randomiser : Iterator[int], outDir : DirectoryGroup|None=None, hooks : Hooks=GlobalHooks, steps : int=100):
 
 	raise NotImplementedError(f"Not yet implemented!")
 
 	hooks.trigger("SplitFastqStarting", {"name" : source.name, "value" : 0.0})
-	outNames = [tuple(subSampleName(filepath, "coverage", files, coverage, index=i+1) for filepath in source) for i in range(files)]
+	outNames = [tuple((outDir or filepath.directory) / subSampleName(filepath, "coverage", files, coverage, index=i+1) for filepath in source) for i in range(files)]
 
 	if all(os.path.exists(filename) for filenames in outNames for filename in filenames):
 		hooks.trigger("SplitFastqSkipped", {"name" : source.name, "value" : 2})
@@ -185,13 +191,13 @@ def splitByCoverage(files : int, coverage : int, source : FilePath|FileList[File
 	return outNames
 
 @overload
-def splitByDilution(files : int, dilutionFactor : int, source : FilePath, dataOpen : Callable[[FilePath, str],TextIO], randomiser : Iterator[int], hooks : Hooks=GlobalHooks, steps : int=100): ...
+def splitByDilution(files : int, dilutionFactor : int, source : FilePath, dataOpen : Callable[[FilePath, str],TextIO], randomiser : Iterator[int], outDir : DirectoryGroup|None=None, hooks : Hooks=GlobalHooks, steps : int=100): ...
 @overload
-def splitByDilution(files : int, dilutionFactor : int, source : FileList[FilePath], dataOpen : Callable[[FilePath, str],TextIO], randomiser : Iterator[int], hooks : Hooks=GlobalHooks, steps : int=100): ...
-def splitByDilution(files : int, dilutionFactor : int, source : FilePath|FileList[FilePath], dataOpen : Callable[[FilePath, str],TextIO], randomiser : Iterator[int], hooks : Hooks=GlobalHooks, steps : int=100):
+def splitByDilution(files : int, dilutionFactor : int, source : FileList[FilePath], dataOpen : Callable[[FilePath, str],TextIO], randomiser : Iterator[int], outDir : DirectoryGroup|None=None, hooks : Hooks=GlobalHooks, steps : int=100): ...
+def splitByDilution(files : int, dilutionFactor : int, source : FilePath|FileList[FilePath], dataOpen : Callable[[FilePath, str],TextIO], randomiser : Iterator[int], outDir : DirectoryGroup|None=None, hooks : Hooks=GlobalHooks, steps : int=100):
 	
 	hooks.trigger("SplitFastqStarting", {"name" : source.name, "value" : 0.0})
-	outNames = [tuple(subSampleName(filepath, "dilution", files, dilutionFactor, index=i+1) for filepath in source) for i in range(files)]
+	outNames = [tuple((outDir or filepath.directory) / subSampleName(filepath, "dilution", files, dilutionFactor, index=i+1) for filepath in source) for i in range(files)]
 
 	if all(os.path.exists(filename) for filenames in outNames for filename in filenames):
 		hooks.trigger("SplitFastqSkipped", {"name" : source.name, "value" : 2})
@@ -238,13 +244,13 @@ def splitByDilution(files : int, dilutionFactor : int, source : FilePath|FileLis
 	return outNames
 
 @overload
-def splitByBytes(files : int, bytesPerFile : int, source : FilePath, dataOpen : Callable[[FilePath, str],TextIO], randomiser : Iterator[int], hooks : Hooks=GlobalHooks, steps : int=100): ...
+def splitByBytes(files : int, bytesPerFile : int, source : FilePath, dataOpen : Callable[[FilePath, str],TextIO], randomiser : Iterator[int], outDir : DirectoryGroup|None=None, hooks : Hooks=GlobalHooks, steps : int=100): ...
 @overload
-def splitByBytes(files : int, bytesPerFile : int, source : FileList[FilePath], dataOpen : Callable[[FilePath, str],TextIO], randomiser : Iterator[int], hooks : Hooks=GlobalHooks, steps : int=100): ...
-def splitByBytes(files : int, bytesPerFile : int, source : FilePath|FileList[FilePath], dataOpen : Callable[[FilePath, str],TextIO], randomiser : Iterator[int], hooks : Hooks=GlobalHooks, steps : int=100):
+def splitByBytes(files : int, bytesPerFile : int, source : FileList[FilePath], dataOpen : Callable[[FilePath, str],TextIO], randomiser : Iterator[int], outDir : DirectoryGroup|None=None, hooks : Hooks=GlobalHooks, steps : int=100): ...
+def splitByBytes(files : int, bytesPerFile : int, source : FilePath|FileList[FilePath], dataOpen : Callable[[FilePath, str],TextIO], randomiser : Iterator[int], outDir : DirectoryGroup|None=None, hooks : Hooks=GlobalHooks, steps : int=100):
 	
 	hooks.trigger("SplitFastqStarting", {"name" : source.name, "value" : 0.0})
-	outNames = [tuple(subSampleName(filepath, "bytes", files, bytesPerFile, index=i+1) for filepath in source) for i in range(files)]
+	outNames = [tuple((outDir or filepath.directory) / subSampleName(filepath, "bytes", files, bytesPerFile, index=i+1) for filepath in source) for i in range(files)]
 
 	if all(os.path.exists(filename) for filenames in outNames for filename in filenames):
 		hooks.trigger("SplitFastqSkipped", {"name" : source.name, "value" : 2})
