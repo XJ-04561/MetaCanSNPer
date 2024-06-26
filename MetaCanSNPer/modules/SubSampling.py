@@ -33,12 +33,12 @@ def subSampleName(name : FilePath|DirectoryPath|str, type : Literal["reads","cov
 	else:
 		bracketedID = f"[{SUB_SAMPLE_NAMES[type]}-{str(index).zfill(len(str(N[0])))}-{'-'.join(map(shortNumber, N))}]"
 	if isinstance(name, FilePath):
-		return name.name + bracketedID + name.ext
+		return name.name + bracketedID + "." + name.ext
 	elif isinstance(name, DirectoryPath):
 		return os.path.basename(name) + bracketedID
 	else:
-		name, *ext = os.path.basename(name)[1:].split(".")
-		name, ext = os.path.basename(name)[0]+name, ".".join(ext)
+		newName, *ext = os.path.basename(name)[1:].split(".")
+		name, ext = os.path.basename(name)[0]+newName, ".".join(ext)
 		if ext:
 			ext = "." + ext
 		
