@@ -13,8 +13,10 @@ from MetaCanSNPer.Globals import *
 from MetaCanSNPer.Globals import __version__
 from MetaCanSNPer.core.MetaCanSNPer import MetaCanSNPer
 from MetaCanSNPer.core.TerminalUpdater import TerminalUpdater, Spinner, LoadingBar, TextProgress
+from MetaCanSNPer.core.Hooks import Hooks, GlobalHooks
 import MetaCanSNPer.Globals as Globals
 import MetaCanSNPer as package
+from MetaCanSNPer.modules.SubSampling import splitFastq, subSampleName, SUB_SAMPLE_NAMES
 
 LOGGER = LOGGER.getChild(__name__.split(".")[-1])
 PARSE_INT_PATTERN = re.compile(r"(\d+(?:[.]\d+)?|(?:\d+)?[.]\d+)(?:([*]{2}|[\^])(\d+(?:[.]\d+)?|(?:\d+)?[.]\d+))?")
@@ -55,8 +57,14 @@ class NameSpace(argparse.Namespace):
 
 	sessionName : str
 	
+	subSampled : bool = property(lambda self: any(self.reads, self.coverage, self.dilution, self.bytes))
+	subSampleType : str = property(lambda self: next(filter(self.get, ["reads", "coverage", "dilution", "bytes"]), None))
+	reads : list[int,int]
+	coverage : list[int,int,int]
+	dilution : list[int,int]
+	bytes : list[int,int]
+
 	saveTemp : bool
-	subSample : int
 	debug : bool
 	verbose : bool
 	suppress : bool
@@ -65,35 +73,39 @@ class NameSpace(argparse.Namespace):
 
 	@overload
 	def __init__(self,
-				query : list[str],
-				organism : str,
-				database : str = None,
-				mapper : str = None,
-				aligner : str = None,
-				snpCaller : str = None,
-				settingsFile : str = None,
-				workDir : str = None,
-				userDir : str = None,
-				installDir : str = None,
-				targetDir : str = None,
-				tmpDir : str = None,
-				refDir : str = None,
-				databaseDir : str = None,
-				outDir : str = None,
-				sessionName : str = None,
-				listSoftware : bool = False,
-				version : bool = False,
-				saveTemp : bool = False,
-				subSample : int|None = None,
-				debug : bool = False,
-				verbose : bool = False,
-				suppress : bool = False,
-				silent : bool = False,
-				dryRun : bool = False
-				): ...
+		query : list[str],
+		organism : str,
+		database : str = None,
+		mapper : str = None,
+		aligner : str = None,
+		snpCaller : str = None,
+		reads : list[int,int] = None,
+		coverage : list[int,int,int] = None,
+		dilution : list[int,int] = None,
+		settingsFile : str = None,
+		workDir : str = None,
+		userDir : str = None,
+		installDir : str = None,
+		targetDir : str = None,
+		tmpDir : str = None,
+		refDir : str = None,
+		databaseDir : str = None,
+		outDir : str = None,
+		sessionName : str = None,
+		listSoftware : bool = False,
+		version : bool = False,
+		saveTemp : bool = False,
+		debug : bool = False,
+		verbose : bool = False,
+		suppress : bool = False,
+		silent : bool = False,
+		dryRun : bool = False
+		): ...
 
 	__init__ = argparse.Namespace.__init__
 
+	def get(self, name):
+		return getattr(self, name, None)
 	def __getitem__(self, name):
 		return getattr(self, name)
 	def __setitem__(self, name, value):
@@ -123,7 +135,7 @@ parser.add_argument("--list", dest="listSoftware", action="store_true", help="To
 # The 'if True:' structures are used to minimize and expand sections in an IDE.
 requiredArguments = parser.add_argument_group("Required arguments")
 if True:
-	requiredArguments.add_argument("--query", nargs="+",	metavar=("FILE", "FILES"),		required=True, help="Raw sequence data file supported by the intended Aligner/Mapper.")
+	requiredArguments.add_argument("--query", nargs="+",	metavar=("FILE", "FILES"), type=FilePath, required=True, help="Raw sequence data file supported by the intended Aligner/Mapper.")
 	requiredArguments.add_argument("--organism",			metavar="NAME",		required=True, help="Name of organism queried. (Use \"_\" in place of spaces)")
 
 servicesArguments = parser.add_argument_group("Choosing Software to run", description="If no software is given, a "
@@ -136,10 +148,15 @@ if True:
 
 optionalArguments = parser.add_argument_group("Optional arguments")
 if True:
-	optionalArguments.add_argument("-d", "--database",	metavar="FILE",							help="Filename of CanSNP database to be used.")
+	optionalArguments.add_argument("-d", "--database",	metavar="FILE", type=FilePath,			help="Filename of CanSNP database to be used.")
 	optionalArguments.add_argument("--saveTemp",		action="store_true",					help="Don't dispose of temporary directories/files.")
-	optionalArguments.add_argument("--subSample", nargs=2, metavar=("N", "M"), type=parseInt, default=[1, 1], help="Sub Sample query by a factor of M for N times. Values can be of either type N, N_e**N_p, N_e^N_p.")
-	optionalArguments.add_argument("--settingsFile",	metavar="FILE",							help="Path to .TOML file containing settings for MetaCanSNPer. Check the 'defaultConfig.toml' to see what can be included in a settings file.")
+	optionalArguments.add_argument("--settingsFile",	metavar="FILE", type=FilePath,							help="Path to .TOML file containing settings for MetaCanSNPer. Check the 'defaultConfig.toml' to see what can be included in a settings file.")
+	subSamplingArguments = optionalArguments.add_argument_group("Sub Sampling", description="Run sub samples of the given query, sub sampling by one of three modes. Values can be of either type N, N_e**N_p, N_e^N_p.")
+	exclusiveSSArguments = subSamplingArguments.add_mutually_exclusive_group()
+	exclusiveSSArguments.add_argument("--reads", nargs=2, metavar=("N", "M"), type=parseInt, default=None, help="Run N sub samples each consisting of M number of reads.")
+	exclusiveSSArguments.add_argument("--coverage", nargs=3, metavar=("N", "M", "COVERAGE"), type=parseInt, default=None, help="Run N sub samples each with enough reads to get ~M coverage during mapping. COVERAGE is the expected coverage the query file would achieve on its own.")
+	exclusiveSSArguments.add_argument("--dilute", nargs=2, metavar=("N", "M"), type=parseInt, default=None, help="Run N sub samples each diluted by a factor of M (`sampleBytes * (1/M)`).")
+	exclusiveSSArguments.add_argument("--bytes", nargs=2, metavar=("N", "M"), type=parseInt, default=None, help="Run N sub samples each containing roughly M bytes.")
 
 	# Not used by the argparser, but is used for the help-page and for splitting the argv
 	mapperOptions = optionalArguments.add_argument("--mapperOptions",		metavar="FLAGS",		help=MAPPER_OPTIONS_EXPLAINER)
@@ -148,15 +165,15 @@ if True:
 
 directoryOptions = parser.add_argument_group("Directory Options")
 if True:
-	directoryOptions.add_argument("-W", "--workDir",		metavar="DIRECTORY", default=None, help="Work directory")
-	directoryOptions.add_argument("-U", "--userDir",		metavar="DIRECTORY", default=None, help="User directory")
-	directoryOptions.add_argument("-I", "--installDir",		metavar="DIRECTORY", default=None, help="Installation directory")
-	directoryOptions.add_argument("-Q", "--targetDir",		metavar="DIRECTORY", default=None, help="Target (Query) directory")
-	directoryOptions.add_argument("-T", "--tmpDir",			metavar="DIRECTORY", default=None, help="Temporary directory")
-	directoryOptions.add_argument("-R", "--refDir",			metavar="DIRECTORY", default=None, help="References directory")
-	directoryOptions.add_argument("-D", "--databaseDir",	metavar="DIRECTORY", default=None, help="Databases directory")
-	directoryOptions.add_argument("-O", "--outDir",			metavar="DIRECTORY", default=None, help="Output directory")
-	directoryOptions.add_argument("-S", "--sessionName",	metavar="DIRECTORY", default=None, help="Session Name/Directory")
+	directoryOptions.add_argument("-W", "--workDir",		metavar="DIRECTORY", type=DirectoryPath, default=None, help="Work directory")
+	directoryOptions.add_argument("-U", "--userDir",		metavar="DIRECTORY", type=DirectoryPath, default=None, help="User directory")
+	directoryOptions.add_argument("-I", "--installDir",		metavar="DIRECTORY", type=DirectoryPath, default=None, help="Installation directory")
+	directoryOptions.add_argument("-Q", "--targetDir",		metavar="DIRECTORY", type=DirectoryPath, default=None, help="Target (Query) directory")
+	directoryOptions.add_argument("-T", "--tmpDir",			metavar="DIRECTORY", type=DirectoryPath, default=None, help="Temporary directory")
+	directoryOptions.add_argument("-R", "--refDir",			metavar="DIRECTORY", type=DirectoryPath, default=None, help="References directory")
+	directoryOptions.add_argument("-D", "--databaseDir",	metavar="DIRECTORY", type=DirectoryPath, default=None, help="Databases directory")
+	directoryOptions.add_argument("-O", "--outDir",			metavar="DIRECTORY", type=DirectoryPath, default=None, help="Output directory")
+	directoryOptions.add_argument("-S", "--sessionName",	metavar="NAME", type=str, default=None, help="Session Name/Directory")
 
 debugOptions = parser.add_argument_group("Logging and debug options")
 if True:
@@ -260,79 +277,107 @@ def handleOptions(args : NameSpace):
 	else:
 		pass # The default logging level for the logging package is logging.WARNING
 
-def initializeData(args : NameSpace) -> list[tuple[str]]:
-
-	from MetaCanSNPer.core.Hooks import GlobalHooks
+@overload
+def initializeData(args : NameSpace, /) -> list[tuple[str]]: ...
+@overload
+def initializeData( *, organism : str, query : list[FilePath], reads : list[int, int]) -> list[tuple[str]]: ...
+@overload
+def initializeData( *, organism : str, query : list[FilePath], coverage : list[int, int, int]) -> list[tuple[str]]: ...
+@overload
+def initializeData( *, organism : str, query : list[FilePath], dilution : list[int, int]) -> list[tuple[str]]: ...
+@overload
+def initializeData( *, organism : str, query : list[FilePath], bytes : list[int, int]) -> list[tuple[str]]: ...
+def initializeData(args : NameSpace|None=None, /, **kwargs) -> list[FileList[FilePath]]:
 	
-	if args.subSample == [1, 1]:
-		return [args.query]
+	args = NameSpace((args or {}) | kwargs)
+	if not args.subSampled:
+		return [FileList(args.query)]
+
+	organism = args.organism
+	query = args.query
+	
+	from MetaCanSNPer.core.DirectoryLibrary import DirectoryLibrary
+
+	DL = DirectoryLibrary(organism, query)
+	if args.saveTemp:
+		outDir = DL.dataDir.create("SubSampling").create(DL.queryName).create(f"{SUB_SAMPLE_NAMES[args.subSampleType]}-{'-'.join(map(shortNumber, args[args.subSampleType]))}")
 	else:
-		from MetaCanSNPer.modules.FastqSplitter import splitFastq
-		query = FileList(args.query)
-		from MetaCanSNPer.core.DirectoryLibrary import DirectoryLibrary
-		DL = DirectoryLibrary(args.organism, args.query)
-		outDir = DL.dataDir.create("SubSampling").create(DL.queryName)
-		with TerminalUpdater(f"Creating Sub-samples:", category="SplitFastq", names=[query.name], hooks=GlobalHooks, printer=LoadingBar, length=65, out=sys.stdout if ISATTY else DEV_NULL) as TU:
-			newFiles = splitFastq(args.subSample, query, outDir=outDir, hooks=TU.hooks)
-		return newFiles
+		outDir = PseudoPathyFunctions.createTempDir(f"{SUB_SAMPLE_NAMES[args.subSampleType]}-{'-'.join(map(shortNumber, args[args.subSampleType]))}")
+	
+	with TerminalUpdater(f"Creating Sub-samples:", category="SplitFastq", names=[DL.queryName], hooks=GlobalHooks, printer=LoadingBar, length=65, out=sys.stdout if ISATTY else DEV_NULL) as TU:
+		
+		newFiles = splitFastq(DL.query, outDir=outDir, hooks=TU.hooks, **{args.subSampleType:args[args.subSampleType]})
 
+	return newFiles
 
-def initializeMainObjects(args : NameSpace, filenames : list[tuple[str]]|None=None) -> tuple[str,list[MetaCanSNPer]]:
+@overload
+def initializeMainObjects(args : NameSpace, /) -> tuple[str,list[MetaCanSNPer]]: ...
+@overload
+def initializeMainObjects( *, organism : str, query : list[FilePath], queryFiles : list[FileList[str]], database : FilePath|None=None, subSampled : bool, saveTemp : bool, settingsFile : FilePath) -> tuple[str,list[MetaCanSNPer]]: ...
+def initializeMainObjects(args : NameSpace=None, /, *, organism : str|None=None, query : list[FilePath]|None=None, queryFiles : list[FileList[str]]|None=None, database : FilePath|None=None, subSampled : bool|None=None, saveTemp : bool|None=None, settingsFile : FilePath|None=None) -> tuple[str,list[MetaCanSNPer]]:
 
 	from MetaCanSNPer.modules.Database import ReferencesTable
 	from MetaCanSNPer.core.Hooks import GlobalHooks, Hooks
-	if filenames is None:
-		filenames : list[tuple[int,int]] = [tuple(args.query)]
-	N, M = args.subSample
-	queryName = FileList(args.query).name
-	LocalHooks = Hooks()
-	settings = vars(args)
-	mObj = MetaCanSNPer(args.organism, args.query, hooks=LocalHooks)
 	
-	if args.subSample == [1, 1]:
-		groupSessionName = mObj.sessionName
-		instances = [mObj]
+	organism = organism or args.organism
+	query : FileList[FilePath] = FileList(query or args.query)
+	queryName = query.name
+	subSampled = queryFiles is not None
+	queryFiles = queryFiles if subSampled else []
+	settings = vars(args)
+	
+	if args is not None:
+		database = database or args.database
+		saveTemp = saveTemp if saveTemp is not None else args.saveTemp
+		settingsFile = settingsFile or args.settingsFile
+	
+	if not args.subSampled:
+		instances = [MetaCanSNPer(organism, query, settings=settings)]
+		groupSessionName = instances[0].sessionName
 	else:
+		sampleType = args.subSampleType
+		sampleINTs = args[sampleType]
 		tmpDir = None
+
 		if args.saveTemp:
-			groupSessionName = f"SubSample[{N}-{M}]-{args.organism}-{queryName}"
-			subSessionName = f"SubSample[{{i:0>{len(str(N))}}}-{N}-{M}]-{args.organism}-{queryName}"
+			timeString = ""
 			if settings.get("tmpDir") is None:
 				tmpDir = SoftwareLibrary(SOFTWARE_NAME=SOFTWARE_NAME).userCacheDir / groupSessionName
 		else:
-			timeString = time.strftime('%Y-%m-%d_%H-%M-%S', time.localtime())
-			groupSessionName = f"Sample-{queryName}-{args.organism}-{timeString}"
-			subSessionName = f"SubSample[{{i:0>{len(str(N))}}}-{N}-{M}]-{queryName}-{args.organism}-{timeString}"
+			timeString = time.strftime('-%Y-%m-%d_%H-%M-%S', time.localtime())
+		groupSessionName = subSampleName(args.sessionName or queryName, sampleType, *sampleINTs) + timeString
+			
 		
 		instances : list[MetaCanSNPer] = [
 			MetaCanSNPer(
-				args.organism, query,
+				organism, query,
 				settings=settings, settingsFile=args.settingsFile,
-				hooks=GlobalHooks if N == 1 else Hooks(),
-				sessionName=subSessionName.format(i=i+1),
-				tmpDir=tmpDir / subSessionName.format(i=i+1) if tmpDir is not None else None)
-			for i, query in enumerate(filenames)
+				hooks=Hooks() if i > 0 else GlobalHooks,
+				sessionName=(subSessionName := subSampleName(args.sessionName or queryName, sampleType, *sampleINTs, index=i+1) + timeString),
+				tmpDir=tmpDir / subSessionName if tmpDir is not None else None)
+			for i, query in enumerate(queryFiles)
 		]
+	mObj = instances[0]
+
+	database = database or mObj.databaseName
 	
-	database = args.database or mObj.databaseName
-	
-	with TerminalUpdater(f"Checking database {database!r}:", category="DatabaseDownloader", hooks=LocalHooks, names=[database], printer=LoadingBar, length=30, out=sys.stdout if ISATTY else DEV_NULL) as TU:
+	with TerminalUpdater(f"Checking database {database!r}:", category="DatabaseDownloader", names=[database], printer=LoadingBar, length=30, out=sys.stdout if ISATTY else DEV_NULL) as TU:
 		mObj.setDatabase(database, sequential=True)
-		LocalHooks.trigger("DatabaseDownloaderPostProcess", {"name" : database, "value" : 1.0})
-		for obj in instances:
+		GlobalHooks.trigger("DatabaseDownloaderPostProcess", {"name" : database, "value" : 1.0})
+		for obj in instances[1:]:
 			obj.databaseName = mObj.databaseName
 			obj.Lib.database = obj.database = mObj.database
-		LocalHooks.trigger("DatabaseDownloaderFinished", {"name" : database, "value" : 3})
+		GlobalHooks.trigger("DatabaseDownloaderFinished", {"name" : database, "value" : 3})
 
 	refFiles = [f"{assemblyName}.fna" for *_, assemblyName in mObj.database.references]
-	with TerminalUpdater(f"Checking Reference Genomes:", category="ReferenceDownloader", hooks=LocalHooks, names=refFiles, printer=LoadingBar, length=30, out=sys.stdout if ISATTY else DEV_NULL) as TU:
+	with TerminalUpdater(f"Checking Reference Genomes:", category="ReferenceDownloader", names=refFiles, printer=LoadingBar, length=30, out=sys.stdout if ISATTY else DEV_NULL) as TU:
 		mObj.setReferenceFiles(sequential=True)
 		for refFile in refFiles:
-			LocalHooks.trigger("ReferenceDownloaderProgress", {"name" : refFile, "value" : 1.0})
-		for instance in instances:
+			GlobalHooks.trigger("ReferenceDownloaderProgress", {"name" : refFile, "value" : 1.0})
+		for instance in instances[1:]:
 			instance.setReferenceFiles()
 		for refFile in refFiles:
-			LocalHooks.trigger("ReferenceDownloaderProgress", {"name" : refFile, "value" : 3})
+			GlobalHooks.trigger("ReferenceDownloaderProgress", {"name" : refFile, "value" : 3})
 	
 	return groupSessionName, instances
 
@@ -350,47 +395,44 @@ def runAndUpdate(mObj, failedEvent, func, lock, softwareName, flags, TU, categor
 			TU.hooks.trigger(f"{categoryName}Failed", {"name" : name, "value" : None})
 		return 1
 
-def runJobs(instances, func, args, argsDict, category, categoryName, names, message, hooks):
+def runJobs(instances, func, args, argsDict, category, categoryName, names, message):
 	jobs = len(instances)
 	commonLock = Lock()
+	LocalHooks = Hooks()
 	
-	with TerminalUpdater(message, category=categoryName, hooks=hooks, names=names, printer=LoadingBar, length=30, out=sys.stdout if ISATTY else DEV_NULL) as TU:
+	with TerminalUpdater(message, category=categoryName, hooks=LocalHooks, names=names, printer=LoadingBar, length=30, out=sys.stdout if ISATTY else DEV_NULL) as TU:
 		for name in names:
-			hooks.trigger(f"{categoryName}Starting", {"name" : name, "value" : 0})
+			LocalHooks.trigger(f"{categoryName}Starting", {"name" : name, "value" : 0})
 		failedEvent = Event()
 		for mObj in instances:
 			if 0 != runAndUpdate(mObj, failedEvent, func, commonLock, args[category] or mObj.settings[category], argsDict.get(f"--{category}Options", {}), TU, categoryName, jobs):
 				raise ChildProcessError(f"{categoryName} process failed.")
-		# threads = []
-		# failedEvent = Event()
-		# _iter = iter(instances)
-		# for _ in range(bool(len(instances)%Globals.PARALLEL_LIMIT) + len(instances)//Globals.PARALLEL_LIMIT):
-		# 	for i, mObj in zip(range(Globals.PARALLEL_LIMIT), _iter):
-		# 		t = Thread(target=runAndUpdate, args=(mObj, failedEvent, func, commonLock, args[category[:-1]] or mObj.settings[category[:-1]], argsDict.get(f"--{category[:-1]}Options", {}), TU, category, jobs))
-		# 		t.start()
-		# 		threads.append(t)
-		# 	for t in threads:
-		# 		t.join()
-		# 	if failedEvent.isSet():
-		# 		raise ChildProcessError(f"{category.capitalize()} process failed.")
-		# 	threads.clear()
 		for name in names:
-			hooks.trigger(f"{categoryName}Finished", {"name" : name, "value" : 3})
+			LocalHooks.trigger(f"{categoryName}Finished", {"name" : name, "value" : 3})
 
 def runPrograms(instances : list[MetaCanSNPer], args : NameSpace, argsDict : dict):
 	
 	from MetaCanSNPer.modules.Database import ReferencesTable
 	
 	genomes = list(instances[0].database[ReferencesTable.Genome])
-	if len(instances) == 1:
+	queryFormat = instances[0].query[0].ext.lower()
+	if args.subSampled:
+		if args.mapper or queryFormat in ["fastq", "fq", "fastq.gz", "fq.gz"]:
+			runJobs(instances, MetaCanSNPer.createMap, args, argsDict, "mapper", "Mappers", genomes, "Creating Mappings:")
+		
+		if args.aligner or queryFormat in ["fasta", "fna", "fasta.gz", "fna.gz"]:
+			runJobs(instances, MetaCanSNPer.createAlignment, args, argsDict, "aligner", "Aligners", genomes, "Creating Alignments:")
+
+		runJobs(instances, MetaCanSNPer.callSNPs, args, argsDict, "snpCaller", "SNPCallers", genomes, "Calling SNPs:")
+	else:
 		mObj = instances[0]
 		
-		if args.mapper or mObj.query[0].ext.lower() in ["fastq", "fq", "fastq.gz", "fq.gz"]:
+		if args.mapper or queryFormat in ["fastq", "fq", "fastq.gz", "fq.gz"]:
 			with TerminalUpdater(f"Creating Mappings:", category="Mappers", hooks=mObj.hooks, names=genomes, printer=Spinner, out=sys.stdout if ISATTY else DEV_NULL):
 				
 				mObj.createMap(softwareName=args.mapper or mObj.settings["mapper"], flags=argsDict.get("--mapperOptions", {}))
 		
-		elif args.aligner:
+		if args.aligner or queryFormat in ["fasta", "fna", "fasta.gz", "fna.gz"]:
 			with TerminalUpdater(f"Creating Alignments:", category="Aligners", hooks=mObj.hooks, names=genomes, printer=Spinner, out=sys.stdout if ISATTY else DEV_NULL):
 				
 				mObj.createAlignment(softwareName=args.aligner or mObj.settings["aligner"], flags=argsDict.get("--alignerOptions", {}))
@@ -399,22 +441,9 @@ def runPrograms(instances : list[MetaCanSNPer], args : NameSpace, argsDict : dic
 			
 			mObj.callSNPs(softwareName=args.snpCaller or mObj.settings["snpCaller"], flags=argsDict.get("--snpCallerOptions", {}))
 
-	else:
-		from MetaCanSNPer.core.Hooks import Hooks
-		LocalHooks = Hooks()
-		
-		if args.mapper or instances[0].query[0].ext.lower() in ["fastq", "fq", "fastq.gz", "fq.gz"]:
-			runJobs(instances, MetaCanSNPer.createMap, args, argsDict, "mapper", "Mappers", genomes, "Creating Mappings:", LocalHooks)
-		
-		if args.aligner or instances[0].query[0].ext.lower() in ["fasta", "fna", "fasta.gz", "fna.gz"]:
-			runJobs(instances, MetaCanSNPer.createAlignment, args, argsDict, "aligner", "Aligners", genomes, "Creating Alignments:", LocalHooks)
-
-		runJobs(instances, MetaCanSNPer.callSNPs, args, argsDict, "snpCaller", "SNPCallers", genomes, "Calling SNPs:", LocalHooks)
-			
-
 def saveResults(instances : list[MetaCanSNPer], args : NameSpace, sessionName : str) -> Path:
 	
-	if len(instances) == 1:
+	if args.subSampled:
 		mObj = instances[0]
 
 		with TerminalUpdater(f"Saving Results:", category="SavingResults", hooks=mObj.hooks, names=[name], printer=Spinner, out=sys.stdout if ISATTY else DEV_NULL):
@@ -423,33 +452,28 @@ def saveResults(instances : list[MetaCanSNPer], args : NameSpace, sessionName : 
 
 		return outDir
 	else:
-		from MetaCanSNPer.core.Hooks import Hooks
 		from MetaCanSNPer.core.DirectoryLibrary import DirectoryLibrary
 
-		DL = DirectoryLibrary(args.organism, args.query)
-		realOutDir = DL.outDir.create(sessionName)
+		DL = DirectoryLibrary(args.organism, args.query, sessionName=sessionName)
+		realOutDir = DL.resultDir
 		jobs = len(instances)
 		LocalHooks = Hooks()
-		name = FileList(args.query).name
-		outDirs = []
+		name = DL.queryName
 
 		with TerminalUpdater(f"Saving Results:", category="SavingResults", hooks=LocalHooks, names=[name], printer=LoadingBar, length=65, out=sys.stdout if ISATTY else DEV_NULL):
 			LocalHooks.trigger("SavingResultsStarting", {"name" : name, "value" : 0})
 			for i, mObj in enumerate(instances):
 				mObj.saveSNPdata()
-				outDirs.append(mObj.saveResults())
+				outDir = mObj.saveResults()
+				for filename in map(FileList, os.listdir(outDir)):
+					os.rename(
+						outDir / filename,
+						realOutDir / subSampleName(filename, args.subSampleType, *args[args.subSampleType], index=i+1)
+					)
+				shutil.rmtree(outDir, ignore_errors=True)
 				LocalHooks.trigger("SavingResultsProgress", {"name" : name, "value" : (i+1) / jobs})
 			LocalHooks.trigger("SavingResultsFinished", {"name" : name, "value" : 3})
 		
-		for i, mObj in enumerate(instances):
-			for filename in os.listdir(outDirs[i]):
-				newName = f"{filename.split('.', 1)[0]}-[{str(i+1).zfill(len(str(len(instances))))}]" + (f".{filename.split('.', 1)[-1]}" if "." in filename else "")
-				os.rename(os.path.join(outDirs[i], filename), os.path.join(realOutDir, newName))
-		for d in outDirs:
-			try:
-				shutil.rmtree(d)
-			except:
-				pass
 		return DirectoryPath(realOutDir)
 
 def main(argVector : list[str]=sys.argv) -> int:
@@ -474,14 +498,11 @@ def main(argVector : list[str]=sys.argv) -> int:
 
 	filenames = initializeData(args)
 
-	sessionName, instances = initializeMainObjects(args, filenames=filenames)
+	sessionName, instances = initializeMainObjects(args, queryFiles=filenames)
 
 	runPrograms(instances, args, argsDict)
 
 	outDir = saveResults(instances, args, sessionName)
-
-	if args.subSample != [1, 1] and not args.saveTemp:
-		shutil.rmtree(os.path.dirname(filenames[0]), ignore_errors=True)
 
 	print(f"Results exported to:\n\t{outDir}", file=sys.stderr)
 

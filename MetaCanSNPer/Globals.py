@@ -35,7 +35,7 @@ from collections import namedtuple
 
 from types import FunctionType, MethodType
 import random, logging, re, time, os, sys, shutil, itertools, logging.handlers as logHandlers, math
-from functools import cache, cached_property
+from functools import cache, cached_property, partial
 from typing import Iterable, Callable, Any, Generator, Literal, AnyStr, TextIO, BinaryIO, overload, Iterator
 from time import sleep
 from collections import defaultdict, OrderedDict
@@ -215,6 +215,20 @@ To provide flags/arguments for the chosen SNP Caller, provide them directly
 after the '--snpCallerOptions' flag, only interrupted by the end of the
 command call or the corresponding flag for Mapper or Aligner options.
 """
+
+def shortNumber(n : int):
+	for i, c in enumerate(reversed(str(n))):
+		if c != 0:
+			break
+	if i // 3 == 0:
+		return str(n)
+	
+	if i // 3 > 5:
+		c = "Y"
+	else:
+		c = ["", "K", "M", "G", "T", "Y"][i]
+	
+	return str(n)[:-(i - i % 3)] + c
 
 def getAttrChain(obj, key, default=_NOT_SET):
 	if default is _NOT_SET:
