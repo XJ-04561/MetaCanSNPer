@@ -75,13 +75,13 @@ def splitFastq(files : int, source : FilePath|FileList[FilePath], *,
 		randomiser.seed(hashlib.md5("".join(source).encode("utf-8")).digest())
 	
 	if reads is not None:
-		splitByReads(files, reads[0], source, dataOpen, randomiser, outDir=outDir, hooks=hooks)
+		return splitByReads(files, reads[0], source, dataOpen, randomiser, outDir=outDir, hooks=hooks)
 	elif coverage is not None:
-		splitByCoverage(files, coverage[0], coverage[1], source, dataOpen, randomiser, outDir=outDir, hooks=hooks)
+		return splitByCoverage(files, coverage[0], coverage[1], source, dataOpen, randomiser, outDir=outDir, hooks=hooks)
 	elif dilution is not None:
-		splitByDilution(files, dilution[0], source, dataOpen, randomiser, outDir=outDir, hooks=hooks)
+		return splitByDilution(files, dilution[0], source, dataOpen, randomiser, outDir=outDir, hooks=hooks)
 	else:
-		splitByBytes(files, bytes[0], source, dataOpen, randomiser, outDir=outDir, hooks=hooks)
+		return splitByBytes(files, bytes[0], source, dataOpen, randomiser, outDir=outDir, hooks=hooks)
 
 @overload
 def splitByReads(files : int, reads : int, source : FilePath, dataOpen : Callable[[FilePath, str],TextIO], randomiser : Iterator[int], outDir : DirectoryGroup|None=None, hooks : Hooks=GlobalHooks, steps : int=100): ...
