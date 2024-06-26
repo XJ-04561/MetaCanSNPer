@@ -465,7 +465,7 @@ def saveResults(instances : list[MetaCanSNPer], args : NameSpace, sessionName : 
 			for i, mObj in enumerate(instances):
 				mObj.saveSNPdata()
 				outDir = mObj.saveResults()
-				for filename in map(FileList, os.listdir(outDir)):
+				for filename in map(FilePath, os.listdir(outDir)):
 					os.rename(
 						outDir / filename,
 						realOutDir / subSampleName(filename, args.subSampleType, *args[args.subSampleType], index=i+1)
