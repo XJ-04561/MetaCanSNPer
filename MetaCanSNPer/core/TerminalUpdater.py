@@ -1,5 +1,5 @@
 
-from MetaCanSNPer.core.Hooks import Hooks
+from MetaCanSNPer.core.Hooks import Hooks, GlobalHooks
 from threading import Thread, Condition
 from time import sleep
 from timeit import default_timer as timer
@@ -497,7 +497,7 @@ class TerminalUpdater(Logged):
 	out : TextIO
 	printer : Indicator = None
 
-	def __init__(self, message, category, *args, hooks : Hooks, names : Iterable, out=sys.stdout, printer : Indicator=Spinner, **kwargs):
+	def __init__(self, message, category, *args, hooks : Hooks=GlobalHooks, names : Iterable, out=sys.stdout, printer : Indicator=Spinner, **kwargs):
 		
 		self.startTime = timer()
 		
