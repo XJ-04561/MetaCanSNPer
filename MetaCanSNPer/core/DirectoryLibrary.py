@@ -77,7 +77,7 @@ class DirectoryLibrary(SoftwareLibrary, Logged):
 		if self.settings.get("tmpDir"):
 			return DirectoryPath(self.settings.get("tmpDir"))
 		elif self.settings.get("saveTemp"):
-			return self.userCacheDir.writable / self.sessionName
+			return self.userCacheDir.writable / f"Sample-{self.queryName}-{self.organism}"
 		else:
 			return PseudoPathyFunctions.createTempDir(f"{self.organism}_{self.queryName}", dir=self.userCacheDir.writable)
 	
