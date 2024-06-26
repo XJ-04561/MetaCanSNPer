@@ -341,11 +341,12 @@ def initializeMainObjects(args : NameSpace=None, /, *, organism : str|None=None,
 
 		if args.saveTemp:
 			timeString = ""
+			groupSessionName = subSampleName(args.sessionName or queryName, sampleType, *sampleINTs)
 			if settings.get("tmpDir") is None:
 				tmpDir = SoftwareLibrary(SOFTWARE_NAME=SOFTWARE_NAME).userCacheDir / groupSessionName
 		else:
 			timeString = time.strftime('-%Y-%m-%d_%H-%M-%S', time.localtime())
-		groupSessionName = subSampleName(args.sessionName or queryName, sampleType, *sampleINTs) + timeString
+			groupSessionName = subSampleName(args.sessionName or queryName, sampleType, *sampleINTs) + timeString
 			
 		
 		instances : list[MetaCanSNPer] = [
