@@ -443,7 +443,7 @@ def runPrograms(instances : list[MetaCanSNPer], args : NameSpace, argsDict : dic
 
 def saveResults(instances : list[MetaCanSNPer], args : NameSpace, sessionName : str) -> Path:
 	
-	if args.subSampled:
+	if not args.subSampled:
 		mObj = instances[0]
 
 		with TerminalUpdater(f"Saving Results:", category="SavingResults", hooks=mObj.hooks, names=[name], printer=Spinner, out=sys.stdout if ISATTY else DEV_NULL):
