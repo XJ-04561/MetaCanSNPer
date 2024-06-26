@@ -447,8 +447,10 @@ def saveResults(instances : list[MetaCanSNPer], args : NameSpace, sessionName : 
 		mObj = instances[0]
 
 		with TerminalUpdater(f"Saving Results:", category="SavingResults", hooks=mObj.hooks, names=[mObj.queryName], printer=Spinner, out=sys.stdout if ISATTY else DEV_NULL):
+			mObj.hooks.trigger("SavingResultsStarting", {"name" : mObj.queryName, "value" : 0})
 			mObj.saveSNPdata()
 			outDir = mObj.saveResults()
+			mObj.hooks.trigger("SavingResultsFinished", {"name" : mObj.queryName, "value" : 3})
 
 		return outDir
 	else:
