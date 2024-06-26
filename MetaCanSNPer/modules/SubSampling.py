@@ -75,13 +75,13 @@ def splitFastq(files : int, source : FilePath|FileList[FilePath], *,
 		randomiser.seed(hashlib.md5("".join(source).encode("utf-8")).digest())
 	
 	if reads is not None:
-		splitByReads(files, reads, source, dataOpen, randomiser, outDir=outDir, hooks=hooks)
+		splitByReads(files, reads[0], source, dataOpen, randomiser, outDir=outDir, hooks=hooks)
 	elif coverage is not None:
-		splitByCoverage(files, coverage, source, dataOpen, randomiser, outDir=outDir, hooks=hooks)
+		splitByCoverage(files, coverage[0], coverage[1], source, dataOpen, randomiser, outDir=outDir, hooks=hooks)
 	elif dilution is not None:
-		splitByDilution(files, dilution, source, dataOpen, randomiser, outDir=outDir, hooks=hooks)
+		splitByDilution(files, dilution[0], source, dataOpen, randomiser, outDir=outDir, hooks=hooks)
 	else:
-		splitByBytes(files, bytes, source, dataOpen, randomiser, outDir=outDir, hooks=hooks)
+		splitByBytes(files, bytes[0], source, dataOpen, randomiser, outDir=outDir, hooks=hooks)
 
 @overload
 def splitByReads(files : int, reads : int, source : FilePath, dataOpen : Callable[[FilePath, str],TextIO], randomiser : Iterator[int], outDir : DirectoryGroup|None=None, hooks : Hooks=GlobalHooks, steps : int=100): ...
@@ -134,10 +134,10 @@ def splitByReads(files : int, reads : int, source : FilePath|FileList[FilePath],
 	return outNames
 
 @overload
-def splitByCoverage(files : int, coverage : int, source : FilePath, dataOpen : Callable[[FilePath, str],TextIO], randomiser : Iterator[int], outDir : DirectoryGroup|None=None, hooks : Hooks=GlobalHooks, steps : int=100): ...
+def splitByCoverage(files : int, coverage : int, COVERAGE : int, source : FilePath, dataOpen : Callable[[FilePath, str],TextIO], randomiser : Iterator[int], outDir : DirectoryGroup|None=None, hooks : Hooks=GlobalHooks, steps : int=100): ...
 @overload
-def splitByCoverage(files : int, coverage : int, source : FileList[FilePath], dataOpen : Callable[[FilePath, str],TextIO], randomiser : Iterator[int], outDir : DirectoryGroup|None=None, hooks : Hooks=GlobalHooks, steps : int=100): ...
-def splitByCoverage(files : int, coverage : int, source : FilePath|FileList[FilePath], dataOpen : Callable[[FilePath, str],TextIO], randomiser : Iterator[int], outDir : DirectoryGroup|None=None, hooks : Hooks=GlobalHooks, steps : int=100):
+def splitByCoverage(files : int, coverage : int, COVERAGE : int, source : FileList[FilePath], dataOpen : Callable[[FilePath, str],TextIO], randomiser : Iterator[int], outDir : DirectoryGroup|None=None, hooks : Hooks=GlobalHooks, steps : int=100): ...
+def splitByCoverage(files : int, coverage : int, COVERAGE : int, source : FilePath|FileList[FilePath], dataOpen : Callable[[FilePath, str],TextIO], randomiser : Iterator[int], outDir : DirectoryGroup|None=None, hooks : Hooks=GlobalHooks, steps : int=100):
 
 	raise NotImplementedError(f"Not yet implemented!")
 
