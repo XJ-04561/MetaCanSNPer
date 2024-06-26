@@ -33,7 +33,7 @@ def parseInt(string):
 
 class NameSpace(argparse.Namespace):
 
-	listSoftware : bool
+	listSoftware : bool = False
 	version : bool
 
 	query : list[str]
@@ -55,21 +55,21 @@ class NameSpace(argparse.Namespace):
 	databaseDir : str
 	outDir : str
 
-	sessionName : str
+	sessionName : str = None
 	
 	subSampled : bool = property(lambda self: any(self.reads, self.coverage, self.dilution, self.bytes))
 	subSampleType : str = property(lambda self: next(filter(self.get, ["reads", "coverage", "dilution", "bytes"]), None))
-	reads : list[int,int]
-	coverage : list[int,int,int]
-	dilution : list[int,int]
-	bytes : list[int,int]
+	reads : list[int,int] = None
+	coverage : list[int,int,int] = None
+	dilution : list[int,int] = None
+	bytes : list[int,int] = None
 
-	saveTemp : bool
-	debug : bool
-	verbose : bool
-	suppress : bool
-	silent : bool
-	dryRun : bool
+	saveTemp : bool = False
+	debug : bool = False
+	verbose : bool = False
+	suppress : bool = False
+	silent : bool = False
+	dryRun : bool = False
 
 	@overload
 	def __init__(self,
