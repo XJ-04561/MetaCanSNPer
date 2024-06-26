@@ -416,24 +416,24 @@ def runPrograms(instances : list[MetaCanSNPer], args : NameSpace, argsDict : dic
 	from MetaCanSNPer.modules.Database import ReferencesTable
 	
 	genomes = list(instances[0].database[ReferencesTable.Genome])
-	queryFormat = instances[0].query[0].ext.lower()
+	queryFormat = instances[0].query[0].lower()
 	if args.subSampled:
-		if args.mapper or queryFormat in ["fastq", "fq", "fastq.gz", "fq.gz"]:
+		if args.mapper or any(queryFormat.endswith(ext) for ext in ["fastq", "fq", "fastq.gz", "fq.gz"]):
 			runJobs(instances, MetaCanSNPer.createMap, args, argsDict, "mapper", "Mappers", genomes, "Creating Mappings:")
 		
-		if args.aligner or queryFormat in ["fasta", "fna", "fasta.gz", "fna.gz"]:
+		if args.aligner or any(queryFormat.endswith(ext) for ext in ["fasta", "fna", "fasta.gz", "fna.gz"]):
 			runJobs(instances, MetaCanSNPer.createAlignment, args, argsDict, "aligner", "Aligners", genomes, "Creating Alignments:")
 
 		runJobs(instances, MetaCanSNPer.callSNPs, args, argsDict, "snpCaller", "SNPCallers", genomes, "Calling SNPs:")
 	else:
 		mObj = instances[0]
 		
-		if args.mapper or queryFormat in ["fastq", "fq", "fastq.gz", "fq.gz"]:
+		if args.mapper or any(queryFormat.endswith(ext) for ext in ["fastq", "fq", "fastq.gz", "fq.gz"]):
 			with TerminalUpdater(f"Creating Mappings:", category="Mappers", hooks=mObj.hooks, names=genomes, printer=Spinner, out=sys.stdout if ISATTY else DEV_NULL):
 				
 				mObj.createMap(softwareName=args.mapper or mObj.settings["mapper"], flags=argsDict.get("--mapperOptions", {}))
 		
-		if args.aligner or queryFormat in ["fasta", "fna", "fasta.gz", "fna.gz"]:
+		if args.aligner or any(queryFormat.endswith(ext) for ext in ["fasta", "fna", "fasta.gz", "fna.gz"]):
 			with TerminalUpdater(f"Creating Alignments:", category="Aligners", hooks=mObj.hooks, names=genomes, printer=Spinner, out=sys.stdout if ISATTY else DEV_NULL):
 				
 				mObj.createAlignment(softwareName=args.aligner or mObj.settings["aligner"], flags=argsDict.get("--alignerOptions", {}))
