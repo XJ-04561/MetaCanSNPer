@@ -238,13 +238,13 @@ def splitByDilution(files : int, dilutionFactor : int, source : FilePath|FileLis
 	return outNames
 
 @overload
-def splitByBytes(files : int, bytesFactor : int, source : FilePath, dataOpen : Callable[[FilePath, str],TextIO], randomiser : Iterator[int], hooks : Hooks=GlobalHooks, steps : int=100): ...
+def splitByBytes(files : int, bytesPerFile : int, source : FilePath, dataOpen : Callable[[FilePath, str],TextIO], randomiser : Iterator[int], hooks : Hooks=GlobalHooks, steps : int=100): ...
 @overload
-def splitByBytes(files : int, bytesFactor : int, source : FileList[FilePath], dataOpen : Callable[[FilePath, str],TextIO], randomiser : Iterator[int], hooks : Hooks=GlobalHooks, steps : int=100): ...
-def splitByBytes(files : int, bytesFactor : int, source : FilePath|FileList[FilePath], dataOpen : Callable[[FilePath, str],TextIO], randomiser : Iterator[int], hooks : Hooks=GlobalHooks, steps : int=100):
+def splitByBytes(files : int, bytesPerFile : int, source : FileList[FilePath], dataOpen : Callable[[FilePath, str],TextIO], randomiser : Iterator[int], hooks : Hooks=GlobalHooks, steps : int=100): ...
+def splitByBytes(files : int, bytesPerFile : int, source : FilePath|FileList[FilePath], dataOpen : Callable[[FilePath, str],TextIO], randomiser : Iterator[int], hooks : Hooks=GlobalHooks, steps : int=100):
 	
 	hooks.trigger("SplitFastqStarting", {"name" : source.name, "value" : 0.0})
-	outNames = [tuple(subSampleName(filepath, "bytes", files, bytesFactor, index=i+1) for filepath in source) for i in range(files)]
+	outNames = [tuple(subSampleName(filepath, "bytes", files, bytesPerFile, index=i+1) for filepath in source) for i in range(files)]
 
 	if all(os.path.exists(filename) for filenames in outNames for filename in filenames):
 		hooks.trigger("SplitFastqSkipped", {"name" : source.name, "value" : 2})
@@ -253,21 +253,15 @@ def splitByBytes(files : int, bytesFactor : int, source : FilePath|FileList[File
 	dataFiles : list[BinaryIO] = [dataOpen(name, "rb") for name in source]
 	outFiles = [[dataOpen(filename, "wb") for filename in filenames] for filenames in outNames]
 	
-	nBytes = 0
-	for file in dataFiles:
-		nBytes += file.seek(0, 2)
-		file.seek(0, 0)
-	
-	bytesPerOutfile = nBytes / bytesFactor
 	bytesWritten = [0 for _ in range(len(outFiles))]
 	
 	threshold = 0
 	for choice in equalSampling(files, randomiser):
-		if bytesPerOutfile < sum(bytesWritten) / files:
+		if bytesPerFile < sum(bytesWritten) / files:
 			break
 		while abs(choice) < len(outFiles)+1: # choice is already satisfied, select next.
 			choice -= 1
-			if bytesWritten[choice] < bytesPerOutfile:
+			if bytesWritten[choice] < bytesPerFile:
 				break # choice now selects a file which needs more data.
 		else:
 			break # All files have the correct size.
@@ -280,9 +274,9 @@ def splitByBytes(files : int, bytesFactor : int, source : FilePath|FileList[File
 			for df in dataFiles:
 				df.seek(0)
 		
-		if (sum(bytesWritten) / files) / bytesPerOutfile > threshold:
-			hooks.trigger("SplitFastqProgress", {"name" : source.name, "value" : min(1.0, (sum(bytesWritten) / files) / bytesPerOutfile)})
-			threshold = (int(steps * ((sum(bytesWritten) / files) / bytesPerOutfile)) + 1) / steps
+		if (sum(bytesWritten) / files) / bytesPerFile > threshold:
+			hooks.trigger("SplitFastqProgress", {"name" : source.name, "value" : min(1.0, (sum(bytesWritten) / files) / bytesPerFile)})
+			threshold = (int(steps * ((sum(bytesWritten) / files) / bytesPerFile)) + 1) / steps
 
 	for files in outFiles:
 		for file in files:
