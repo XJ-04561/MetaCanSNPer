@@ -279,8 +279,8 @@ class MetaCanSNPer(Logged):
 			vcfFile = openVCF(filePath, "r")
 			for chrom, pos, ref, alt, counts in vcfFile["CHROM", "POS", "REF", "ALT", "AD"]:
 				depth = sum(counts)
+				LOG.debug(f"(CHROM, POS, Allele-readDepth (A, T, C, G) ) {chrom}, {pos}, {depth} = {' + '.join(map(str, counts))}, {ref=}, {alt=}")
 				counts = tuple(counts[''.join([ref, *alt]).find(base)] for base in "ATCG")
-				LOG.debug(f"(CHROM, POS, Allele-readDepth (A, T, C, G) ) {chrom}, {pos}, {depth} = {' + '.join(map(str, counts))}")
 				
 				chromID = next(self.database[ChromosomeID, Chromosome==chrom, Genome==genome], None)
 				nodeID, derivedBase, ancestralBase = self.database[NodeID, DerivedBase, AncestralBase, Position==pos, ChromosomeID==chromID]
