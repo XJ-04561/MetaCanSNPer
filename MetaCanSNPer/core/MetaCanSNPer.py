@@ -48,7 +48,7 @@ class MetaCanSNPer(Logged):
 								 lambda self, value: setattr(self.Lib, "sessionName", value),
 								 lambda self: delattr(self.Lib, "sessionName"))
 	
-	SNPresults : dict = Default["Lib.query"](lambda self:defaultdict(lambda :defaultdict(lambda :(0,0,(0,0,0,0),0))))
+	SNPresults : defaultdict[int,defaultdict[int,tuple[int,int,dict[str,int],int]]] = Default["Lib.query"](lambda self:defaultdict(lambda :defaultdict(lambda :(0,0,dict(),0))))
 	exceptions : list[Exception]
 
 	@overload
@@ -279,101 +279,104 @@ class MetaCanSNPer(Logged):
 			vcfFile = openVCF(filePath, "r")
 			for chrom, pos, ref, alt, counts in vcfFile["CHROM", "POS", "REF", "ALT", "AD"]:
 				depth = sum(counts)
-				LOG.debug(f"(CHROM, POS, Allele-readDepth (A, T, C, G) ) {chrom}, {pos}, {depth} = {' + '.join(map(str, counts))}, {ref=}, {alt=}")
+				counts = {base:count for base, count in zip([ref, *alt], counts)}
 
-				bases = [ref, *alt]
-				counts = tuple(counts[''.join(bases).find(base)] if base in bases else 0 for base in "ATCG")
-				
+				LOG.debug(f"(CHROM, POS, Allele-readDepth (A, T, C, G) ) {chrom}, {pos}, {depth} = [{', '.join(map('{0[0]!r}= {0[1]}'.format, counts.items()))}], {ref=}, {alt=}")
+
 				chromID = next(self.database[ChromosomeID, Chromosome==chrom, Genome==genome], None)
 				nodeID, derivedBase, ancestralBase = self.database[NodeID, DerivedBase, AncestralBase, Position==pos, ChromosomeID==chromID]
 				
-				match derivedBase:
-					case "A":
-						derivedReads = counts[0]
-					case "T":
-						derivedReads = counts[1]
-					case "C":
-						derivedReads = counts[2]
-					case "G":
-						derivedReads = counts[3]
-					case _:
-						derivedReads = 0
-				match ancestralBase:
-					case "A":
-						ancestralReads = counts[0]
-					case "T":
-						ancestralReads = counts[1]
-					case "C":
-						ancestralReads = counts[2]
-					case "G":
-						ancestralReads = counts[3]
-					case _:
-						ancestralReads = 0
+				derivedReads = counts.get(derivedBase, 0)
+				ancestralReads = counts.get(ancestralBase, 0)
+				
 				self.SNPresults[nodeID][pos] = (derivedReads, ancestralReads, counts, depth)
 		
 		LOG.info("Got nodes: " + ", ".join(map(str, self.SNPresults)))
 	
-	def traverseTree(self) -> tuple[int,dict[int,list[int,int,list[int,int,int,int],int]]]:
+	def traverseTree(self, *, fractionLimit : float=0.1, minimumDepth : int|None=None) -> tuple[int,dict[int,list[int,int,list[int,int,int,int],int]]]:
 		'''Depth-first tree search.'''
 		self.LOG.info(f"Traversing tree to get Genotype called.")
 		
 		rootNode = self.database.tree
 		assert next(rootNode.children, False)
 
-		nodeScores = {rootNode.node : [0,0,[0,0,0,0],0]}
+		nodeScores : dict[int,tuple[int,int,dict[str,int],int]] = {rootNode.node : (0,0,{},0)}
 		
 		paths = [[rootNode]]
-		while paths[-1] != []:
+		while paths[-1]:
 			paths.append([])
 			for parent in paths[-2]:
 				for child in parent.children:
 					if Globals.DRY_RUN:
 						continue
 					
-					nodeScores[child.node] = [0,0,[0,0,0,0],0]
+					derivedCount, ancestralCount, allCount, depthCount = 0, 0, {}, 0
 					for nodeID, pos, *_ in self.database.SNPsByNode[child.node]:
 						derived, ancestral, counts, depth = self.SNPresults[nodeID][pos]
-						nodeScores[child.node][0] += derived
-						nodeScores[child.node][1] += ancestral
-						nodeScores[child.node][2] = tuple(n+o for n, o in zip(counts, nodeScores[child.node][2]))
-						nodeScores[child.node][3] += depth
+						derivedCount += derived
+						ancestralCount += ancestral
+						for variant, count in counts.items():
+							if variant not in allCount:
+								allCount[variant] = count
+							else:
+								allCount[variant] += count
+						depthCount += depth
+					nodeScores[child.node] = (derivedCount, ancestralCount, allCount, depthCount)
 					paths[-1].append(child)
 		
 		paths = paths[:-1]
 		
-		averageDepth = sum(x[3] for x in nodeScores.values()) / (len(nodeScores)-1)
-		for nodeID, (derived, ancestral, counts, depth) in reversed(list(nodeScores.items())):
-			if derived == max(counts) and derived > averageDepth * 0.25:
-				self.LOG.info(f"Finished traversing tree.")
-				return nodeID, nodeScores
+		if minimumDepth is None:
+			minimumDepth = sum(x[3] for x in nodeScores.values()) / (len(nodeScores)-1) * fractionLimit
+		calledNodes = []
+		for layer in reversed(paths):
+			for nodeID in layer:
+				if nodeScores[id][0] == max(nodeScores[id][2].values()) \
+					and nodeScores[id][0] > minimumDepth:
+					calledNodes.append(nodeID)
+			if calledNodes:
+				break
 		else:
-			self.LOG.info(f"Finished traversing tree.")
-			return rootNode.node, nodeScores
+			self.LOG.warning(f"No variant called, check your settings ({fractionLimit =}, minimumDepth (defaults to `averageDepth * fractionLimit`) ={minimumDepth}).")
+		
+		self.LOG.info(f"Finished traversing tree.")
+		return calledNodes, nodeScores
 
 	def saveResults(self, dst : str=None):
 		
+		header = f"{'Genotype':<20} {'log_10(Called)/log_10(Depth)':>30} {'Called':>20} {'Ancestral':>20} {'Non-Canonical Bases':>20} {'Depth':>20}\n"
 		outDir = dst or self.Lib.resultDir.writable
+		calledIDs, scores = self.traverseTree()
 		self.LOG.debug(f"open({outDir!r} / 'snp_final.tsv', 'w')")
 		with open((outDir) / "snp_final.tsv", "w") as finalFile:
-			finalNodeID, scores = self.traverseTree()
 			
-			genotype = self.database[Genotype, TreeTable, NodeID == finalNodeID]
-			derived, ancestral, counts, depth = scores[finalNodeID]
+			finalFile.write(header)
+			for calledID in calledIDs:
+				genotype = self.database[Genotype, TreeTable, NodeID == calledID]
+				derived, ancestral, counts, depth = scores[calledID]
+				
+				if derived <= 0:
+					logRatio = "NaN-Der"
+				elif depth <= 1:
+					logRatio = "NaN-Cov"
+				else:
+					logRatio = format(math.log10(derived)/math.log10(depth), ".3f")
+				finalFile.write(f"{genotype:<20} {logRatio:>30} {derived:>20} {ancestral:>20} {depth-(derived+ancestral):>20} {depth:>20}\n")
+		
+		self.LOG.debug(f"open({outDir!r} / 'snp_all.tsv', 'w')")
+		with open((outDir) / "snp_all.tsv", "w") as allFile:
 			
-			if derived > 1:
-				logRatio = format(math.log10(derived)/math.log10(depth), ".3f")
-			else:
-				logRatio = "NaN"
-			finalFile.write(f"{'Genotype':<20} {'log_10(Called)/log_10(Depth)':>30} {'Called':>20} {'Ancestral':>20} {'Non-Canonical Bases':>20} {'Depth':>20}\n")
-			finalFile.write(f"{genotype:<20} {logRatio:>30} {derived:>20} {ancestral:>20} {depth-(derived+ancestral):>20} {depth:>20}\n\n")
+			allFile.write(header)
 			for nodeID, (derived, ancestral, counts, depth) in scores.items():
 				genotype = self.database[Genotype, TreeTable, NodeID == nodeID]
 				
-				if derived > 1:
-					logRatio = format(math.log10(derived)/math.log10(depth), ".3f")
+				if derived <= 0:
+					logRatio = "NaN-Der"
+				elif depth <= 1:
+					logRatio = "NaN-Cov"
 				else:
-					logRatio = "NaN"
-				finalFile.write(f"{genotype:<20} {logRatio:>30} {derived:>20} {ancestral:>20} {depth-(derived+ancestral):>20} {depth:>20}\n")
+					logRatio = format(math.log10(derived)/math.log10(depth), ".3f")
+				allFile.write(f"{genotype:<20} {logRatio:>30} {derived:>20} {ancestral:>20} {depth-(derived+ancestral):>20} {depth:>20}\n")
 		
 		# Export graph to GraphML format.
 
@@ -411,7 +414,14 @@ class MetaCanSNPer(Logged):
 				f"      <data id=\"genotype\">{genotype}</data>\n"
 				"    </node>\n"
 			)
-			
+
+			if derived <= 0:
+				logRatio = "NaN-Der"
+			elif depth <= 1:
+				logRatio = "NaN-Cov"
+			else:
+				logRatio = format(math.log10(derived)/math.log10(depth), ".3f")
+
 			edges.append(
 				f"    <edge id=\"{genotype}\" source=\"{parent}\" target=\"{nodeID}\">\n"
 				f"      <data id=\"called\">{derived}</data>\n"
@@ -419,11 +429,12 @@ class MetaCanSNPer(Logged):
 				f"      <data id=\"nonCanon\">{depth-(derived+ancestral)}</data>\n"
 				f"      <data id=\"depth\">{depth}</data>\n"
 				f"      <data id=\"ratio\">{derived/depth if depth > 0 else 'NaN'}</data>\n"
-				f"      <data id=\"logRatio\">{math.log10(derived)/math.log10(depth) if derived > 1 else 'NaN'}</data>\n"
+				f"      <data id=\"logRatio\">{logRatio}</data>\n"
 				f"    </edge>\n"
 			)
 		FOOTER = ("  </graph>\n"
 		"</graphml>\n")
+
 		with open((outDir) / "tree.graphml", "w") as graphFile:
 			graphFile.write(HEADER)
 			for nodeEntry in nodeEntries:
@@ -438,18 +449,21 @@ class MetaCanSNPer(Logged):
 		""""""
 
 		outDir = dst or self.Lib.resultDir.writable
-		header = "Name\tReference\tChromosome\tPosition\tAncestral base\tDerived base\tTarget base\n"
+		header = "Name\tReference\tChromosome\tPosition\tAncestral base\tDerived base\tObserved (base(s)=reads)\n"
 
-		self.LOG.debug(f"open({outDir!r} / 'all_snps.tsv', 'w')")
-		self.LOG.debug(f"open({outDir!r} / 'ancestral_positions.tsv', 'w')")
-		self.LOG.debug(f"open({outDir!r} / 'no_coverage_positions.tsv', 'w')")
-		called = open((outDir) / "all_snps.tsv", "w")
-		notCalled = open((outDir) / "ancestral_positions.tsv", "w")
-		noCoverage = open((outDir) / "no_coverage_positions.tsv", "w")
+		self.LOG.debug(f"open({outDir!r} / 'positions_all.tsv', 'w')")
+		self.LOG.debug(f"open({outDir!r} / 'positions_ancestral.tsv', 'w')")
+		self.LOG.debug(f"open({outDir!r} / 'positions_derived.tsv', 'w')")
+		self.LOG.debug(f"open({outDir!r} / 'positions_no_coverage.tsv', 'w')")
+		allPosFile : TextIO = open((outDir) / "positions_all.tsv", "w")
+		ancPosFile : TextIO = open((outDir) / "positions_ancestral.tsv", "w")
+		derPosFile : TextIO = open((outDir) / "positions_derived.tsv", "w")
+		notFoundFile : TextIO = open((outDir) / "positions_no_coverage.tsv", "w")
 		
-		called.write(header)
-		notCalled.write(header)
-		noCoverage.write(header)
+		allPosFile.write(header)
+		ancPosFile.write(header)
+		derPosFile.write(header)
+		notFoundFile.write(header)
 
 		for genomeID, genome, strain, genbankID, refseqID, assemblyName in self.database.references:
 			'''Print SNPs to tab separated file'''
@@ -460,17 +474,19 @@ class MetaCanSNPer(Logged):
 				genotype = self.database[Genotype, NodeID==nodeID]
 				if Globals.MAX_DEBUG: self.LOG.debug(f"Got {genotype=} and baseCounts={counts} for {nodeID=}")
 				
-				N = 'ATCG'[max(range(4), key=counts.__getitem__)]
-				entry = f"{genotype}\t{genome}\t{chromosome}\t{position}\t{ancestral}\t{derived}\t{N}\t{', '.join(c+'='+str(n) for c,n in zip('ATCG', counts))}\n"
-				if N == derived or N == ancestral:
-					called.write(entry)
-				elif N.isalpha():
-					notCalled.write(entry)
-				else:
-					noCoverage.write(entry)
+				observed = sorted(counts.items(), key=lambda x:x[1], reverse=True)
+				entry = f"{genotype}\t{genome}\t{chromosome}\t{position}\t{ancestral}\t{derived}\t{', '.join(map('{0[0]}={0[1]}'.format, observed))}\n"
+				if not observed:
+					notFoundFile.write(entry)
+				elif observed[0][0] == ancestral:
+					ancPosFile.write(entry)
+				elif observed[0][0] == derived:
+					derPosFile.write(entry)
+				allPosFile.write(entry)
 		
-		called.close()
-		noCoverage.close()
-		notCalled.close()
-			
+		allPosFile.close()
+		ancPosFile.close()
+		derPosFile.close()
+		notFoundFile.close()
+		
 		return outDir
