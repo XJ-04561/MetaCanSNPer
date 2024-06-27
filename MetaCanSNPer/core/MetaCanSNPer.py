@@ -331,7 +331,7 @@ class MetaCanSNPer(Logged):
 		calledNodes = []
 		for layer in reversed(paths):
 			for node in layer:
-				if nodeScores[node.node][0] == max(nodeScores[node.node][2].values()) \
+				if nodeScores[node.node][0] and nodeScores[node.node][0] == max(nodeScores[node.node][2].values()) \
 					and nodeScores[node.node][0] > minimumDepth:
 					calledNodes.append(node.node)
 			if calledNodes:
