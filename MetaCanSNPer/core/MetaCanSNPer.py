@@ -296,16 +296,18 @@ class MetaCanSNPer(Logged):
 	def traverseTree(self, *, fractionLimit : float=0.1, minimumDepth : int|None=None) -> tuple[int,dict[int,list[int,int,list[int,int,int,int],int]]]:
 		'''Depth-first tree search.'''
 		self.LOG.info(f"Traversing tree to get Genotype called.")
-		
+		from MetaCanSNPer.modules.Database import CanSNPNode
 		rootNode = self.database.tree
 		assert next(rootNode.children, False)
 
 		nodeScores : dict[int,tuple[int,int,dict[str,int],int]] = {rootNode.node : (0,0,{},0)}
 		
-		paths = [[rootNode]]
-		while paths[-1]:
-			paths.append([])
-			for parent in paths[-2]:
+		paths : list[list[CanSNPNode]] = []
+		layer : list[CanSNPNode] = [rootNode]
+		while layer:
+			paths.append(layer)
+			layer = []
+			for parent in paths[-1]:
 				for child in parent.children:
 					if Globals.DRY_RUN:
 						continue
@@ -322,12 +324,12 @@ class MetaCanSNPer(Logged):
 								allCount[variant] += count
 						depthCount += depth
 					nodeScores[child.node] = (derivedCount, ancestralCount, allCount, depthCount)
-					paths[-1].append(child)
+					layer.append(child)
 		
 		paths = paths[:-1]
 		
 		if minimumDepth is None:
-			minimumDepth = sum(x[3] for x in nodeScores.values()) / (len(nodeScores)-1) * fractionLimit
+			minimumDepth = (sum(x[3] for x in nodeScores.values()) / (len(nodeScores)-1)) * fractionLimit
 		calledNodes = []
 		for layer in reversed(paths):
 			for node in layer:
@@ -476,7 +478,7 @@ class MetaCanSNPer(Logged):
 				
 				observed = sorted(counts.items(), key=lambda x:x[1], reverse=True)
 				entry = f"{genotype}\t{genome}\t{chromosome}\t{position}\t{ancestral}\t{derived}\t{', '.join(map('{0[0]}={0[1]}'.format, observed))}\n"
-				if not observed:
+				if not observed or observed[0][1] == 0:
 					notFoundFile.write(entry)
 				elif observed[0][0] == ancestral:
 					ancPosFile.write(entry)
