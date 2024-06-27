@@ -58,10 +58,10 @@ def splitFastq(files : int, source : FilePath|FileList[FilePath], *,
 def splitFastq(files : int, source : FilePath|FileList[FilePath], *,
 			   reads : list[int]|None=None, dilution : list[int]|None=None, coverage : list[int,int]|None=None, bytes : list[int]|None=None,
 			   outDir : DirectoryPath=None, hooks=GlobalHooks, randomiser=None, steps : int=100) -> list[tuple[str]]:
-	if not isinstance(source, list):
-		source = FileList([source])
-	elif isinstance(source, FileList):
-		source = FileList(source)
+	if isinstance(source, str):
+		source = FileList([FilePath(source)])
+	elif isinstance(source, Iterable):
+		source = FileList(FilePath(name) for name in source)
 	
 	if all(filepath.endswith(".gz") for filepath in source):
 		dataOpen = gunzip.gzip.open
@@ -97,8 +97,8 @@ def splitByReads(files : int, reads : int, source : FilePath|FileList[FilePath],
 		hooks.trigger("SplitFastqSkipped", {"name" : source.name, "value" : 2})
 		return outNames
 	
-	dataFiles : list[BinaryIO] = [dataOpen(name, "rb") for name in source]
-	outFiles = [[dataOpen(filename, "wb") for filename in filenames] for filenames in outNames]
+	dataFiles : list[BinaryIO] = [dataOpen(filepath, "rb") for filepath in source]
+	outFiles : list[list[BinaryIO]] = [[dataOpen(filename, "wb") for filename in filenames] for filenames in outNames]
 	
 	readsWritten = [0 for _ in range(len(outFiles))]
 	
@@ -148,8 +148,8 @@ def splitByCoverage(files : int, coverage : int, COVERAGE : int, source : FilePa
 		hooks.trigger("SplitFastqSkipped", {"name" : source.name, "value" : 2})
 		return outNames
 	
-	dataFiles : list[BinaryIO] = [dataOpen(name, "rb") for name in source]
-	outFiles = [[dataOpen(filename, "wb") for filename in filenames] for filenames in outNames]
+	dataFiles : list[BinaryIO] = [dataOpen(filepath, "rb") for filepath in source]
+	outFiles : list[list[BinaryIO]] = [[dataOpen(filename, "wb") for filename in filenames] for filenames in outNames]
 	
 	nBytes = 0
 	for file in dataFiles:
@@ -202,9 +202,9 @@ def splitByDilution(files : int, dilutionFactor : int, source : FilePath|FileLis
 	if all(os.path.exists(filename) for filenames in outNames for filename in filenames):
 		hooks.trigger("SplitFastqSkipped", {"name" : source.name, "value" : 2})
 		return outNames
-	
-	dataFiles : list[BinaryIO] = [dataOpen(name, "rb") for name in source]
-	outFiles = [[dataOpen(filename, "wb") for filename in filenames] for filenames in outNames]
+
+	dataFiles : list[BinaryIO] = [dataOpen(filepath, "rb") for filepath in source]
+	outFiles : list[list[BinaryIO]] = [[dataOpen(filename, "wb") for filename in filenames] for filenames in outNames]
 	
 	nBytes = 0
 	for file in dataFiles:
@@ -256,8 +256,8 @@ def splitByBytes(files : int, bytesPerFile : int, source : FilePath|FileList[Fil
 		hooks.trigger("SplitFastqSkipped", {"name" : source.name, "value" : 2})
 		return outNames
 	
-	dataFiles : list[BinaryIO] = [dataOpen(name, "rb") for name in source]
-	outFiles = [[dataOpen(filename, "wb") for filename in filenames] for filenames in outNames]
+	dataFiles : list[BinaryIO] = [dataOpen(filepath, "rb") for filepath in source]
+	outFiles : list[list[BinaryIO]] = [[dataOpen(filename, "wb") for filename in filenames] for filenames in outNames]
 	
 	bytesWritten = [0 for _ in range(len(outFiles))]
 	
