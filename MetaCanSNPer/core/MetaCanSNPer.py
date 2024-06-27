@@ -330,10 +330,10 @@ class MetaCanSNPer(Logged):
 			minimumDepth = sum(x[3] for x in nodeScores.values()) / (len(nodeScores)-1) * fractionLimit
 		calledNodes = []
 		for layer in reversed(paths):
-			for nodeID in layer:
-				if nodeScores[nodeID][0] == max(nodeScores[nodeID][2].values()) \
-					and nodeScores[nodeID][0] > minimumDepth:
-					calledNodes.append(nodeID)
+			for node in layer:
+				if nodeScores[node.node][0] == max(nodeScores[node.node][2].values()) \
+					and nodeScores[node.node][0] > minimumDepth:
+					calledNodes.append(node.node)
 			if calledNodes:
 				break
 		else:
