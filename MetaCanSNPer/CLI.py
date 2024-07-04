@@ -494,7 +494,7 @@ def main(argVector : list[str]=sys.argv, **namedArgs) -> int:
 		argsDict = {f"--{name}" : value for name, value in namedArgs.items() if name.endswith("Options")}
 			
 		for name in argsDict:
-			namedArgs.pop(name)
+			namedArgs.pop(name[2:])
 		args = NameSpace(**namedArgs)
 
 	print(f"\nRunning {SOFTWARE_NAME}...\n", file=sys.stderr)
