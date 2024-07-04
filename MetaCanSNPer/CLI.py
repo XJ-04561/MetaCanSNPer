@@ -2,11 +2,11 @@
 
 from timeit import default_timer as timer
 startTime = timer()
-import logging, sys, argparse, traceback
+import logging, sys, argparse, traceback, re
 from threading import Thread, Event
 from time import sleep
 from typing import Callable
-import re
+from functools import wraps
 
 ## import MetaCanSNPer specific modules
 from MetaCanSNPer.Globals import *
@@ -34,26 +34,24 @@ def parseInt(string):
 class NameSpace(argparse.Namespace):
 
 	listSoftware : bool = False
-	version : bool
+	version : bool = False
 
 	query : list[str]
 	organism : str
-	database : str
+	database : str = None
 
-	mapper : str
-	aligner : str
-	snpCaller : str
+	mapper : str = None
+	aligner : str = None
+	snpCaller : str = None
 	
-	settingsFile : str
+	settingsFile : str = None
 
-	workDir : str
-	userDir : str
-	installDir : str
-	targetDir : str
-	tmpDir : str
-	refDir : str
-	databaseDir : str
-	outDir : str
+	workDir : str = None
+	targetDir : str = None
+	tmpDir : str = None
+	refDir : str = None
+	databaseDir : str = None
+	outDir : str = None
 
 	sessionName : str = None
 	
@@ -72,37 +70,21 @@ class NameSpace(argparse.Namespace):
 	dryRun : bool = False
 
 	@overload
-	def __init__(self,
-		query : list[str],
-		organism : str,
-		database : str = None,
-		mapper : str = None,
-		aligner : str = None,
-		snpCaller : str = None,
-		reads : list[int,int] = None,
-		coverage : list[int,int,int] = None,
-		dilution : list[int,int] = None,
+	def __init__(self, query : list[str], organism : str, database : str = None,
+		mapper : str = None, aligner : str = None, snpCaller : str = None,
+		sessionName : str = None, saveTemp : bool = False, dryRun : bool = False,
+		reads : list[int,int] = None, coverage : list[int,int,int] = None, dilution : list[int,int] = None,
+		workDir : str = None, targetDir : str = None, tmpDir : str = None,
+		refDir : str = None, databaseDir : str = None, outDir : str = None,
 		settingsFile : str = None,
-		workDir : str = None,
-		userDir : str = None,
-		installDir : str = None,
-		targetDir : str = None,
-		tmpDir : str = None,
-		refDir : str = None,
-		databaseDir : str = None,
-		outDir : str = None,
-		sessionName : str = None,
-		listSoftware : bool = False,
-		version : bool = False,
-		saveTemp : bool = False,
-		debug : bool = False,
-		verbose : bool = False,
-		suppress : bool = False,
-		silent : bool = False,
-		dryRun : bool = False
+		listSoftware : bool = False, version : bool = False, debug : bool = False,
+		verbose : bool = False, suppress : bool = False, silent : bool = False
 		): ...
-
-	__init__ = argparse.Namespace.__init__
+	def __init__(self, query, organism, **kwargs):
+		self.query = query
+		self.organism = organism
+		for name, value in kwargs.items():
+			setattr(self, name, value)
 
 	def get(self, name):
 		return getattr(self, name, None)
@@ -113,21 +95,7 @@ class NameSpace(argparse.Namespace):
 	def __iter__(self):
 		return iter(self._get_kwargs)
 
-parser = argparse.ArgumentParser(prog=__package__, description=package.__doc__, usage="""MetaCanSNPer --query RAW_SEQUENCE_DATAFILE.* [RAW_SEQUENCE_DATAFILE_2.*] \\
---database DATABASE_FILE.db --mapper MAPPER_COMMAND --snpCaller SNPCALLER_COMMAND \\
-\t--mapperOptions [Flags as they would be passed to the mapper] \\
-\t--snpCallerOptions [Flags as they would be passed to the snpCaller]
-Examples:
-MetaCanSNPer --query RAW_SEQUENCE_DATAFILE.fq --database DATABASE_FILE.db \\
-\t--mapper minimap2 --snpCaller gatk_Mutect2 \\
-\t--mapperOptions -x ava-ont
-MetaCanSNPer --query RAW_SEQUENCE_DATAFILE_R1.fq RAW_SEQUENCE_DATAFILE_R2.fq \\
-\t--database DATABASE_FILE.db \\
-\t--mapper minimap2 --snpCaller gatk_Mutect2 \\
-\t--mapperOptions -x sr
-MetaCanSNPer --query SEQUENCE_ASSEMBLY.fna --database DATABASE_FILE.db \\
-\t--aligner progressiveMauve --snpCaller ParseXMFA2
-""")
+parser = argparse.ArgumentParser(prog=__package__, description=package.__doc__)
 
 parser.add_argument("--version", action="store_true", help=argparse.SUPPRESS)
 parser.add_argument("--list", dest="listSoftware", action="store_true", help="To list implemented software and exit.")
@@ -136,7 +104,7 @@ parser.add_argument("--list", dest="listSoftware", action="store_true", help="To
 requiredArguments = parser.add_argument_group("Required arguments")
 if True:
 	requiredArguments.add_argument("--query", nargs="+",	metavar=("FILE", "FILES"), type=FilePath, required=True, help="Raw sequence data file supported by the intended Aligner/Mapper.")
-	requiredArguments.add_argument("--organism",			metavar="NAME",		required=True, help="Name of organism queried. (Use \"_\" in place of spaces)")
+	requiredArguments.add_argument("--organism",			metavar="GENUS_SPECIES", required=True, help="Name of organism queried. (Use \"_\" in place of spaces)")
 
 servicesArguments = parser.add_argument_group("Choosing Software to run", description="If no software is given, a "
 											  "default will be used from your personal default flags or from a "
@@ -156,6 +124,7 @@ if True:
 	exclusiveSSArguments.add_argument("--reads", nargs=2, metavar=("N", "M"), type=parseInt, default=None, help="Run N sub samples each consisting of M number of reads.")
 	exclusiveSSArguments.add_argument("--coverage", nargs=3, metavar=("N", "M", "COVERAGE"), type=parseInt, default=None, help="Run N sub samples each with enough reads to get ~M coverage during mapping. COVERAGE is the expected coverage the query file would achieve on its own.")
 	exclusiveSSArguments.add_argument("--dilute", nargs=2, metavar=("N", "M"), type=parseInt, default=None, help="Run N sub samples each diluted by a factor of M (`sampleBytes * (1/M)`).")
+	exclusiveSSArguments.add_argument("--bases", nargs=2, metavar=("N", "M"), type=parseInt, default=None, help="Run N sub samples each containing roughly M bases.")
 	exclusiveSSArguments.add_argument("--bytes", nargs=2, metavar=("N", "M"), type=parseInt, default=None, help="Run N sub samples each containing roughly M bytes.")
 
 	# Not used by the argparser, but is used for the help-page and for splitting the argv
@@ -166,8 +135,6 @@ if True:
 directoryOptions = parser.add_argument_group("Directory Options")
 if True:
 	directoryOptions.add_argument("-W", "--workDir",		metavar="DIRECTORY", type=DirectoryPath, default=None, help="Work directory")
-	directoryOptions.add_argument("-U", "--userDir",		metavar="DIRECTORY", type=DirectoryPath, default=None, help="User directory")
-	directoryOptions.add_argument("-I", "--installDir",		metavar="DIRECTORY", type=DirectoryPath, default=None, help="Installation directory")
 	directoryOptions.add_argument("-Q", "--targetDir",		metavar="DIRECTORY", type=DirectoryPath, default=None, help="Target (Query) directory")
 	directoryOptions.add_argument("-T", "--tmpDir",			metavar="DIRECTORY", type=DirectoryPath, default=None, help="Temporary directory")
 	directoryOptions.add_argument("-R", "--refDir",			metavar="DIRECTORY", type=DirectoryPath, default=None, help="References directory")
@@ -480,18 +447,55 @@ def saveResults(instances : list[MetaCanSNPer], args : NameSpace, sessionName : 
 		
 		return DirectoryPath(realOutDir)
 
-def main(argVector : list[str]=sys.argv) -> int:
-	
-	# mainParser = argparse.ArgumentParser(prog=__package__, description=package.__doc__)
-	# mainParser.add_argument("Mode", choices=["mainParser"], type=str.capitalize)
-	
-	argsDict = separateCommands(argVector)
 
-	if len(argVector) < 2:
-		parser.print_help()
-		parser.exit()
+def tryCatch(func):
+	@wraps(func)
+	def _try_catch_wrapper(*args, **kwargs):
+		errno = 1
+		try:
+			errno = func(*args, **kwargs)
+		except Exception as e:
+			LOGGER.exception(e)
 
-	args : NameSpace = parser.parse_args(argsDict["args"], namespace=NameSpace())
+			message = str(e)
+			indentation = "    "
+			rowLength = 80 - len(indentation)
+			rows = bool(len(message) % rowLength) + len(message) // rowLength
+			message = f"\n{indentation}".join(message[i*rowLength:(i+1)*rowLength] for i in range(rows))
+			if Globals.DEBUG:
+				Globals.LOGGING_ERRORHANDLER.flush()
+				print("".join(Globals.LOGGING_ERRORMESSAGES), file=sys.stderr)
+				print(f"{SOFTWARE_NAME} ended before completing query. Exceptions that occurred are listed above.", file=sys.stderr)
+			else:
+				print(f"{SOFTWARE_NAME} ended before completing query. ", file=sys.stderr)
+				print(f"Due to `{e.__class__.__name__}`:\n{message}", file=sys.stderr)
+			print(flush=True, file=sys.stderr)
+			errno = getattr(e, "errno", 1)
+		else:
+			print(f"{SOFTWARE_NAME} finished in {timer() - startTime:.3f} seconds!", flush=True, file=sys.stderr)
+		finally:
+			return errno
+	return _try_catch_wrapper
+
+@overload
+def main(argVector : list[str]=sys.argv, /) -> int: ...
+@overload
+def main(**namedArgs) -> int: ...
+@tryCatch
+def main(argVector : list[str]=None, **namedArgs) -> int:
+	
+	if not namedArgs:
+		if len(argVector) < 2:
+			parser.print_help()
+			parser.exit()
+		argsDict = separateCommands(argVector or sys.argv)
+		args : NameSpace = parser.parse_args(argsDict["args"], namespace=NameSpace())
+	else:
+		argsDict = {f"--{name}" : value for name, value in namedArgs.items() if isinstance(value, dict)}
+			
+		for name in argsDict:
+			namedArgs.pop(name)
+		args = NameSpace(**namedArgs)
 
 	print(f"\nRunning {SOFTWARE_NAME}...\n", file=sys.stderr)
 
@@ -511,33 +515,3 @@ def main(argVector : list[str]=sys.argv) -> int:
 	print(f"Results exported to:\n\t{outDir}", file=sys.stderr)
 
 	return 0
-
-from functools import wraps
-@wraps(main)
-def _main_wrapper(mainFunc, *args, **kwargs):
-	errno = 1
-	try:
-		errno = mainFunc(*args, **kwargs)
-	except Exception as e:
-		LOGGER.exception(e)
-
-		message = str(e)
-		indentation = "    "
-		rowLength = 80 - len(indentation)
-		rows = bool(len(message) % rowLength) + len(message) // rowLength
-		message = f"\n{indentation}".join(message[i*rowLength:(i+1)*rowLength] for i in range(rows))
-		if Globals.DEBUG:
-			Globals.LOGGING_ERRORHANDLER.flush()
-			print("".join(Globals.LOGGING_ERRORMESSAGES), file=sys.stderr)
-			print(f"{SOFTWARE_NAME} ended before completing query. Exceptions that occurred are listed above.", file=sys.stderr)
-		else:
-			print(f"{SOFTWARE_NAME} ended before completing query. ", file=sys.stderr)
-			print(f"Due to `{e.__class__.__name__}`:\n{message}", file=sys.stderr)
-		print(flush=True, file=sys.stderr)
-		errno = getattr(e, "errno", 1)
-	else:
-		print(f"{SOFTWARE_NAME} finished in {timer() - startTime:.3f} seconds!", flush=True, file=sys.stderr)
-	finally:
-		exit(errno)
-
-main = _main_wrapper.__get__(main)

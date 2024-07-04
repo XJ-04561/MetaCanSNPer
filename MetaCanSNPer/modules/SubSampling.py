@@ -1,30 +1,23 @@
 
 from MetaCanSNPer.Globals import *
 from MetaCanSNPer.core.Hooks import *
-import hashlib
-import gunzip
+import hashlib, gunzip, subprocess
 		
 
 SUB_SAMPLE_NAMES = {
 	"reads" : "Reads",
 	"coverage" : "Coverage",
 	"dilution" : "Dilution",
+	"bases" : "Bases",
 	"bytes" : "Bytes"
 }
 
-class DummyIO:
-	def write(self, data, **kwargs):
-		return len(data)
-
-def equalSampling(N, randomiser : random.Random):
-	counts = [1 for _ in range(N)]
-	weights = [0 for _ in range(N)]
-	choices = list(range(N))
+def randomReadGenerator(indices):
 	while True:
-		for i in range(N):
-			weights[i] = 1 - (counts[i] / sum(counts))
-		for i in randomiser.choices(choices, weights, k=100):
-			yield i
+		choices = list(range(len(indices[0])))
+		random.shuffle(choices)
+		for choice in choices:
+			yield [reads[choice] for reads in indices]
 
 def subSampleName(name : FilePath|DirectoryPath|str, type : Literal["reads","coverage","dilution","bytes"], *N, index : int=None) -> str:
 	
@@ -43,6 +36,43 @@ def subSampleName(name : FilePath|DirectoryPath|str, type : Literal["reads","cov
 			ext = "." + ext
 		
 		return name + bracketedID + ext
+
+def readsProgressCallback(outData : list[list[list[list[int,int,int,int,int]|list[int,int,int,int]]]], /, *, reads, **kwargs) -> list[bool]:
+	"""Returns `True` if condition has NOT been met."""
+	return [sum(map(len, sampleData)) / reads for sampleData in outData]
+
+def coverageProgressCallback(outData : list[list[list[list[int,int,int,int,int]|list[int,int,int,int]]]], /, *, targetCoverage, expectedCoverage, totalReads, **kwargs) -> list[bool]:
+	"""Returns `True` if condition has NOT been met."""
+	reads = totalReads * targetCoverage/expectedCoverage
+	return [sum(map(len, sampleData)) / reads for sampleData in outData]
+
+def dilutionProgressCallback(outData : list[list[list[list[int,int,int,int,int]|list[int,int,int,int]]]], /, *, dilution, totalReads, **kwargs) -> list[bool]:
+	"""Returns `True` if condition has NOT been met."""
+	reads = totalReads / dilution
+	return [sum(map(len, sampleData)) / reads for sampleData in outData]
+
+def basesProgressCallback(outData : list[list[list[list[int,int,int,int,int]|list[int,int,int,int]]]], /, *, bases, **kwargs) -> list[bool]:
+	"""Returns `True` if condition has NOT been met."""
+	return [sum(itertools.chain(map(lambda x:map(lambda y:y[0], x), sampleData))) / bases for sampleData in outData]
+
+def bytesProgressCallback(outData : list[list[list[list[int,int,int,int,int]|list[int,int,int,int]]]], /, *, bytes, **kwargs) -> list[bool]:
+	"""Returns `True` if condition has NOT been met."""
+	return [sum(itertools.chain(map(lambda x:map(lambda y:y[2]-y[1], x), sampleData))) / bytes for sampleData in outData]
+
+def getProgressCallback(subSamplingType : str, **kwargs):
+	match subSamplingType:
+		case "reads":
+			func = readsProgressCallback
+		case "coverage":
+			func = coverageProgressCallback
+		case "dilution":
+			func = dilutionProgressCallback
+		case "bases":
+			func = basesProgressCallback
+		case "bytes":
+			func = bytesProgressCallback
+	return partial(func, **kwargs)
+
 @overload
 def splitFastq(files : int, source : FilePath|FileList[FilePath], *, reads : list[int], **kwargs) -> list[tuple[str]]: ...
 @overload
@@ -53,11 +83,11 @@ def splitFastq(files : int, source : FilePath|FileList[FilePath], *, dilution : 
 def splitFastq(files : int, source : FilePath|FileList[FilePath], *, bytes : list[int], **kwargs) -> list[tuple[str]]: ...
 @overload
 def splitFastq(files : int, source : FilePath|FileList[FilePath], *,
-			   reads : list[int]=None, dilution : list[int]=None, coverage : list[int,int]=None, bytes : list[int]=None,
+			   reads : list[int]=None, dilution : list[int]=None, coverage : list[int,int]=None, bytes : list[int]=None, bases : list[int]=None,
 			   outDir : DirectoryPath=None, hooks=GlobalHooks, randomiser=None, steps : int=100) -> list[tuple[str]]: ...
 def splitFastq(files : int, source : FilePath|FileList[FilePath], *,
-			   reads : list[int]|None=None, dilution : list[int]|None=None, coverage : list[int,int]|None=None, bytes : list[int]|None=None,
-			   outDir : DirectoryPath=None, hooks=GlobalHooks, randomiser=None, steps : int=100) -> list[tuple[str]]:
+			   outDir : DirectoryPath=None, hooks=GlobalHooks, randomiser=None, steps : int=100,
+			   **kwargs) -> list[tuple[str]]:
 	if isinstance(source, str):
 		source = FileList([FilePath(source)])
 	elif isinstance(source, Iterable):
@@ -70,222 +100,81 @@ def splitFastq(files : int, source : FilePath|FileList[FilePath], *,
 	else:
 		raise ValueError(f"Files are not consistent in their compression file extensions: {source}")
 	
-	if randomiser is None:
-		randomiser = random.Random()
-		randomiser.seed(hashlib.md5("".join(source).encode("utf-8")).digest())
-	
-	if reads is not None:
-		return splitByReads(files, reads[0], source, dataOpen, randomiser, outDir=outDir, hooks=hooks)
-	elif coverage is not None:
-		return splitByCoverage(files, coverage[0], coverage[1], source, dataOpen, randomiser, outDir=outDir, hooks=hooks)
-	elif dilution is not None:
-		return splitByDilution(files, dilution[0], source, dataOpen, randomiser, outDir=outDir, hooks=hooks)
+	readsIndex = []
+	for filepath in source:
+		file : BinaryIO = dataOpen(filepath, "rb")
+		
+		pos = 0
+		readList = []
+		while all(lines := file.readlines(4)):
+			if lines[0][0] != "@":
+				break
+			readList.append([len(lines[1]), pos, pos := pos + sum(map(len, lines))])
+		readsIndex.append(readList)
+
+	for name in ["reads", "dilution", "coverage", "bytes", "bases"]:
+		if name in kwargs:
+			varName, values = name, kwargs[name]
+			progressCallback = getProgressCallback(name, *values, totalReads=len(readsIndex[0]))
+			break
 	else:
-		return splitByBytes(files, bytes[0], source, dataOpen, randomiser, outDir=outDir, hooks=hooks)
+		raise ValueError("No sub sampling information given, check keyword arguments of `splitFastq`.")
 
-@overload
-def splitByReads(files : int, reads : int, source : FilePath, dataOpen : Callable[[FilePath, str],TextIO], randomiser : Iterator[int], outDir : DirectoryGroup|None=None, hooks : Hooks=GlobalHooks, steps : int=100): ...
-@overload
-def splitByReads(files : int, reads : int, source : FileList[FilePath], dataOpen : Callable[[FilePath, str],TextIO], randomiser : Iterator[int], outDir : DirectoryGroup|None=None, hooks : Hooks=GlobalHooks, steps : int=100): ...
-def splitByReads(files : int, reads : int, source : FilePath|FileList[FilePath], dataOpen : Callable[[FilePath, str],TextIO], randomiser : Iterator[int], outDir : DirectoryGroup|None=None, hooks : Hooks=GlobalHooks, steps : int=100):
-	
-	
 	hooks.trigger("SplitFastqStarting", {"name" : source.name, "value" : 0.0})
-	outNames = [tuple((outDir or filepath.directory) / subSampleName(filepath, "reads", files, reads, index=i+1) for filepath in source) for i in range(files)]
+	outNames = [tuple((outDir or filepath.directory) / subSampleName(filepath, varName, files, *values, index=i+1) for filepath in source) for i in range(files)]
 
 	if all(os.path.exists(filename) for filenames in outNames for filename in filenames):
 		hooks.trigger("SplitFastqSkipped", {"name" : source.name, "value" : 2})
 		return outNames
 	
 	dataFiles : list[BinaryIO] = [dataOpen(filepath, "rb") for filepath in source]
+	outData : list[list[BinaryIO]] = [[[] for filename in filenames] for filenames in outNames]
 	outFiles : list[list[BinaryIO]] = [[dataOpen(filename, "wb") for filename in filenames] for filenames in outNames]
 	
-	readsWritten = [0 for _ in range(len(outFiles))]
-	
 	threshold = 0
-	for choice in equalSampling(files, randomiser):
-		if all(reads <= readsInFile for readsInFile in readsWritten):
+	
+	progressVector = [-1 for _ in outData]
+	# First 1/4 of progress
+	for readSet in itertools.batched(randomReadGenerator(readsIndex), len(outData)):
+		if progressVector == (progressVector := progressCallback(outData)):
 			break
-		while abs(choice) < len(outFiles): # choice is already satisfied, select next.
-			if readsWritten[choice] < reads:
-				break # choice now selects a file which needs more data.
-			choice -= 1
-		else:
-			break # All files have the correct size.
+		if (1/4) * sum(progressVector) / len(progressVector) >= threshold:
+			hooks.trigger("SplitFastqProgress", {"name" : source.name, "value" : min(1.0, (1/4) * sum(progressVector) / len(progressVector))})
+			threshold = (int((1/4) * steps * sum(progressVector) / len(progressVector))+1) / steps
+		for notDone, sampleData, outReads in zip(progressVector, outData, readSet):
+			if notDone:
+				for fileData, read in zip(sampleData, outReads):
+					fileData.append(read)
+	
+	# 2/4 of progress
+	readsAggregates = [[] for _ in outFiles[0]]
+	for data, files in zip(outData, outFiles):
+		if (1/4) + (1/4) * i / len(outFiles) >= threshold:
+			hooks.trigger("SplitFastqProgress", {"name" : source.name, "value" : min(1.0, (1/4) + (1/4) * i / len(outFiles))})
+			threshold = (int(steps * ((1/4) + (1/4) * i) / len(outFiles))+1) / steps
+		for fileN, file, reads in zip(range(len(files), files, data)):
+			readsAggregates[fileN].extend((file, read) for read in reads)
 
-		traversedBytes = sum(of.write(df.readline()) for of, df in zip(outFiles[choice], dataFiles) for _ in range(4))
+	# 3/4 of progress
+	for i, aggregate in enumerate(readsAggregates):
+		if (2/4) + (1/4) * i / len(readsAggregates) >= threshold:
+			hooks.trigger("SplitFastqProgress", {"name" : source.name, "value" : min(1.0, (2/4) + (1/4) * i / len(readsAggregates))})
+			threshold = (int(steps * ((2/4) + (1/4) * i) / len(readsAggregates))+1) / steps
+		aggregate.sort(key=lambda x:x[1][1])
 
-		if traversedBytes == 0:
-			for df in dataFiles:
-				df.seek(0)
-			if 0 == sum(of.write(df.readline()) for of, df in zip(outFiles[choice], dataFiles) for _ in range(4)):
-				raise EOFError(f"No reads can be read from files {[f.name for f in dataFiles]}")
-		
-		readsWritten[choice] += 1
-			
-		if (sum(readsWritten) / files) / reads > threshold:
-			hooks.trigger("SplitFastqProgress", {"name" : source.name, "value" : min(1.0, (sum(readsWritten) / files) / reads)})
-			threshold = (int(steps * ((sum(readsWritten) / files) / reads)) + 1) / steps
+	# 4/4 of progress
+	for aggregate, dataFile in zip(readsAggregates, dataFiles):
+		if (3/4) + (1/4) * i / len(readsAggregates) >= threshold:
+			hooks.trigger("SplitFastqProgress", {"name" : source.name, "value" : min(1.0, (3/4) + (1/4) * i / len(readsAggregates))})
+			threshold = (int(steps * ((3/4) + (1/4) * i) / len(readsAggregates))+1) / steps
+		for file, read in aggregate:
+			dataFile.seek(read[1])
+			file.write(dataFile.readline())
+	hooks.trigger("SplitFastqProgress", {"name" : source.name, "value" : 1.0})
 
 	for files in outFiles:
 		for file in files:
 			file.close()
 	hooks.trigger("SplitFastqFinished", {"name" : source.name, "value" : 3})
-	return outNames
-
-@overload
-def splitByCoverage(files : int, coverage : int, COVERAGE : int, source : FilePath, dataOpen : Callable[[FilePath, str],TextIO], randomiser : Iterator[int], outDir : DirectoryGroup|None=None, hooks : Hooks=GlobalHooks, steps : int=100): ...
-@overload
-def splitByCoverage(files : int, coverage : int, COVERAGE : int, source : FileList[FilePath], dataOpen : Callable[[FilePath, str],TextIO], randomiser : Iterator[int], outDir : DirectoryGroup|None=None, hooks : Hooks=GlobalHooks, steps : int=100): ...
-def splitByCoverage(files : int, coverage : int, COVERAGE : int, source : FilePath|FileList[FilePath], dataOpen : Callable[[FilePath, str],TextIO], randomiser : Iterator[int], outDir : DirectoryGroup|None=None, hooks : Hooks=GlobalHooks, steps : int=100):
-
-	raise NotImplementedError(f"Not yet implemented!")
-
-	hooks.trigger("SplitFastqStarting", {"name" : source.name, "value" : 0.0})
-	outNames = [tuple((outDir or filepath.directory) / subSampleName(filepath, "coverage", files, coverage, index=i+1) for filepath in source) for i in range(files)]
-
-	if all(os.path.exists(filename) for filenames in outNames for filename in filenames):
-		hooks.trigger("SplitFastqSkipped", {"name" : source.name, "value" : 2})
-		return outNames
 	
-	dataFiles : list[BinaryIO] = [dataOpen(filepath, "rb") for filepath in source]
-	outFiles : list[list[BinaryIO]] = [[dataOpen(filename, "wb") for filename in filenames] for filenames in outNames]
-	
-	nBytes = 0
-	for file in dataFiles:
-		nBytes += file.seek(0, 2)
-		file.seek(0, 0)
-	
-
-
-	bytesPerOutfile = nBytes / coverage
-	bytesWritten = [0 for _ in range(len(outFiles))]
-	
-	threshold = 0
-	for choice in equalSampling(files, randomiser):
-		if bytesPerOutfile < sum(bytesWritten) / files:
-			break
-		while abs(choice) < len(outFiles)+1: # choice is already satisfied, select next.
-			choice -= 1
-			if bytesWritten[choice] < bytesPerOutfile:
-				break # choice now selects a file which needs more data.
-		else:
-			break # All files have the correct size.
-
-		traversed = sum(of.write(df.readline()) for of, df in zip(outFiles[choice], dataFiles) for _ in range(4))
-		
-		bytesWritten[choice] += traversed
-
-		if traversed == 0: # End of File reached, time to restart
-			for df in dataFiles:
-				df.seek(0)
-		
-		if (sum(bytesWritten) / files) / bytesPerOutfile > threshold:
-			hooks.trigger("SplitFastqProgress", {"name" : source.name, "value" : min(1.0, (sum(bytesWritten) / files) / bytesPerOutfile)})
-			threshold = (int(steps * ((sum(bytesWritten) / files) / bytesPerOutfile)) + 1) / steps
-
-	for files in outFiles:
-		for file in files:
-			file.close()
-	hooks.trigger("SplitFastqFinished", {"name" : source.name, "value" : 3})
-	return outNames
-
-@overload
-def splitByDilution(files : int, dilutionFactor : int, source : FilePath, dataOpen : Callable[[FilePath, str],TextIO], randomiser : Iterator[int], outDir : DirectoryGroup|None=None, hooks : Hooks=GlobalHooks, steps : int=100): ...
-@overload
-def splitByDilution(files : int, dilutionFactor : int, source : FileList[FilePath], dataOpen : Callable[[FilePath, str],TextIO], randomiser : Iterator[int], outDir : DirectoryGroup|None=None, hooks : Hooks=GlobalHooks, steps : int=100): ...
-def splitByDilution(files : int, dilutionFactor : int, source : FilePath|FileList[FilePath], dataOpen : Callable[[FilePath, str],TextIO], randomiser : Iterator[int], outDir : DirectoryGroup|None=None, hooks : Hooks=GlobalHooks, steps : int=100):
-	
-	hooks.trigger("SplitFastqStarting", {"name" : source.name, "value" : 0.0})
-	outNames = [tuple((outDir or filepath.directory) / subSampleName(filepath, "dilution", files, dilutionFactor, index=i+1) for filepath in source) for i in range(files)]
-
-	if all(os.path.exists(filename) for filenames in outNames for filename in filenames):
-		hooks.trigger("SplitFastqSkipped", {"name" : source.name, "value" : 2})
-		return outNames
-
-	dataFiles : list[BinaryIO] = [dataOpen(filepath, "rb") for filepath in source]
-	outFiles : list[list[BinaryIO]] = [[dataOpen(filename, "wb") for filename in filenames] for filenames in outNames]
-	
-	nBytes = 0
-	for file in dataFiles:
-		nBytes += file.seek(0, 2)
-		file.seek(0, 0)
-	
-	bytesPerOutfile = nBytes / dilutionFactor
-	bytesWritten = [0 for _ in range(len(outFiles))]
-	
-	threshold = 0
-	for choice in equalSampling(files, randomiser):
-		if bytesPerOutfile < sum(bytesWritten) / files:
-			break
-		while abs(choice) < len(outFiles)+1: # choice is already satisfied, select next.
-			choice -= 1
-			if bytesWritten[choice] < bytesPerOutfile:
-				break # choice now selects a file which needs more data.
-		else:
-			break # All files have the correct size.
-
-		traversed = sum(of.write(df.readline()) for of, df in zip(outFiles[choice], dataFiles) for _ in range(4))
-		
-		bytesWritten[choice] += traversed
-
-		if traversed == 0: # End of File reached, time to restart
-			for df in dataFiles:
-				df.seek(0)
-		
-		if (sum(bytesWritten) / files) / bytesPerOutfile > threshold:
-			hooks.trigger("SplitFastqProgress", {"name" : source.name, "value" : min(1.0, (sum(bytesWritten) / files) / bytesPerOutfile)})
-			threshold = (int(steps * ((sum(bytesWritten) / files) / bytesPerOutfile)) + 1) / steps
-
-	for files in outFiles:
-		for file in files:
-			file.close()
-	hooks.trigger("SplitFastqFinished", {"name" : source.name, "value" : 3})
-	return outNames
-
-@overload
-def splitByBytes(files : int, bytesPerFile : int, source : FilePath, dataOpen : Callable[[FilePath, str],TextIO], randomiser : Iterator[int], outDir : DirectoryGroup|None=None, hooks : Hooks=GlobalHooks, steps : int=100): ...
-@overload
-def splitByBytes(files : int, bytesPerFile : int, source : FileList[FilePath], dataOpen : Callable[[FilePath, str],TextIO], randomiser : Iterator[int], outDir : DirectoryGroup|None=None, hooks : Hooks=GlobalHooks, steps : int=100): ...
-def splitByBytes(files : int, bytesPerFile : int, source : FilePath|FileList[FilePath], dataOpen : Callable[[FilePath, str],TextIO], randomiser : Iterator[int], outDir : DirectoryGroup|None=None, hooks : Hooks=GlobalHooks, steps : int=100):
-	
-	hooks.trigger("SplitFastqStarting", {"name" : source.name, "value" : 0.0})
-	outNames = [tuple((outDir or filepath.directory) / subSampleName(filepath, "bytes", files, bytesPerFile, index=i+1) for filepath in source) for i in range(files)]
-
-	if all(os.path.exists(filename) for filenames in outNames for filename in filenames):
-		hooks.trigger("SplitFastqSkipped", {"name" : source.name, "value" : 2})
-		return outNames
-	
-	dataFiles : list[BinaryIO] = [dataOpen(filepath, "rb") for filepath in source]
-	outFiles : list[list[BinaryIO]] = [[dataOpen(filename, "wb") for filename in filenames] for filenames in outNames]
-	
-	bytesWritten = [0 for _ in range(len(outFiles))]
-	
-	threshold = 0
-	for choice in equalSampling(files, randomiser):
-		if bytesPerFile < sum(bytesWritten) / files:
-			break
-		while abs(choice) < len(outFiles)+1: # choice is already satisfied, select next.
-			choice -= 1
-			if bytesWritten[choice] < bytesPerFile:
-				break # choice now selects a file which needs more data.
-		else:
-			break # All files have the correct size.
-
-		traversed = sum(of.write(df.readline()) for of, df in zip(outFiles[choice], dataFiles) for _ in range(4))
-		
-		bytesWritten[choice] += traversed
-
-		if traversed == 0: # End of File reached, time to restart
-			for df in dataFiles:
-				df.seek(0)
-		
-		if (sum(bytesWritten) / files) / bytesPerFile > threshold:
-			hooks.trigger("SplitFastqProgress", {"name" : source.name, "value" : min(1.0, (sum(bytesWritten) / files) / bytesPerFile)})
-			threshold = (int(steps * ((sum(bytesWritten) / files) / bytesPerFile)) + 1) / steps
-
-	for files in outFiles:
-		for file in files:
-			file.close()
-	hooks.trigger("SplitFastqFinished", {"name" : source.name, "value" : 3})
 	return outNames

@@ -24,13 +24,12 @@ SOFTWARE_RETURNCODES : dict[tuple[type[Exception],tuple[str]], int]
 
 import logging.handlers
 from This import this
-from PseudoPathy.PathShortHands import *
+from PseudoPathy.ShortHands import *
 import PseudoPathy.Globals as PPGlobals
 import VariantCallFixer.Globals as VCFGlobals
 import SQLOOP.Globals as SQLOOPGlobals
 from VariantCallFixer import openVCF
 from PseudoPathy import *
-from PseudoPathy.Paths import FileList
 from collections import namedtuple
 
 from types import FunctionType, MethodType
