@@ -271,7 +271,7 @@ def initializeData(args : NameSpace|None=None, /, **kwargs) -> list[FileList[Fil
 	else:
 		outDir = PseudoPathyFunctions.createTempDir(f"{SUB_SAMPLE_NAMES[args.subSampleType]}-{'-'.join(map(shortNumber, args[args.subSampleType]))}")
 	
-	with TerminalUpdater(f"Creating Sub-samples:", category="SplitFastq", names=[DL.queryName], hooks=GlobalHooks, printer=LoadingBar, length=65, out=sys.stdout) as TU:
+	with TerminalUpdater(f"Creating Sub-samples:", category="SplitFastq", names=[DL.queryName], hooks=GlobalHooks, printer=LoadingBar, length=65, out=sys.stdout if ISATTY else DEV_NULL) as TU:
 		
 		newFiles = splitFastq(args[args.subSampleType][0], DL.query, outDir=outDir, hooks=TU.hooks, **{args.subSampleType:args[args.subSampleType][1:]})
 
@@ -330,7 +330,7 @@ def initializeMainObjects(args : NameSpace=None, /, *, organism : str|None=None,
 
 	database = database or mObj.databaseName
 	
-	with TerminalUpdater(f"Checking database {database!r}:", category="DatabaseDownloader", names=[database], printer=LoadingBar, length=30, out=sys.stdout) as TU:
+	with TerminalUpdater(f"Checking database {database!r}:", category="DatabaseDownloader", names=[database], printer=LoadingBar, length=30, out=sys.stdout if ISATTY else DEV_NULL) as TU:
 		mObj.setDatabase(database, sequential=True)
 		GlobalHooks.trigger("DatabaseDownloaderPostProcess", {"name" : database, "value" : 1.0})
 		for obj in instances[1:]:
@@ -339,7 +339,7 @@ def initializeMainObjects(args : NameSpace=None, /, *, organism : str|None=None,
 		GlobalHooks.trigger("DatabaseDownloaderFinished", {"name" : database, "value" : 3})
 
 	refFiles = [f"{assemblyName}.fna" for *_, assemblyName in mObj.database.references]
-	with TerminalUpdater(f"Checking Reference Genomes:", category="ReferenceDownloader", names=refFiles, printer=LoadingBar, length=30, out=sys.stdout) as TU:
+	with TerminalUpdater(f"Checking Reference Genomes:", category="ReferenceDownloader", names=refFiles, printer=LoadingBar, length=30, out=sys.stdout if ISATTY else DEV_NULL) as TU:
 		mObj.setReferenceFiles(sequential=True)
 		for refFile in refFiles:
 			GlobalHooks.trigger("ReferenceDownloaderProgress", {"name" : refFile, "value" : 1.0})
@@ -369,7 +369,7 @@ def runJobs(instances, func, args, argsDict, category, categoryName, names, mess
 	commonLock = Lock()
 	LocalHooks = Hooks()
 	
-	with TerminalUpdater(message, category=categoryName, hooks=LocalHooks, names=names, printer=LoadingBar, length=30, out=sys.stdout) as TU:
+	with TerminalUpdater(message, category=categoryName, hooks=LocalHooks, names=names, printer=LoadingBar, length=30, out=sys.stdout if ISATTY else DEV_NULL) as TU:
 		for name in names:
 			LocalHooks.trigger(f"{categoryName}Starting", {"name" : name, "value" : 0})
 		failedEvent = Event()
@@ -397,16 +397,16 @@ def runPrograms(instances : list[MetaCanSNPer], args : NameSpace, argsDict : dic
 		mObj = instances[0]
 		
 		if args.mapper or any(queryFormat.endswith(ext) for ext in ["fastq", "fq", "fastq.gz", "fq.gz"]):
-			with TerminalUpdater(f"Creating Mappings:", category="Mappers", hooks=mObj.hooks, names=genomes, printer=Spinner, out=sys.stdout):
+			with TerminalUpdater(f"Creating Mappings:", category="Mappers", hooks=mObj.hooks, names=genomes, printer=Spinner, out=sys.stdout if ISATTY else DEV_NULL):
 				
 				mObj.createMap(softwareName=args.mapper or mObj.settings["mapper"], flags=argsDict.get("--mapperOptions", {}))
 		
 		if args.aligner or any(queryFormat.endswith(ext) for ext in ["fasta", "fna", "fasta.gz", "fna.gz"]):
-			with TerminalUpdater(f"Creating Alignments:", category="Aligners", hooks=mObj.hooks, names=genomes, printer=Spinner, out=sys.stdout):
+			with TerminalUpdater(f"Creating Alignments:", category="Aligners", hooks=mObj.hooks, names=genomes, printer=Spinner, out=sys.stdout if ISATTY else DEV_NULL):
 				
 				mObj.createAlignment(softwareName=args.aligner or mObj.settings["aligner"], flags=argsDict.get("--alignerOptions", {}))
 		
-		with TerminalUpdater(f"Calling SNPs:", category="SNPCallers", hooks=mObj.hooks, names=genomes, printer=Spinner, out=sys.stdout):
+		with TerminalUpdater(f"Calling SNPs:", category="SNPCallers", hooks=mObj.hooks, names=genomes, printer=Spinner, out=sys.stdout if ISATTY else DEV_NULL):
 			
 			mObj.callSNPs(softwareName=args.snpCaller or mObj.settings["snpCaller"], flags=argsDict.get("--snpCallerOptions", {}))
 
@@ -415,7 +415,7 @@ def saveResults(instances : list[MetaCanSNPer], args : NameSpace, sessionName : 
 	if not args.subSampled:
 		mObj = instances[0]
 
-		with TerminalUpdater(f"Saving Results:", category="SavingResults", hooks=mObj.hooks, names=[mObj.queryName], printer=Spinner, out=sys.stdout):
+		with TerminalUpdater(f"Saving Results:", category="SavingResults", hooks=mObj.hooks, names=[mObj.queryName], printer=Spinner, out=sys.stdout if ISATTY else DEV_NULL):
 			mObj.hooks.trigger("SavingResultsStarting", {"name" : mObj.queryName, "value" : 0})
 			mObj.saveSNPdata()
 			outDir = mObj.saveResults()
@@ -431,7 +431,7 @@ def saveResults(instances : list[MetaCanSNPer], args : NameSpace, sessionName : 
 		LocalHooks = Hooks()
 		name = DL.queryName
 
-		with TerminalUpdater(f"Saving Results:", category="SavingResults", hooks=LocalHooks, names=[name], printer=LoadingBar, length=65, out=sys.stdout):
+		with TerminalUpdater(f"Saving Results:", category="SavingResults", hooks=LocalHooks, names=[name], printer=LoadingBar, length=65, out=sys.stdout if ISATTY else DEV_NULL):
 			LocalHooks.trigger("SavingResultsStarting", {"name" : name, "value" : 0})
 			for i, mObj in enumerate(instances):
 				mObj.saveSNPdata()
