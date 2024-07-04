@@ -273,10 +273,14 @@ def initializeData(args : NameSpace|None=None, /, **kwargs) -> list[FileList[Fil
 	else:
 		outDir = PseudoPathyFunctions.createTempDir(f"{SUB_SAMPLE_NAMES[args.subSampleType]}-{'-'.join(map(shortNumber, args[args.subSampleType]))}")
 	
+	if not ISATTY:
+		startTime = timer()
+		print(f"Creating Sub-samples: ", end="")
 	with TerminalUpdater(f"Creating Sub-samples:", category="SplitFastq", names=[DL.queryName], hooks=GlobalHooks, printer=LoadingBar, length=65, out=sys.stdout if ISATTY else DEV_NULL) as TU:
 		
 		newFiles = splitFastq(args[args.subSampleType][0], DL.query, outDir=outDir, hooks=TU.hooks, **{args.subSampleType:args[args.subSampleType][1:]})
-
+	if not ISATTY:
+		print(round(timer() - startTime, 3))
 	return newFiles
 
 @overload
@@ -332,6 +336,9 @@ def initializeMainObjects(args : NameSpace=None, /, *, organism : str|None=None,
 
 	database = database or mObj.databaseName
 	
+	if not ISATTY:
+		startTime = timer()
+		print(f"Checking database {database!r}: ", end="")
 	with TerminalUpdater(f"Checking database {database!r}:", category="DatabaseDownloader", names=[database], printer=LoadingBar, length=30, out=sys.stdout if ISATTY else DEV_NULL) as TU:
 		mObj.setDatabase(database, sequential=True)
 		GlobalHooks.trigger("DatabaseDownloaderPostProcess", {"name" : database, "value" : 1.0})
@@ -339,8 +346,12 @@ def initializeMainObjects(args : NameSpace=None, /, *, organism : str|None=None,
 			obj.databaseName = mObj.databaseName
 			obj.Lib.database = obj.database = mObj.database
 		GlobalHooks.trigger("DatabaseDownloaderFinished", {"name" : database, "value" : 3})
-
+	if not ISATTY:
+		print(round(timer() - startTime, 3))
 	refFiles = [f"{assemblyName}.fna" for *_, assemblyName in mObj.database.references]
+	if not ISATTY:
+		startTime = timer()
+		print(f"Checking Reference Genomes: ", end="")
 	with TerminalUpdater(f"Checking Reference Genomes:", category="ReferenceDownloader", names=refFiles, printer=LoadingBar, length=30, out=sys.stdout if ISATTY else DEV_NULL) as TU:
 		mObj.setReferenceFiles(sequential=True)
 		for refFile in refFiles:
@@ -349,6 +360,8 @@ def initializeMainObjects(args : NameSpace=None, /, *, organism : str|None=None,
 			instance.setReferenceFiles()
 		for refFile in refFiles:
 			GlobalHooks.trigger("ReferenceDownloaderProgress", {"name" : refFile, "value" : 3})
+	if not ISATTY:
+		print(round(timer() - startTime, 3))
 	
 	return groupSessionName, instances
 
@@ -371,6 +384,9 @@ def runJobs(instances, func, args, argsDict, category, categoryName, names, mess
 	commonLock = Lock()
 	LocalHooks = Hooks()
 	
+	if not ISATTY:
+		startTime = timer()
+		print(message, end="")
 	with TerminalUpdater(message, category=categoryName, hooks=LocalHooks, names=names, printer=LoadingBar, length=30, out=sys.stdout if ISATTY else DEV_NULL) as TU:
 		for name in names:
 			LocalHooks.trigger(f"{categoryName}Starting", {"name" : name, "value" : 0})
@@ -380,7 +396,9 @@ def runJobs(instances, func, args, argsDict, category, categoryName, names, mess
 				raise ChildProcessError(f"{categoryName} process failed.")
 		for name in names:
 			LocalHooks.trigger(f"{categoryName}Finished", {"name" : name, "value" : 3})
-
+	if not ISATTY:
+		print(round(timer() - startTime, 3))
+	
 def runPrograms(instances : list[MetaCanSNPer], args : NameSpace, argsDict : dict):
 	
 	from MetaCanSNPer.modules.Database import ReferencesTable
@@ -399,30 +417,49 @@ def runPrograms(instances : list[MetaCanSNPer], args : NameSpace, argsDict : dic
 		mObj = instances[0]
 		
 		if args.mapper or any(queryFormat.endswith(ext) for ext in ["fastq", "fq", "fastq.gz", "fq.gz"]):
+			if not ISATTY:
+				startTime = timer()
+				print(f"Creating Mappings: ", end="")
 			with TerminalUpdater(f"Creating Mappings:", category="Mappers", hooks=mObj.hooks, names=genomes, printer=Spinner, out=sys.stdout if ISATTY else DEV_NULL):
 				
 				mObj.createMap(softwareName=args.mapper or mObj.settings["mapper"], flags=argsDict.get("--mapperOptions", {}))
-		
+			if not ISATTY:
+				print(round(timer() - startTime, 3))
+
 		if args.aligner or any(queryFormat.endswith(ext) for ext in ["fasta", "fna", "fasta.gz", "fna.gz"]):
+			if not ISATTY:
+				startTime = timer()
+				print(f"Creating Alignments: ", end="")
 			with TerminalUpdater(f"Creating Alignments:", category="Aligners", hooks=mObj.hooks, names=genomes, printer=Spinner, out=sys.stdout if ISATTY else DEV_NULL):
 				
 				mObj.createAlignment(softwareName=args.aligner or mObj.settings["aligner"], flags=argsDict.get("--alignerOptions", {}))
-		
+			if not ISATTY:
+				print(round(timer() - startTime, 3))
+
+		if not ISATTY:
+			startTime = timer()
+			print(f"Calling SNPs: ", end="")
 		with TerminalUpdater(f"Calling SNPs:", category="SNPCallers", hooks=mObj.hooks, names=genomes, printer=Spinner, out=sys.stdout if ISATTY else DEV_NULL):
 			
 			mObj.callSNPs(softwareName=args.snpCaller or mObj.settings["snpCaller"], flags=argsDict.get("--snpCallerOptions", {}))
-
+		if not ISATTY:
+			print(round(timer() - startTime, 3))
+		
 def saveResults(instances : list[MetaCanSNPer], args : NameSpace, sessionName : str) -> Path:
 	
 	if not args.subSampled:
 		mObj = instances[0]
 
+		if not ISATTY:
+			startTime = timer()
+			print(f"Saving Results: ", end="")
 		with TerminalUpdater(f"Saving Results:", category="SavingResults", hooks=mObj.hooks, names=[mObj.queryName], printer=Spinner, out=sys.stdout if ISATTY else DEV_NULL):
 			mObj.hooks.trigger("SavingResultsStarting", {"name" : mObj.queryName, "value" : 0})
 			mObj.saveSNPdata()
 			outDir = mObj.saveResults()
 			mObj.hooks.trigger("SavingResultsFinished", {"name" : mObj.queryName, "value" : 3})
-
+		if not ISATTY:
+			print(round(timer() - startTime, 3))
 		return outDir
 	else:
 		from MetaCanSNPer.core.DirectoryLibrary import DirectoryLibrary
@@ -433,6 +470,9 @@ def saveResults(instances : list[MetaCanSNPer], args : NameSpace, sessionName : 
 		LocalHooks = Hooks()
 		name = DL.queryName
 
+		if not ISATTY:
+			startTime = timer()
+			print(f"Saving Results: ", end="")
 		with TerminalUpdater(f"Saving Results:", category="SavingResults", hooks=LocalHooks, names=[name], printer=LoadingBar, length=65, out=sys.stdout if ISATTY else DEV_NULL):
 			LocalHooks.trigger("SavingResultsStarting", {"name" : name, "value" : 0})
 			for i, mObj in enumerate(instances):
@@ -446,6 +486,8 @@ def saveResults(instances : list[MetaCanSNPer], args : NameSpace, sessionName : 
 				shutil.rmtree(outDir, ignore_errors=True)
 				LocalHooks.trigger("SavingResultsProgress", {"name" : name, "value" : (i+1) / jobs})
 			LocalHooks.trigger("SavingResultsFinished", {"name" : name, "value" : 3})
+		if not ISATTY:
+			print(round(timer() - startTime, 3))
 		
 		return DirectoryPath(realOutDir)
 
