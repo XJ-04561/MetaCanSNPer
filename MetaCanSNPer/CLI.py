@@ -55,11 +55,12 @@ class NameSpace(argparse.Namespace):
 
 	sessionName : str = None
 	
-	subSampled : bool = property(lambda self: any([self.reads, self.coverage, self.dilution, self.bytes]))
-	subSampleType : str = property(lambda self: next(filter(self.get, ["reads", "coverage", "dilution", "bytes"]), None))
+	subSampled : bool = property(lambda self: any([self.reads, self.coverage, self.dilution, self.bases, self.bytes]))
+	subSampleType : str = property(lambda self: next(filter(self.get, ["reads", "coverage", "dilution", "bases", "bytes"]), None))
 	reads : list[int,int] = None
 	coverage : list[int,int,int] = None
 	dilution : list[int,int] = None
+	bases : list[int,int] = None
 	bytes : list[int,int] = None
 
 	saveTemp : bool = False
@@ -74,6 +75,7 @@ class NameSpace(argparse.Namespace):
 		mapper : str = None, aligner : str = None, snpCaller : str = None,
 		sessionName : str = None, saveTemp : bool = False, dryRun : bool = False,
 		reads : list[int,int] = None, coverage : list[int,int,int] = None, dilution : list[int,int] = None,
+		bases : list[int,int] = None, bytes : list[int,int] = None,
 		workDir : str = None, targetDir : str = None, tmpDir : str = None,
 		refDir : str = None, databaseDir : str = None, outDir : str = None,
 		settingsFile : str = None,
