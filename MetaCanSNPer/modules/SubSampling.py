@@ -59,19 +59,19 @@ def bytesProgressCallback(outData : list[list[list[list[int,int,int,int,int]|lis
 	"""Returns `True` if condition has NOT been met."""
 	return [sum(itertools.chain(map(lambda x:map(lambda y:y[2]-y[1], x), sampleData))) / bytes for sampleData in outData]
 
-def getProgressCallback(subSamplingType : str, **kwargs):
+def getProgressCallback(subSamplingType : str, *args, **kwargs):
 	match subSamplingType:
 		case "reads":
-			func = readsProgressCallback
+			return partial(readsProgressCallback, reads=args[0], **kwargs)
 		case "coverage":
-			func = coverageProgressCallback
+			return partial(coverageProgressCallback, targetCoverage=args[0], expectedCoverage=args[1], totalReads=args[2], **kwargs)
 		case "dilution":
-			func = dilutionProgressCallback
+			return partial(dilutionProgressCallback, dilution=args[0], totalReads=args[1], **kwargs)
 		case "bases":
-			func = basesProgressCallback
+			return partial(basesProgressCallback, bases=args[0], **kwargs)
 		case "bytes":
-			func = bytesProgressCallback
-	return partial(func, **kwargs)
+			return partial(bytesProgressCallback, bytes=args[0], **kwargs)
+	
 
 @overload
 def splitFastq(files : int, source : FilePath|FileList[FilePath], *, reads : list[int], **kwargs) -> list[tuple[str]]: ...
