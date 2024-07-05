@@ -269,7 +269,8 @@ def initializeData(args : NameSpace|None=None, /, **kwargs) -> list[FileList[Fil
 
 	DL = DirectoryLibrary(organism, query)
 	if args.saveTemp:
-		outDir = DL.dataDir.create("SubSampling").create(DL.queryName).create(f"{SUB_SAMPLE_NAMES[args.subSampleType]}-{'-'.join(map(shortNumber, args[args.subSampleType]))}")
+		outDirs = DL.dataDir / "SubSampling" / DL.queryName / f"{SUB_SAMPLE_NAMES[args.subSampleType]}-{'-'.join(map(shortNumber, args[args.subSampleType]))}"
+		outDir = outDirs.create()
 	else:
 		outDir = PseudoPathyFunctions.createTempDir(f"{SUB_SAMPLE_NAMES[args.subSampleType]}-{'-'.join(map(shortNumber, args[args.subSampleType]))}")
 	
@@ -497,6 +498,7 @@ def tryCatch(func):
 	def _try_catch_wrapper(*args, **kwargs):
 		errno = 1
 		try:
+			startTime = timer()
 			errno = func(*args, **kwargs)
 		except Exception as e:
 			LOGGER.exception(e)
@@ -528,6 +530,7 @@ def main(**namedArgs) -> int: ...
 @tryCatch
 def main(argVector : list[str]=sys.argv, **namedArgs) -> int:
 	
+	
 	if not namedArgs:
 		if len(argVector) < 2:
 			parser.print_help()
@@ -536,7 +539,7 @@ def main(argVector : list[str]=sys.argv, **namedArgs) -> int:
 		args : NameSpace = parser.parse_args(argsDict["args"], namespace=NameSpace())
 	else:
 		argsDict = {f"--{name}" : value for name, value in namedArgs.items() if name.endswith("Options")}
-			
+		
 		for name in argsDict:
 			namedArgs.pop(name[2:])
 		args = NameSpace(**namedArgs)
@@ -544,10 +547,14 @@ def main(argVector : list[str]=sys.argv, **namedArgs) -> int:
 	print(f"\nRunning {SOFTWARE_NAME}...\n", file=sys.stderr)
 
 	if not args.dryRun:
+		startTime = timer()
+		print(f"Checking Dependencies:", end="", file=sys.stderr)
 		checkDependencies(args)
+		print(f" Done! {timer()-startTime:.3f}", end="", file=sys.stderr)
+
 	
 	handleOptions(args)
-
+	
 	filenames = initializeData(args)
 
 	sessionName, instances = initializeMainObjects(args, queryFiles=filenames)
