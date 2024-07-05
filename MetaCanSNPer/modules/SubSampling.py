@@ -122,7 +122,7 @@ def splitFastq(files : int, source : FilePath|FileList[FilePath], *,
 						lineSep = line
 						break
 					read.append(line)
-				readLength = sum(map(len, map(str.strip, read)))
+				readLength = sum(map(len, map(bytes.strip, read)))
 				if lineSep.strip() == b"+":
 					file.seek(1, readLength)
 				else:
