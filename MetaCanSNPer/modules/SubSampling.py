@@ -130,7 +130,7 @@ def splitFastq(files : int, source : FilePath|FileList[FilePath], *,
 				readList.append([sum(map(len, map(bytes.strip, read))), pos, file.tell()])
 
 			readsIndex.append(readList)
-	LOGGER.info(f"Sub Sampling: Found {', '.join(map(len, readsIndex))} reads for the source file(s).")
+	LOGGER.info(f"Sub Sampling: Found {', '.join(map(str, map(len, readsIndex)))} reads for the source file(s).")
 
 	for name in ["reads", "dilution", "coverage", "bytes", "bases"]:
 		if name in kwargs:
