@@ -88,12 +88,12 @@ class DirectoryLibrary(SoftwareLibrary, Logged):
 	
 	@Default["targetDir", "userDir", "SOFTWARE_NAME"]
 	def outDir(self) -> DirectoryGroup:
-		return DirectoryPath(self.workDir) | (self.userDir / self.SOFTWARE_NAME)
+		return DirectoryPath(self.workDir, purpose="w") | (self.userDir / self.SOFTWARE_NAME)
 	
 	@Default["outDir", "sessionName"]
 	def resultDir(self) -> DirectoryPath:
-		"""Should not be overriden, instead look to instance.outputDir and instance.sessionName separately.
-		This will automatically change to reflect those two values. ([OUTPUT_DIR]/[SESSION_NAME]/)"""
+		"""Should not be overriden, instead look to instance.outDir and instance.sessionName separately.
+		This will automatically change to reflect those two values. ([OUT_DIR]/[SESSION_NAME]/)"""
 		return self.outDir.create(self.sessionName)
 
 	@Default["tmpDir", "sessionName"]

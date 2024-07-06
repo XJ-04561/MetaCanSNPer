@@ -25,7 +25,7 @@ class MetaCanSNPer(Logged):
 	hooks : Hooks = GlobalHooks
 
 	outputTemplate = "{refName}_{queryName}.{outFormat}"
-	organism : str = property(lambda self:self.Lib.organism,
+	organism : str = property(lambda self: self.Lib.organism,
 							  lambda self, value: setattr(self.Lib, "organism", value),
 							  lambda self: delattr(self.Lib, "organism"))
 
@@ -40,11 +40,11 @@ class MetaCanSNPer(Logged):
 	references = property(lambda self:self.database.references,
 						  doc="""Fetch names of reference genomes in connected database.""")
 
-	query : FileList = property(lambda self:self.Lib.query,
+	query : FileList = property(lambda self: self.Lib.query,
 								lambda self, value:setattr(self.Lib, "query", value),
 								lambda self:delattr(self.Lib, "query"), DirectoryLibrary.query.__doc__)
 	queryName : str = Default["Lib.query"](lambda self:self.Lib.queryName)
-	sessionName : str = property(lambda self:self.Lib.sessionName,
+	sessionName : str = property(lambda self: self.Lib.sessionName,
 								 lambda self, value: setattr(self.Lib, "sessionName", value),
 								 lambda self: delattr(self.Lib, "sessionName"))
 	

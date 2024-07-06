@@ -36,8 +36,8 @@ class NameSpace(argparse.Namespace):
 	listSoftware : bool = False
 	version : bool = False
 
-	query : list[str]
-	organism : str
+	query : list[str] = None
+	organism : str = None
 	database : str = None
 
 	mapper : str = None
@@ -65,7 +65,6 @@ class NameSpace(argparse.Namespace):
 
 	saveTemp : bool = False
 	debug : bool = False
-	verbose : bool = False
 	suppress : bool = False
 	silent : bool = False
 	dryRun : bool = False
@@ -80,11 +79,9 @@ class NameSpace(argparse.Namespace):
 		refDir : str = None, databaseDir : str = None, outDir : str = None,
 		settingsFile : str = None,
 		listSoftware : bool = False, version : bool = False, debug : bool = False,
-		verbose : bool = False, suppress : bool = False, silent : bool = False
+		suppress : bool = False, silent : bool = False
 		): ...
-	def __init__(self, query, organism, **kwargs):
-		self.query = query
-		self.organism = organism
+	def __init__(self, **kwargs):
 		for name, value in kwargs.items():
 			setattr(self, name, value)
 
@@ -146,7 +143,6 @@ if True:
 
 debugOptions = parser.add_argument_group("Logging and debug options")
 if True:
-	debugOptions.add_argument("--verbose",	action="store_true",	help="Verbose output")
 	debugOptions.add_argument("--debug",	action="store_true",	help="Debug output")
 	debugOptions.add_argument("--suppress",	action="store_true",	help="Suppress warnings")
 	debugOptions.add_argument("--silent",	action="store_true",	help="Disables printing to terminal except for any error messages which might appear.")
@@ -156,45 +152,56 @@ def checkDependencies(args : NameSpace):
 
 	import shutil
 	from MetaCanSNPer.core.Wrappers import Aligner, Mapper, SNPCaller
-	requiredDeps = []
-	optionalDeps = ["samtools"]
-
-	if args.mapper:
-		requiredDeps.extend(Mapper.get(args.mapper).dependencies)
-	if args.aligner:
-		requiredDeps.extend(Aligner.get(args.aligner).dependencies)
-	if args.snpCaller:
-		requiredDeps.extend(SNPCaller.get(args.snpCaller).dependencies)
-
-	missed = []
-	for dep in requiredDeps:
-		if not shutil.which(dep) and not shutil.which(dep+".exe"):
-			missed.append(dep)
-	if len(missed) == 1:
-		raise MissingDependency(f"Missing required dependency: {missed[0]}.")
-	elif missed:
-		nt = "\n\t"
-		raise MissingDependency(f"Missing required dependencies:\n{nt.join(missed)}.")
+	if not any([args.mapper, args.aligner, args.snpCaller]):
+		return
 	
-	missed = []
-	for dep in optionalDeps:
-		if not shutil.which(dep) and not shutil.which(dep+".exe"):
-			missed.append(dep)
-	if len(missed) == 1:
-		print(f"Missing optional dependency: {missed[0]}.")
-		while (string := input("You may still run without it, do you want to run anyway [Y/N]? ").strip().lower()) not in ["y", "n"]: pass
-		if string == "n":
-			exit(2)
-		else:
-			pass
-	elif missed:
-		nt = "\n\t"
-		print(f"Missing optional dependencies:\n{nt.join(missed)}.")
-		while (string := input("You may still run without them, do you want to run anyway [Y/N]? ").strip().lower()) not in ["y", "n"]: pass
-		if string == "n":
-			exit(2)
-		else:
-			pass
+	with TerminalUpdater("Checking Dependencies:", category="CheckDependencies", names=["Progress"], hooks=GlobalHooks, printer=LoadingBar, length=65, out=sys.stdout) as TU:
+		requiredDeps = []
+		optionalDeps = ["samtools"]
+
+		if args.mapper:
+			requiredDeps.extend(Mapper.get(args.mapper).dependencies)
+		if args.aligner:
+			requiredDeps.extend(Aligner.get(args.aligner).dependencies)
+		if args.snpCaller:
+			requiredDeps.extend(SNPCaller.get(args.snpCaller).dependencies)
+
+		GlobalHooks.trigger("CheckDependenciesStarting", {"name" : "Progress", "value" : 0.0})
+
+		missed = []
+		for i, dep in enumerate(requiredDeps):
+			
+			if not shutil.which(dep) and not shutil.which(dep+".exe"):
+				GlobalHooks.trigger("CheckDependenciesFailed", {"name" : "Progress", "value" : None})
+				missed.append(dep)
+			GlobalHooks.trigger("CheckDependenciesProgress", {"name" : "Progress", "value" : (i+1) / len(requiredDeps)})
+		if len(missed) == 1:
+			raise MissingDependency(f"Missing required dependency: {missed[0]}.")
+		elif missed:
+			nt = "\n\t"
+			raise MissingDependency(f"Missing required dependencies:{''.join(map(nt.__add__, missed))}.")
+		
+		missed = []
+		for dep in optionalDeps:
+			if not shutil.which(dep) and not shutil.which(dep+".exe"):
+				missed.append(dep)
+		if len(missed) == 1:
+			print(f"Missing optional dependency: {missed[0]}.")
+			while (string := input("You may still run without it, do you want to run anyway [Y/N]? ").strip().lower()) not in ["y", "n"]: pass
+			if string == "n":
+				exit(2)
+			else:
+				pass
+		elif missed:
+			nt = "\n\t"
+			print(f"Missing optional dependencies:\n{nt.join(missed)}.")
+			while (string := input("You may still run without them, do you want to run anyway [Y/N]? ").strip().lower()) not in ["y", "n"]: pass
+			if string == "n":
+				exit(2)
+			else:
+				pass
+		
+		GlobalHooks.trigger("CheckDependenciesFinished", {"name" : "Progress", "value" : 3})
 
 def separateCommands(argv : list[str]) -> dict[str,list[str]]:
 	
@@ -239,8 +246,6 @@ def handleOptions(args : NameSpace):
 		Globals.DEBUG = True
 		Globals.MAX_DEBUG = True
 		Globals.SQLOOPGlobals.MAX_DEBUG = True
-	elif args.verbose:
-		logging.basicConfig(level=logging.INFO)
 	elif args.suppress:
 		logging.basicConfig(level=logging.ERROR)
 	else:
@@ -274,14 +279,10 @@ def initializeData(args : NameSpace|None=None, /, **kwargs) -> list[FileList[Fil
 	else:
 		outDir = PseudoPathyFunctions.createTempDir(f"{SUB_SAMPLE_NAMES[args.subSampleType]}-{'-'.join(map(shortNumber, args[args.subSampleType]))}")
 	
-	if not ISATTY:
-		startTime = timer()
-		print(f"Creating Sub-samples: ", end="")
-	with TerminalUpdater(f"Creating Sub-samples:", category="SplitFastq", names=[DL.queryName], hooks=GlobalHooks, printer=LoadingBar, length=65, out=sys.stdout if ISATTY else DEV_NULL) as TU:
+	with TerminalUpdater(f"Creating Sub-samples:", category="SplitFastq", names=[DL.queryName], hooks=GlobalHooks, printer=LoadingBar, length=40, out=sys.stdout) as TU:
 		
 		newFiles = splitFastq(args[args.subSampleType][0], DL.query, outDir=outDir, hooks=TU.hooks, **{args.subSampleType:args[args.subSampleType][1:]})
-	if not ISATTY:
-		print(round(timer() - startTime, 3))
+
 	return newFiles
 
 @overload
@@ -299,12 +300,14 @@ def initializeMainObjects(args : NameSpace=None, /, *, organism : str|None=None,
 	queryName = query.name
 	subSampled = queryFiles is not None
 	queryFiles = queryFiles if subSampled else []
-	settings = vars(args)
 	
 	if args is not None:
+		settings = vars(args)
 		database = database or args.database
 		saveTemp = saveTemp if saveTemp is not None else args.saveTemp
 		settingsFile = settingsFile or args.settingsFile
+	else:
+		settings = {}
 	
 	if not args.subSampled:
 		instances = [MetaCanSNPer(organism, query, settings=settings)]
@@ -337,23 +340,17 @@ def initializeMainObjects(args : NameSpace=None, /, *, organism : str|None=None,
 
 	database = database or mObj.databaseName
 	
-	if not ISATTY:
-		startTime = timer()
-		print(f"Checking database {database!r}: ", end="")
-	with TerminalUpdater(f"Checking database {database!r}:", category="DatabaseDownloader", names=[database], printer=LoadingBar, length=30, out=sys.stdout if ISATTY else DEV_NULL) as TU:
+	with TerminalUpdater(f"Checking database {database!r}:", category="DatabaseDownloader", names=[database], printer=LoadingBar, length=30, out=sys.stdout) as TU:
 		mObj.setDatabase(database, sequential=True)
 		GlobalHooks.trigger("DatabaseDownloaderPostProcess", {"name" : database, "value" : 1.0})
 		for obj in instances[1:]:
 			obj.databaseName = mObj.databaseName
 			obj.Lib.database = obj.database = mObj.database
 		GlobalHooks.trigger("DatabaseDownloaderFinished", {"name" : database, "value" : 3})
-	if not ISATTY:
-		print(round(timer() - startTime, 3))
+	
 	refFiles = [f"{assemblyName}.fna" for *_, assemblyName in mObj.database.references]
-	if not ISATTY:
-		startTime = timer()
-		print(f"Checking Reference Genomes: ", end="")
-	with TerminalUpdater(f"Checking Reference Genomes:", category="ReferenceDownloader", names=refFiles, printer=LoadingBar, length=30, out=sys.stdout if ISATTY else DEV_NULL) as TU:
+	
+	with TerminalUpdater(f"Checking Reference Genomes:", category="ReferenceDownloader", names=refFiles, printer=LoadingBar, length=30, out=sys.stdout) as TU:
 		mObj.setReferenceFiles(sequential=True)
 		for refFile in refFiles:
 			GlobalHooks.trigger("ReferenceDownloaderProgress", {"name" : refFile, "value" : 1.0})
@@ -361,8 +358,6 @@ def initializeMainObjects(args : NameSpace=None, /, *, organism : str|None=None,
 			instance.setReferenceFiles()
 		for refFile in refFiles:
 			GlobalHooks.trigger("ReferenceDownloaderProgress", {"name" : refFile, "value" : 3})
-	if not ISATTY:
-		print(round(timer() - startTime, 3))
 	
 	return groupSessionName, instances
 
@@ -384,11 +379,8 @@ def runJobs(instances, func, args, argsDict, category, categoryName, names, mess
 	jobs = len(instances)
 	commonLock = Lock()
 	LocalHooks = Hooks()
-	
-	if not ISATTY:
-		startTime = timer()
-		print(message, end="")
-	with TerminalUpdater(message, category=categoryName, hooks=LocalHooks, names=names, printer=LoadingBar, length=30, out=sys.stdout if ISATTY else DEV_NULL) as TU:
+
+	with TerminalUpdater(message, category=categoryName, hooks=LocalHooks, names=names, printer=LoadingBar, length=30, out=sys.stdout) as TU:
 		for name in names:
 			LocalHooks.trigger(f"{categoryName}Starting", {"name" : name, "value" : 0})
 		failedEvent = Event()
@@ -397,8 +389,6 @@ def runJobs(instances, func, args, argsDict, category, categoryName, names, mess
 				raise ChildProcessError(f"{categoryName} process failed.")
 		for name in names:
 			LocalHooks.trigger(f"{categoryName}Finished", {"name" : name, "value" : 3})
-	if not ISATTY:
-		print(round(timer() - startTime, 3))
 	
 def runPrograms(instances : list[MetaCanSNPer], args : NameSpace, argsDict : dict):
 	
@@ -418,49 +408,30 @@ def runPrograms(instances : list[MetaCanSNPer], args : NameSpace, argsDict : dic
 		mObj = instances[0]
 		
 		if args.mapper or any(queryFormat.endswith(ext) for ext in ["fastq", "fq", "fastq.gz", "fq.gz"]):
-			if not ISATTY:
-				startTime = timer()
-				print(f"Creating Mappings: ", end="")
-			with TerminalUpdater(f"Creating Mappings:", category="Mappers", hooks=mObj.hooks, names=genomes, printer=Spinner, out=sys.stdout if ISATTY else DEV_NULL):
+			with TerminalUpdater(f"Creating Mappings:", category="Mappers", hooks=mObj.hooks, names=genomes, printer=Spinner, out=sys.stdout):
 				
 				mObj.createMap(softwareName=args.mapper or mObj.settings["mapper"], flags=argsDict.get("--mapperOptions", {}))
-			if not ISATTY:
-				print(round(timer() - startTime, 3))
 
 		if args.aligner or any(queryFormat.endswith(ext) for ext in ["fasta", "fna", "fasta.gz", "fna.gz"]):
-			if not ISATTY:
-				startTime = timer()
-				print(f"Creating Alignments: ", end="")
-			with TerminalUpdater(f"Creating Alignments:", category="Aligners", hooks=mObj.hooks, names=genomes, printer=Spinner, out=sys.stdout if ISATTY else DEV_NULL):
+			with TerminalUpdater(f"Creating Alignments:", category="Aligners", hooks=mObj.hooks, names=genomes, printer=Spinner, out=sys.stdout):
 				
 				mObj.createAlignment(softwareName=args.aligner or mObj.settings["aligner"], flags=argsDict.get("--alignerOptions", {}))
-			if not ISATTY:
-				print(round(timer() - startTime, 3))
 
-		if not ISATTY:
-			startTime = timer()
-			print(f"Calling SNPs: ", end="")
-		with TerminalUpdater(f"Calling SNPs:", category="SNPCallers", hooks=mObj.hooks, names=genomes, printer=Spinner, out=sys.stdout if ISATTY else DEV_NULL):
+		with TerminalUpdater(f"Calling SNPs:", category="SNPCallers", hooks=mObj.hooks, names=genomes, printer=Spinner, out=sys.stdout):
 			
 			mObj.callSNPs(softwareName=args.snpCaller or mObj.settings["snpCaller"], flags=argsDict.get("--snpCallerOptions", {}))
-		if not ISATTY:
-			print(round(timer() - startTime, 3))
 		
 def saveResults(instances : list[MetaCanSNPer], args : NameSpace, sessionName : str) -> Path:
 	
 	if not args.subSampled:
 		mObj = instances[0]
 
-		if not ISATTY:
-			startTime = timer()
-			print(f"Saving Results: ", end="")
-		with TerminalUpdater(f"Saving Results:", category="SavingResults", hooks=mObj.hooks, names=[mObj.queryName], printer=Spinner, out=sys.stdout if ISATTY else DEV_NULL):
+		with TerminalUpdater(f"Saving Results:", category="SavingResults", hooks=mObj.hooks, names=[mObj.queryName], printer=Spinner, out=sys.stdout):
 			mObj.hooks.trigger("SavingResultsStarting", {"name" : mObj.queryName, "value" : 0})
 			mObj.saveSNPdata()
 			outDir = mObj.saveResults()
 			mObj.hooks.trigger("SavingResultsFinished", {"name" : mObj.queryName, "value" : 3})
-		if not ISATTY:
-			print(round(timer() - startTime, 3))
+
 		return outDir
 	else:
 		from MetaCanSNPer.core.DirectoryLibrary import DirectoryLibrary
@@ -471,10 +442,7 @@ def saveResults(instances : list[MetaCanSNPer], args : NameSpace, sessionName : 
 		LocalHooks = Hooks()
 		name = DL.queryName
 
-		if not ISATTY:
-			startTime = timer()
-			print(f"Saving Results: ", end="")
-		with TerminalUpdater(f"Saving Results:", category="SavingResults", hooks=LocalHooks, names=[name], printer=LoadingBar, length=65, out=sys.stdout if ISATTY else DEV_NULL):
+		with TerminalUpdater(f"Saving Results:", category="SavingResults", hooks=LocalHooks, names=[name], printer=LoadingBar, length=65, out=sys.stdout):
 			LocalHooks.trigger("SavingResultsStarting", {"name" : name, "value" : 0})
 			for i, mObj in enumerate(instances):
 				mObj.saveSNPdata()
@@ -487,8 +455,6 @@ def saveResults(instances : list[MetaCanSNPer], args : NameSpace, sessionName : 
 				shutil.rmtree(outDir, ignore_errors=True)
 				LocalHooks.trigger("SavingResultsProgress", {"name" : name, "value" : (i+1) / jobs})
 			LocalHooks.trigger("SavingResultsFinished", {"name" : name, "value" : 3})
-		if not ISATTY:
-			print(round(timer() - startTime, 3))
 		
 		return DirectoryPath(realOutDir)
 
@@ -544,14 +510,10 @@ def main(argVector : list[str]=sys.argv, **namedArgs) -> int:
 			namedArgs.pop(name[2:])
 		args = NameSpace(**namedArgs)
 
-	print(f"\nRunning {SOFTWARE_NAME}...\n", file=sys.stderr)
+	print(f"\nRunning {SOFTWARE_NAME}...\n", flush=True, file=sys.stderr)
 
 	if not args.dryRun:
-		startTime = timer()
-		print(f"Checking Dependencies:", end="", file=sys.stderr)
 		checkDependencies(args)
-		print(f" Done! {timer()-startTime:.3f}", end="", file=sys.stderr)
-
 	
 	handleOptions(args)
 	

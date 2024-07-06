@@ -1,8 +1,8 @@
 
 from MetaCanSNPer.Globals import *
+import MetaCanSNPer.Globals as Globals
 from MetaCanSNPer.core.Hooks import *
 import hashlib, gunzip, subprocess
-		
 
 SUB_SAMPLE_NAMES = {
 	"reads" : "Reads",
@@ -19,7 +19,7 @@ def randomReadGenerator(indices):
 		for choice in choices:
 			yield [reads[choice] for reads in indices]
 
-def subSampleName(name : FilePath|DirectoryPath|str, type : Literal["reads","coverage","dilution","bytes"], *N, index : int=None) -> str:
+def subSampleName(name : FilePath|DirectoryPath|str, type : Literal["reads","coverage","dilution","bases","bytes"], *N, index : int=None) -> str:
 	
 	if index is None:
 		bracketedID = f"[{SUB_SAMPLE_NAMES[type]}-{'-'.join(map(shortNumber, N))}]"
@@ -37,41 +37,57 @@ def subSampleName(name : FilePath|DirectoryPath|str, type : Literal["reads","cov
 		
 		return name + bracketedID + ext
 
-def readsProgressCallback(outData : list[list[list[list[int,int,int,int,int]|list[int,int,int,int]]]], /, *, reads, **kwargs) -> list[bool]:
-	"""Returns `True` if condition has NOT been met."""
-	return [sum(map(len, sampleData)) / reads for sampleData in outData]
+class ProgressTracker(list):
+	def __init__(self, n : int, goal : int|float, factor : int|float=1, **kwargs):
+		super().__init__(0 for _ in range(n))
+		self.n = n
+		self.goal = goal
+		self.factor = factor
+		for name, value in kwargs.items():
+			setattr(self, name, value)
+	
+	def __iter__(self):
+		for p in super().__iter__():
+			yield self.factor * p / self.goal
 
-def coverageProgressCallback(outData : list[list[list[list[int,int,int,int,int]|list[int,int,int,int]]]], /, *, targetCoverage, expectedCoverage, totalReads, **kwargs) -> list[bool]:
-	"""Returns `True` if condition has NOT been met."""
-	reads = totalReads * targetCoverage/expectedCoverage
-	return [sum(map(len, sampleData)) / reads for sampleData in outData]
+	def update(self, other):
+		for i, x in enumerate(other):
+			self[i] += 1
+	
+	def mean(self):
+		return self.goal * self.norm()
+	
+	def norm(self):
+		return sum(self) / self.n
 
-def dilutionProgressCallback(outData : list[list[list[list[int,int,int,int,int]|list[int,int,int,int]]]], /, *, dilution, totalReads, **kwargs) -> list[bool]:
-	"""Returns `True` if condition has NOT been met."""
-	reads = totalReads / dilution
-	return [sum(map(len, sampleData)) / reads for sampleData in outData]
+class ReadsProgressTracker(ProgressTracker): ...
 
-def basesProgressCallback(outData : list[list[list[list[int,int,int,int,int]|list[int,int,int,int]]]], /, *, bases, **kwargs) -> list[bool]:
-	"""Returns `True` if condition has NOT been met."""
-	return [sum(itertools.chain(map(lambda x:map(lambda y:y[0], x), sampleData))) / bases for sampleData in outData]
+class CoverageProgressTracker(ProgressTracker): ...
 
-def bytesProgressCallback(outData : list[list[list[list[int,int,int,int,int]|list[int,int,int,int]]]], /, *, bytes, **kwargs) -> list[bool]:
-	"""Returns `True` if condition has NOT been met."""
-	return [sum(itertools.chain(map(lambda x:map(lambda y:y[2]-y[1], x), sampleData))) / bytes for sampleData in outData]
+class DilutionProgressTracker(ProgressTracker): ...
 
-def getProgressCallback(subSamplingType : str, *args, **kwargs):
+class BasesProgressTracker(ProgressTracker):
+	def update(self, other):
+		for i, x in enumerate(other):
+			self[i] += sum(map(lambda y:y[0][0], x))
+
+class BytesProgressTracker(ProgressTracker):
+	def update(self, other):
+		for i, x in enumerate(other):
+			self[i] += sum(map(lambda y:y[0][2] - y[0][1], x))
+
+def getProgressCallback(subSamplingType : str, n : int, *args, **kwargs):
 	match subSamplingType:
 		case "reads":
-			return partial(readsProgressCallback, reads=args[0], **kwargs)
+			return ReadsProgressTracker(n, goal=args[0])
 		case "coverage":
-			return partial(coverageProgressCallback, targetCoverage=args[0], expectedCoverage=args[1], totalReads=args[2], **kwargs)
+			return CoverageProgressTracker(n, goal=args[0], factor=args[1] / args[2])
 		case "dilution":
-			return partial(dilutionProgressCallback, dilution=args[0], totalReads=args[1], **kwargs)
+			return DilutionProgressTracker(n, goal=1/args[0], factor=1/args[1])
 		case "bases":
-			return partial(basesProgressCallback, bases=args[0], **kwargs)
+			return BasesProgressTracker(n, goal=args[0])
 		case "bytes":
-			return partial(bytesProgressCallback, bytes=args[0], **kwargs)
-	
+			return BytesProgressTracker(n, goal=args[0])
 
 @overload
 def splitFastq(files : int, source : FilePath|FileList[FilePath], *, reads : list[int], **kwargs) -> list[tuple[str]]: ...
@@ -89,7 +105,8 @@ def splitFastq(files : int, source : FilePath|FileList[FilePath], *,
 			   outDir : DirectoryPath=None, hooks=GlobalHooks, steps : int=100,
 			   **kwargs) -> list[tuple[str]]:
 	
-	LOGGER.info(f"Sub Sampling: From {source}.")
+	Globals.LOGGER.info(f"Sub Sampling: From {source}.")
+	LOGGING_FILEHANDLER.emit(logging.LogRecord(__name__, logging.INFO, __file__, 0, f"Sub Sampling: From {source}.", (), None, splitFastq))
 
 	if isinstance(source, str):
 		source = FileList([FilePath(source)])
@@ -97,15 +114,18 @@ def splitFastq(files : int, source : FilePath|FileList[FilePath], *,
 		source = FileList(FilePath(name) for name in source)
 	
 	if all(filepath.endswith(".gz") for filepath in source):
-		LOGGER.info(f"Sub Sampling: From and to gzip-data.")
+		Globals.LOGGER.info("Sub Sampling: From and to gzip-data.")
+		LOGGING_FILEHANDLER.emit(logging.LogRecord(__name__, logging.INFO, __file__, 0, "Sub Sampling: From and to gzip-data.", (), None, splitFastq))
 		dataOpen = gunzip.gzip.open
 	elif not any(filepath.endswith(".gz") for filepath in source):
-		LOGGER.info(f"Sub Sampling: From and to raw-data.")
+		Globals.LOGGER.info("Sub Sampling: From and to raw-data.")
+		LOGGING_FILEHANDLER.emit(logging.LogRecord(__name__, logging.INFO, __file__, 0, "Sub Sampling: From and to raw-data.", (), None, splitFastq))
 		dataOpen = open
 	else:
 		raise ValueError(f"Files are not consistent in their compression file extensions: {source}")
 	
-	LOGGER.info(f"Sub Sampling: Creating Read Index.")
+	Globals.LOGGER.info("Sub Sampling: Creating Read Index.")
+	LOGGING_FILEHANDLER.emit(logging.LogRecord(__name__, logging.INFO, __file__, 0, "Sub Sampling: Creating Read Index.", (), None, splitFastq))
 	readsIndex = []
 	for filepath in source:
 		with dataOpen(filepath, "rb") as file:
@@ -130,13 +150,15 @@ def splitFastq(files : int, source : FilePath|FileList[FilePath], *,
 				readList.append([sum(map(len, map(bytes.strip, read))), pos, file.tell()])
 
 			readsIndex.append(readList)
-	LOGGER.info(f"Sub Sampling: Found {', '.join(map(str, map(len, readsIndex)))} reads for the source file(s).")
+	Globals.LOGGER.info(f"Sub Sampling: Found {', '.join(map(str, map(len, readsIndex)))} reads for the source file(s).")
+	LOGGING_FILEHANDLER.emit(logging.LogRecord(__name__, logging.INFO, __file__, 0, f"Sub Sampling: Found {', '.join(map(str, map(len, readsIndex)))} reads for the source file(s).", (), None, splitFastq))
 
-	for name in ["reads", "dilution", "coverage", "bytes", "bases"]:
+	for name in ["reads", "dilution", "coverage", "bases", "bytes"]:
 		if name in kwargs:
-			LOGGER.info(f"Sub Sampling: Using {values[0]} {SUB_SAMPLE_NAMES[name]}.")
 			varName, values = name, kwargs[name]
-			progressCallback = getProgressCallback(name, *values, totalReads=len(readsIndex[0]))
+			Globals.LOGGER.info(f"Sub Sampling: Using {values[0]} {SUB_SAMPLE_NAMES[name]}.")
+			LOGGING_FILEHANDLER.emit(logging.LogRecord(__name__, logging.INFO, __file__, 0, f"Sub Sampling: Using {values[0]} {SUB_SAMPLE_NAMES[name]}.", (), None, splitFastq))
+			progressTracker = getProgressCallback(name, files, *values, totalReads=len(readsIndex[0]))
 			break
 	else:
 		raise ValueError("No sub sampling information given, check keyword arguments of `splitFastq`.")
@@ -153,45 +175,48 @@ def splitFastq(files : int, source : FilePath|FileList[FilePath], *,
 	outFiles : list[list[BinaryIO]] = [[dataOpen(filename, "wb") for filename in filenames] for filenames in outNames]
 	
 	threshold = 0
-	
-	progressVector = [-1 for _ in outData]
 	# First 1/4 of progress
-	LOGGER.info(f"Sub Sampling: Read Selection.")
+	Globals.LOGGER.info(f"Sub Sampling: Read Selection.")
+	LOGGING_FILEHANDLER.emit(logging.LogRecord(__name__, logging.INFO, __file__, 0, f"Sub Sampling: Read Selection.", (), None, splitFastq))
 	for readSet in itertools.batched(randomReadGenerator(readsIndex), len(outData)):
-		if progressVector == (progressVector := progressCallback(outData)):
-			break
-		if (1/4) * sum(progressVector) / len(progressVector) >= threshold:
-			hooks.trigger("SplitFastqProgress", {"name" : source.name, "value" : min(1.0, (1/4) * sum(progressVector) / len(progressVector))})
-			threshold = (int((1/4) * steps * sum(progressVector) / len(progressVector))+1) / steps
-		for notDone, sampleData, outReads in zip(progressVector, outData, readSet):
-			if notDone:
+		for prog, sampleData, outReads in zip(progressTracker, outData, readSet):
+			if prog < 1.0:
 				for fileData, read in zip(sampleData, outReads):
 					fileData.append(read)
+		progressTracker.update(outData)
+		if progressTracker.norm() >= 1.0:
+			break
+		elif steps * (1/4) * progressTracker.norm() >= threshold:
+			hooks.trigger("SplitFastqProgress", {"name" : source.name, "value" : min(1.0, (1/4) * progressTracker.norm())})
+			threshold += 1
 	
 	# 2/4 of progress
-	LOGGER.info(f"Sub Sampling: Read Aggregation.")
+	Globals.LOGGER.info(f"Sub Sampling: Read Aggregation.")
+	LOGGING_FILEHANDLER.emit(logging.LogRecord(__name__, logging.INFO, __file__, 0, f"Sub Sampling: Read Aggregation.", (), None, splitFastq))
 	readsAggregates = [[] for _ in outFiles[0]]
-	for data, files in zip(outData, outFiles):
-		if (1/4) + (1/4) * i / len(outFiles) >= threshold:
+	for i, data, files in zip(itertools.count(), outData, outFiles):
+		if steps * ((1/4) + (1/4) * i / len(outFiles)) >= threshold:
 			hooks.trigger("SplitFastqProgress", {"name" : source.name, "value" : min(1.0, (1/4) + (1/4) * i / len(outFiles))})
-			threshold = (int(steps * ((1/4) + (1/4) * i) / len(outFiles))+1) / steps
-		for fileN, file, reads in zip(range(len(files), files, data)):
+			threshold += 1
+		for fileN, file, reads in zip(itertools.count(), files, data):
 			readsAggregates[fileN].extend((file, read) for read in reads)
 
 	# 3/4 of progress
-	LOGGER.info(f"Sub Sampling: Read Sorting.")
+	Globals.LOGGER.info(f"Sub Sampling: Read Sorting.")
+	LOGGING_FILEHANDLER.emit(logging.LogRecord(__name__, logging.INFO, __file__, 0, f"Sub Sampling: Read Sorting.", (), None, splitFastq))
 	for i, aggregate in enumerate(readsAggregates):
-		if (2/4) + (1/4) * i / len(readsAggregates) >= threshold:
+		if steps * ((2/4) + (1/4) * i / len(readsAggregates)) >= threshold:
 			hooks.trigger("SplitFastqProgress", {"name" : source.name, "value" : min(1.0, (2/4) + (1/4) * i / len(readsAggregates))})
-			threshold = (int(steps * ((2/4) + (1/4) * i) / len(readsAggregates))+1) / steps
+			threshold += 1
 		aggregate.sort(key=lambda x:x[1][1])
 
 	# 4/4 of progress
-	LOGGER.info(f"Sub Sampling: Writing Files.")
-	for aggregate, dataFile in zip(readsAggregates, dataFiles):
-		if (3/4) + (1/4) * i / len(readsAggregates) >= threshold:
+	Globals.LOGGER.info(f"Sub Sampling: Writing Files.")
+	LOGGING_FILEHANDLER.emit(logging.LogRecord(__name__, logging.INFO, __file__, 0, f"Sub Sampling: Writing Files.", (), None, splitFastq))
+	for i, aggregate, dataFile in zip(itertools.count(), readsAggregates, dataFiles):
+		if steps * ((3/4) + (1/4) * i / len(readsAggregates)) >= threshold:
 			hooks.trigger("SplitFastqProgress", {"name" : source.name, "value" : min(1.0, (3/4) + (1/4) * i / len(readsAggregates))})
-			threshold = (int(steps * ((3/4) + (1/4) * i) / len(readsAggregates))+1) / steps
+			threshold += 1
 		for file, read in aggregate:
 			dataFile.seek(read[1])
 			file.write(dataFile.read(read[2] - read[1]))
@@ -202,6 +227,7 @@ def splitFastq(files : int, source : FilePath|FileList[FilePath], *,
 			file.close()
 	hooks.trigger("SplitFastqFinished", {"name" : source.name, "value" : 3})
 
-	LOGGER.info(f"Sub Sampling: Finished!")
+	Globals.LOGGER.info(f"Sub Sampling: Finished!")
+	LOGGING_FILEHANDLER.emit(logging.LogRecord(__name__, logging.INFO, __file__, 0, f"Sub Sampling: Finished!", (), None, splitFastq))
 	
 	return outNames

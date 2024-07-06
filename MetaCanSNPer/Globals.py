@@ -30,6 +30,7 @@ import VariantCallFixer.Globals as VCFGlobals
 import SQLOOP.Globals as SQLOOPGlobals
 from VariantCallFixer import openVCF
 from PseudoPathy import *
+from GeekyGadgets.Classy import Default
 from collections import namedtuple
 
 from types import FunctionType, MethodType
@@ -59,12 +60,12 @@ PARALLEL_LIMIT = 3
 SQLOOPGlobals.MAX_DEBUG = MAX_DEBUG
 LOGGING_FILEPATH = UniqueFilePath(DirectoryPath(user_log_dir(SOFTWARE_NAME)).writable, time.strftime("MetaCanSNPer-%Y-%m-%d--%H-%M-%S.log", time.localtime()))
 LOGGING_FILEHANDLER = logging.FileHandler(LOGGING_FILEPATH)
-LOGGING_FILEHANDLER.setLevel(logging.WARNING)
+LOGGING_FILEHANDLER.setLevel(logging.INFO)
 LOGGING_ERRORMESSAGES = FileLikeList()
 LOGGING_ERRORHANDLER = logging.StreamHandler(stream=LOGGING_ERRORMESSAGES)
 LOGGING_ERRORHANDLER.terminator = f"\n\n{'*'*80}\n\n"
 LOGGING_ERRORHANDLER.setLevel(logging.ERROR)
-logging.basicConfig(handlers=[LOGGING_FILEHANDLER, LOGGING_ERRORHANDLER], format="[%(name)s] %(asctime)s - %(levelname)s: %(message)s", level=logging.DEBUG)
+logging.basicConfig(handlers=[LOGGING_FILEHANDLER, LOGGING_ERRORHANDLER], format="[%(name)s] %(asctime)s - %(levelname)s: %(message)s", level=logging.INFO)
 if PYTHON_VERSION < (3, 12):
 	class batched:
 		def __init__(self, iterable, n):
@@ -79,7 +80,7 @@ if PYTHON_VERSION < (3, 12):
 				
 	itertools.batched = batched
 
-LOGGER = logging.Logger("MetaCanSNPer", level=logging.DEBUG)
+LOGGER = logging.Logger("MetaCanSNPer")
 
 class Logged:
 	
@@ -297,76 +298,76 @@ class LimitedDict(dict):
 			self.N -= 1
 			return super().popitem()
 
-class Default:
+# class Default:
 
-	deps : tuple = None
-	name : str
+# 	deps : tuple = None
+# 	name : str
 
-	fget : Callable = None
-	fset : Callable = None
-	fdel : Callable = None
+# 	fget : Callable = None
+# 	fset : Callable = None
+# 	fdel : Callable = None
 
-	def __init__(self, fget=None, fset=None, fdel=None, doc=None, deps=(), *, limit : int=10000):
-		if fget or not self.fget:
-			self.fget = fget
-		if fset or not self.fset:
-			self.fset = fset
-		if fdel or not self.fdel:
-			self.fdel = fdel
-		self.__doc__ = doc or fget.__doc__ or getattr(self, "__doc__", None)
-		if deps or not self.deps:
-			self.deps = deps
+# 	def __init__(self, fget=None, fset=None, fdel=None, doc=None, deps=(), *, limit : int=10000):
+# 		if fget or not self.fget:
+# 			self.fget = fget
+# 		if fset or not self.fset:
+# 			self.fset = fset
+# 		if fdel or not self.fdel:
+# 			self.fdel = fdel
+# 		self.__doc__ = doc or fget.__doc__ or getattr(self, "__doc__", None)
+# 		if deps or not self.deps:
+# 			self.deps = deps
 		
-	def __call__(self, fget=None, fset=None, fdel=None, doc=None, *, limit : int=10000):
-		self.__init__(fget, fset, fdel, doc=doc, limit=limit)
-		return self
+# 	def __call__(self, fget=None, fset=None, fdel=None, doc=None, *, limit : int=10000):
+# 		self.__init__(fget, fset, fdel, doc=doc, limit=limit)
+# 		return self
 	
-	def __class_getitem__(cls, deps):
-		"""Calls Default(None) and adds the keys provided as the names of attributes upon which this value depends
-		before returning. This is useful for creating attributes which have default values which are meant to be
-		dependent on other attributes of the same object. When getting the same attribute repeatedly, new attribute
-		value instances will not be created, the first one is returned until one of the dependency attributes are
-		changed."""
-		return cls(deps=deps if isinstance(deps, tuple) else (deps, ))
+# 	def __class_getitem__(cls, deps):
+# 		"""Calls Default(None) and adds the keys provided as the names of attributes upon which this value depends
+# 		before returning. This is useful for creating attributes which have default values which are meant to be
+# 		dependent on other attributes of the same object. When getting the same attribute repeatedly, new attribute
+# 		value instances will not be created, the first one is returned until one of the dependency attributes are
+# 		changed."""
+# 		return cls(deps=deps if isinstance(deps, tuple) else (deps, ))
 	
-	def __set_name__(self, owner, name):
-		if hasattr(self.fget, "__annotations__") and hasattr(owner, "__annotations__") and "return" in self.fget.__annotations__:
-			owner.__annotations__[name] = self.fget.__annotations__["return"]
-		self.name = name
+# 	def __set_name__(self, owner, name):
+# 		if hasattr(self.fget, "__annotations__") and hasattr(owner, "__annotations__") and "return" in self.fget.__annotations__:
+# 			owner.__annotations__[name] = self.fget.__annotations__["return"]
+# 		self.name = name
 
-	def __get__(self, instance, owner=None):
-		if instance is None:
-			return self
-		elif self.name in getattr(instance, "__dict__", ()):
-			return instance.__dict__[self.name]
-		elif "_"+self.name in getattr(instance, "__dict__", ()):
-			return instance.__dict__["_"+self.name]
-		else:
-			instance.__dict__["_"+self.name] = ret = self.fget(instance)
-			return ret
+# 	def __get__(self, instance, owner=None):
+# 		if instance is None:
+# 			return self
+# 		elif self.name in getattr(instance, "__dict__", ()):
+# 			return instance.__dict__[self.name]
+# 		elif "_"+self.name in getattr(instance, "__dict__", ()):
+# 			return instance.__dict__["_"+self.name]
+# 		else:
+# 			instance.__dict__["_"+self.name] = ret = self.fget(instance)
+# 			return ret
 	
-	def __set__(self, instance, value):
-		if self.fset is None:
-			instance.__dict__[self.name] = value
-		else:
-			self.fset(instance, value)
+# 	def __set__(self, instance, value):
+# 		if self.fset is None:
+# 			instance.__dict__[self.name] = value
+# 		else:
+# 			self.fset(instance, value)
 	
-	def __delete__(self, instance, owner=None):
-			if self.fdel is not None:
-				self.fdel(instance)
-			else:
-				if self.name in instance.__dict__:
-					del instance.__dict__[self.name]
-				if "_"+self.name in instance.__dict__:
-					del instance.__dict__["_"+self.name]
+# 	def __delete__(self, instance, owner=None):
+# 		if self.fdel is not None:
+# 			self.fdel(instance)
+# 		else:
+# 			if self.name in instance.__dict__:
+# 				del instance.__dict__[self.name]
+# 			if "_"+self.name in instance.__dict__:
+# 				del instance.__dict__["_"+self.name]
 	
-	def setter(self, fset):
-		self.fset = fset
-		return self
+# 	def setter(self, fset):
+# 		self.fset = fset
+# 		return self
 	
-	def deleter(self, fdel):
-		self.fdel = fdel
-		return self
+# 	def deleter(self, fdel):
+# 		self.fdel = fdel
+# 		return self
 
 class ClassProperty:
 

@@ -1,6 +1,6 @@
 
 from MetaCanSNPer.core.Hooks import Hooks, GlobalHooks
-from threading import Thread, Condition
+from threading import Thread, Condition, Event
 from time import sleep
 from timeit import default_timer as timer
 from typing import TextIO, Iterable
@@ -220,6 +220,7 @@ class Indicator(Logged):
 	def __init__(self, threads : HitchableDict, symbols : tuple[str], length : int=15, message : str="", sep : str=" ", borders : tuple[str,str]=("[", "]"), crashSymbol="X", finishSymbol=SQUARE, out=sys.stdout, preColor : str=None, partition : str=None, crashColor : str=None, skippedColor : str=None, finishColor : str=None, postColor : str=None, progColor : str=None):
 		
 		self.condition = Condition()
+		self.stopEvent = Event()
 		self.rowLock = Lock()
 
 		self.preColor		= partial(yellow, bg="black")
@@ -319,10 +320,27 @@ class Indicator(Logged):
 		
 		startTime = timer()
 		self.running = True
+
+		if not ISATTY:
+			print(self.message.rstrip().rstrip(":")+": ", end="", flush=True, file=self.out)
+			while self.running:
+				self.stopEvent.wait(1)
+			print(
+				(
+					red('Failed!') if None in self.threads.values()
+					else green('Done!') if self.finishedThreads.issuperset(self.threads)
+					else yellow('Interrupted!')
+				)+" "+formatTimestamp(timer()-startTime),
+				flush=True,
+				file=self.out
+			)
+			return
+		
 		flushPrint = Printer(self.out)
 
 		with self.condition:
 			while self.running:
+				
 				with self.rowLock:
 					flushPrint(self.rowTemplate.format(time=formatTimestamp(timer()-startTime), names=self.shortKeys, bars=tuple(self.rowGenerator)))
 				
@@ -588,6 +606,7 @@ class TerminalUpdater(Logged):
 		self.printer.running = False
 		try:
 			self.printer.condition.notify_all()
+			self.printer.stopEvent.set()
 		except RuntimeError:
 			pass
 		self.thread.join()
