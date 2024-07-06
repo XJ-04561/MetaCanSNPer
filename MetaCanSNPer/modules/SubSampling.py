@@ -139,14 +139,14 @@ def splitFastq(files : int, source : FilePath|FileList[FilePath], *,
 				read = []
 				for line in file:
 					if not line.strip().isalpha():
-						lineSep = line
+						qualHeader = line
 						break
 					read.append(line)
 				
-				if lineSep.strip() == b"+":
+				if qualHeader.startswith(b"+"):
 					file.seek(sum(map(len, read)), 1)
-				elif lineSep:
-					file.seek(-len(lineSep), 1)
+				elif qualHeader:
+					file.seek(-len(qualHeader), 1)
 				readList.append([sum(map(len, map(bytes.strip, read))), pos, file.tell()])
 
 			readsIndex.append(readList)
