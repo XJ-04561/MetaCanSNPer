@@ -277,7 +277,7 @@ def initializeData(args : NameSpace|None=None, /, **kwargs) -> list[FileList[Fil
 		outDirs = DL.dataDir / "SubSampling" / DL.queryName / f"{SUB_SAMPLE_NAMES[args.subSampleType]}-{'-'.join(map(shortNumber, args[args.subSampleType]))}"
 		outDir = outDirs.create()
 	else:
-		outDir = PseudoPathyFunctions.createTempDir(f"{SUB_SAMPLE_NAMES[args.subSampleType]}-{'-'.join(map(shortNumber, args[args.subSampleType]))}")
+		outDir = PseudoPathyFunctions.createTempDir(f"{SUB_SAMPLE_NAMES[args.subSampleType]}-{'-'.join(map(shortNumber, args[args.subSampleType]))}", dir=DL.tmpDir.writable)
 	
 	with TerminalUpdater(f"Creating Sub-samples:", category="SplitFastq", names=[DL.queryName], hooks=GlobalHooks, printer=LoadingBar, length=40, out=sys.stdout) as TU:
 		
