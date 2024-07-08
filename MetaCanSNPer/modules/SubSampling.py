@@ -89,24 +89,55 @@ def getProgressCallback(subSamplingType : str, n : int, *args, **kwargs):
 		case "bytes":
 			return BytesProgressTracker(n, goal=args[0])
 
+def createReadsIndex(filepath : FilePath, ioFunc : Callable[[str,str],BinaryIO]):
+	
+	if os.path.exists(f"{filepath.name}_readsIndex.csv"):
+		return [[int(x) for x in row.strip().split(",")] for row in open(f"{filepath.name}_readsIndex.csv", "r")]
+	
+	pos = -1
+	readList = []
+	with ioFunc(filepath, "rb") as file:
+		while pos != (pos := file.tell()):
+			if not file.readline().startswith(b"@"):
+				continue
+			read = []
+			for line in file:
+				if not line.strip().isalpha():
+					qualHeader = line
+					break
+				read.append(line)
+			
+			if qualHeader.startswith(b"+"):
+				file.seek(sum(map(len, read)), 1)
+			elif qualHeader:
+				file.seek(-len(qualHeader), 1)
+			readList.append([sum(map(len, map(bytes.strip, read))), pos, file.tell()])
+	try:
+		with open(f"{filepath.name}_readsIndex.csv", "w") as file:
+			for row in readList:
+				file.write(f"{row[0]},{row[1]},{row[2]}\n")
+	except:
+		pass
+			
+	return readList
+
 @overload
-def splitFastq(files : int, source : FilePath|FileList[FilePath], *, reads : list[int], **kwargs) -> list[tuple[str]]: ...
+def splitFastq(samples : int, source : FilePath|FileList[FilePath], *, reads : list[int], **kwargs) -> list[tuple[str]]: ...
 @overload
-def splitFastq(files : int, source : FilePath|FileList[FilePath], *, coverage : list[int,int], **kwargs) -> list[tuple[str]]: ...
+def splitFastq(samples : int, source : FilePath|FileList[FilePath], *, coverage : list[int,int], **kwargs) -> list[tuple[str]]: ...
 @overload
-def splitFastq(files : int, source : FilePath|FileList[FilePath], *, dilution : list[int], **kwargs) -> list[tuple[str]]: ...
+def splitFastq(samples : int, source : FilePath|FileList[FilePath], *, dilution : list[int], **kwargs) -> list[tuple[str]]: ...
 @overload
-def splitFastq(files : int, source : FilePath|FileList[FilePath], *, bytes : list[int], **kwargs) -> list[tuple[str]]: ...
+def splitFastq(samples : int, source : FilePath|FileList[FilePath], *, bytes : list[int], **kwargs) -> list[tuple[str]]: ...
 @overload
-def splitFastq(files : int, source : FilePath|FileList[FilePath], *,
+def splitFastq(samples : int, source : FilePath|FileList[FilePath], *,
 			   reads : list[int]=None, dilution : list[int]=None, coverage : list[int,int]=None, bytes : list[int]=None, bases : list[int]=None,
 			   outDir : DirectoryPath=None, hooks=GlobalHooks, steps : int=100) -> list[tuple[str]]: ...
-def splitFastq(files : int, source : FilePath|FileList[FilePath], *,
+def splitFastq(samples : int, source : FilePath|FileList[FilePath], *,
 			   outDir : DirectoryPath=None, hooks=GlobalHooks, steps : int=100,
 			   **kwargs) -> list[tuple[str]]:
 	
 	Globals.LOGGER.info(f"Sub Sampling: From {source}.")
-	LOGGING_FILEHANDLER.emit(logging.LogRecord(__name__, logging.INFO, __file__, 0, f"Sub Sampling: From {source}.", (), None, splitFastq))
 
 	if isinstance(source, str):
 		source = FileList([FilePath(source)])
@@ -115,56 +146,30 @@ def splitFastq(files : int, source : FilePath|FileList[FilePath], *,
 	
 	if all(filepath.endswith(".gz") for filepath in source):
 		Globals.LOGGER.info("Sub Sampling: From and to gzip-data.")
-		LOGGING_FILEHANDLER.emit(logging.LogRecord(__name__, logging.INFO, __file__, 0, "Sub Sampling: From and to gzip-data.", (), None, splitFastq))
 		dataOpen = gunzip.gzip.open
 	elif not any(filepath.endswith(".gz") for filepath in source):
 		Globals.LOGGER.info("Sub Sampling: From and to raw-data.")
-		LOGGING_FILEHANDLER.emit(logging.LogRecord(__name__, logging.INFO, __file__, 0, "Sub Sampling: From and to raw-data.", (), None, splitFastq))
 		dataOpen = open
 	else:
 		raise ValueError(f"Files are not consistent in their compression file extensions: {source}")
 	
 	Globals.LOGGER.info("Sub Sampling: Creating Read Index.")
-	LOGGING_FILEHANDLER.emit(logging.LogRecord(__name__, logging.INFO, __file__, 0, "Sub Sampling: Creating Read Index.", (), None, splitFastq))
 	readsIndex = []
 	for filepath in source:
-		with dataOpen(filepath, "rb") as file:
-			file : BinaryIO
-			
-			pos = -1
-			readList = []
-			while pos != (pos := file.tell()):
-				if not file.readline().startswith(b"@"):
-					continue
-				read = []
-				for line in file:
-					if not line.strip().isalpha():
-						qualHeader = line
-						break
-					read.append(line)
-				
-				if qualHeader.startswith(b"+"):
-					file.seek(sum(map(len, read)), 1)
-				elif qualHeader:
-					file.seek(-len(qualHeader), 1)
-				readList.append([sum(map(len, map(bytes.strip, read))), pos, file.tell()])
-
-			readsIndex.append(readList)
+		readsIndex.append(createReadsIndex(filepath, dataOpen))
 	Globals.LOGGER.info(f"Sub Sampling: Found {', '.join(map(str, map(len, readsIndex)))} reads for the source file(s).")
-	LOGGING_FILEHANDLER.emit(logging.LogRecord(__name__, logging.INFO, __file__, 0, f"Sub Sampling: Found {', '.join(map(str, map(len, readsIndex)))} reads for the source file(s).", (), None, splitFastq))
 
 	for name in ["reads", "dilution", "coverage", "bases", "bytes"]:
 		if name in kwargs:
 			varName, values = name, kwargs[name]
 			Globals.LOGGER.info(f"Sub Sampling: Using {values[0]} {SUB_SAMPLE_NAMES[name]}.")
-			LOGGING_FILEHANDLER.emit(logging.LogRecord(__name__, logging.INFO, __file__, 0, f"Sub Sampling: Using {values[0]} {SUB_SAMPLE_NAMES[name]}.", (), None, splitFastq))
-			progressTracker = getProgressCallback(name, files, *values, totalReads=len(readsIndex[0]))
+			progressTracker = getProgressCallback(name, samples, *values, totalReads=len(readsIndex[0]))
 			break
 	else:
 		raise ValueError("No sub sampling information given, check keyword arguments of `splitFastq`.")
 
 	hooks.trigger("SplitFastqStarting", {"name" : source.name, "value" : 0.0})
-	outNames = [tuple((outDir or filepath.directory) / subSampleName(filepath, varName, files, *values, index=i+1) for filepath in source) for i in range(files)]
+	outNames = [tuple((outDir or filepath.directory) / subSampleName(filepath, varName, samples, *values, index=i+1) for filepath in source) for i in range(files)]
 
 	if all(os.path.exists(filename) for filenames in outNames for filename in filenames):
 		hooks.trigger("SplitFastqSkipped", {"name" : source.name, "value" : 2})
@@ -177,7 +182,6 @@ def splitFastq(files : int, source : FilePath|FileList[FilePath], *,
 	threshold = 0
 	# First 1/4 of progress
 	Globals.LOGGER.info(f"Sub Sampling: Read Selection.")
-	LOGGING_FILEHANDLER.emit(logging.LogRecord(__name__, logging.INFO, __file__, 0, f"Sub Sampling: Read Selection.", (), None, splitFastq))
 	for readSet in itertools.batched(randomReadGenerator(readsIndex), len(outData)):
 		for prog, sampleData, outReads in zip(progressTracker, outData, readSet):
 			if prog < 1.0:
@@ -192,7 +196,6 @@ def splitFastq(files : int, source : FilePath|FileList[FilePath], *,
 	
 	# 2/4 of progress
 	Globals.LOGGER.info(f"Sub Sampling: Read Aggregation.")
-	LOGGING_FILEHANDLER.emit(logging.LogRecord(__name__, logging.INFO, __file__, 0, f"Sub Sampling: Read Aggregation.", (), None, splitFastq))
 	readsAggregates = [[] for _ in outFiles[0]]
 	for i, data, files in zip(itertools.count(), outData, outFiles):
 		if steps * ((1/4) + (1/4) * i / len(outFiles)) >= threshold:
@@ -203,7 +206,6 @@ def splitFastq(files : int, source : FilePath|FileList[FilePath], *,
 
 	# 3/4 of progress
 	Globals.LOGGER.info(f"Sub Sampling: Read Sorting.")
-	LOGGING_FILEHANDLER.emit(logging.LogRecord(__name__, logging.INFO, __file__, 0, f"Sub Sampling: Read Sorting.", (), None, splitFastq))
 	for i, aggregate in enumerate(readsAggregates):
 		if steps * ((2/4) + (1/4) * i / len(readsAggregates)) >= threshold:
 			hooks.trigger("SplitFastqProgress", {"name" : source.name, "value" : min(1.0, (2/4) + (1/4) * i / len(readsAggregates))})
@@ -212,7 +214,6 @@ def splitFastq(files : int, source : FilePath|FileList[FilePath], *,
 
 	# 4/4 of progress
 	Globals.LOGGER.info(f"Sub Sampling: Writing Files.")
-	LOGGING_FILEHANDLER.emit(logging.LogRecord(__name__, logging.INFO, __file__, 0, f"Sub Sampling: Writing Files.", (), None, splitFastq))
 	for i, aggregate, dataFile in zip(itertools.count(), readsAggregates, dataFiles):
 		if steps * ((3/4) + (1/4) * i / len(readsAggregates)) >= threshold:
 			hooks.trigger("SplitFastqProgress", {"name" : source.name, "value" : min(1.0, (3/4) + (1/4) * i / len(readsAggregates))})
@@ -228,6 +229,5 @@ def splitFastq(files : int, source : FilePath|FileList[FilePath], *,
 	hooks.trigger("SplitFastqFinished", {"name" : source.name, "value" : 3})
 
 	Globals.LOGGER.info(f"Sub Sampling: Finished!")
-	LOGGING_FILEHANDLER.emit(logging.LogRecord(__name__, logging.INFO, __file__, 0, f"Sub Sampling: Finished!", (), None, splitFastq))
 	
 	return outNames
