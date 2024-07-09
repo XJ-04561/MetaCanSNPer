@@ -62,7 +62,11 @@ class CanSNPTree(Tree):
 
 	weightProp : str = "ratio"
 
-def drawGraphML(filename : FilePath):
+@overload
+def drawGraphML(filename : FilePath): ...
+@overload
+def drawGraphML(filename : FilePath, file : TextIO): ...
+def drawGraphML(filename : FilePath, file : TextIO=None):
 	tree = CanSNPTree.fromGraphML(open(filename, "r"))
 
-	tree.illustrate("HTML", filename=filename+".html", nameProp="genotype")
+	return tree.illustrate("HTML", file=file, nameProp="genotype")
