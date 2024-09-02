@@ -1,6 +1,6 @@
 
 from MetaCanSNPer.Globals import *
-from MetaCanSNPer.CLI import initializeMainObject
+from MetaCanSNPer.CLI import initializeMainObjects
 from MetaCanSNPer.core.DirectoryLibrary import DirectoryLibrary
 from MetaCanSNPer.modules.Downloader import DatabaseDownloader, DownloaderReportHook
 from MetaCanSNPer.modules.Database import MetaCanSNPerDatabase

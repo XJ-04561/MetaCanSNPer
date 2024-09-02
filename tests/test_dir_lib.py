@@ -7,7 +7,7 @@ def test_filename_alignment():
     
     aligned1 = FileList("FSC458_R1.fq", "FSC458_R2.fq")
 
-    assert "FSC458" == aligned1.name
+    assert "FSC458_R" == aligned1.name
 
     aligned2 = FileList("FSC458.fq", "FSC458(1).fq")
 

@@ -1,8 +1,11 @@
 
 from MetaCanSNPer.core.DirectoryLibrary import *
-
+import os
 
 def test_init():
+
+	os.makedirs(os.path.splitext(__file__)[0], exist_ok=True)
+	os.chdir(os.path.splitext(__file__)[0])
 	
 	DL = DirectoryLibrary("francisella_tularensis", ["FSC458.fq.gz"])
 

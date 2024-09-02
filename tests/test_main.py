@@ -1,6 +1,6 @@
 
 from MetaCanSNPer.core import MetaCanSNPer
-from MetaCanSNPer.CLI import initializeMainObject, NameSpace, parser, runJob, handleOptions, saveResults, separateCommands
+from MetaCanSNPer.CLI import initializeMainObjects, NameSpace, parser, runJobs, handleOptions, saveResults, separateCommands
 import pytest
 
 """

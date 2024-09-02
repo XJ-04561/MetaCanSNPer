@@ -1,0 +1,1329 @@
+<!doctype html>
+<html class="GeekyIllustration">
+	<head>
+		<title>Variant Call Coverage</title>
+		<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%2016%2016%22%3E%0A%09%3Crect%20x%3D%221%22%20y%3D%221%22%20height%3D%2214%22%20width%3D%2214%22%20fill%3D%22transparent%22%20stroke%3D%22%23a0a0a0%22%20stroke-width%3D%221%22%3E%0A%09%3C/rect%3E%0A%3C/svg%3E">
+		<meta property="article:published_time" content="2024-08-26 12:09:33 (UTC+0200)" data-rh="true">
+		<style>
+@media screen and (max-width : 1024px) {
+	html:root {
+		--BORDER-WIDTH-THIN : 1px;
+		--BORDER-WIDTH-MID : 2px;
+		--BORDER-WIDTH-THICK : 5px;
+
+		--BORDER-RADIUS-THIN : 10px;
+		--BORDER-RADIUS-MID : 20px;
+		--BORDER-RADIUS-THICK : 50px;
+
+		--PADDING-THIN : 10px;
+		--PADDING-MID : 20px;
+		--PADDING-THICK : 50px;
+	}
+}
+@media screen and (min-width : 1025px) and (max-width : 1920px) {
+	html:root {
+		--BORDER-WIDTH-THIN : 2px;
+		--BORDER-WIDTH-MID : 4px;
+		--BORDER-WIDTH-THICK : 8px;
+
+		--BORDER-RADIUS-THIN : 20px;
+		--BORDER-RADIUS-MID : 40px;
+		--BORDER-RADIUS-THICK : 80px;
+
+		--PADDING-THIN : 20px;
+		--PADDING-MID : 40px;
+		--PADDING-THICK : 80px;
+	}
+}
+@media screen and (min-width : 1921px) and (max-width : 3840px) {
+	html:root {
+		--BORDER-WIDTH-THIN : 3px;
+		--BORDER-WIDTH-MID : 8px;
+		--BORDER-WIDTH-THICK : 16px;
+
+		--BORDER-RADIUS-THIN : 40px;
+		--BORDER-RADIUS-MID : 60px;
+		--BORDER-RADIUS-THICK : 120px;
+
+		--PADDING-THIN : 40px;
+		--PADDING-MID : 60px;
+		--PADDING-THICK : 120px;
+	}
+}
+@media screen and (min-width : 3841px) {
+	html:root {
+		--BORDER-WIDTH-THIN : min(0.25vh, 0.25vw);
+		--BORDER-WIDTH-MID : min(0.5vh, 0.5vw);
+		--BORDER-WIDTH-THICK : min(1vh, 1vw);
+
+		--BORDER-RADIUS-THIN : min(1vh, 1vw);
+		--BORDER-RADIUS-MID : min(2.5vh, 2.5vw);
+		--BORDER-RADIUS-THICK : min(5vh, 5vw);
+
+		--PADDING-THIN : min(1vh, 1vw);
+		--PADDING-MID : min(2.5vh, 2.5vw);
+		--PADDING-THICK : min(5vh, 5vw);
+	}
+}
+html:root {
+	--PAGE-BACKGROUND : #ffffff;
+	/* --PAGE-BACKGROUND : #fbb74d; */
+
+	--PRIMARY-COLOR : #101010;
+	--PRIMARY-BACKGROUND : #ffffff;
+	--PRIMARY-BORDER : #c0c0c0;
+
+	--SECONDARY-COLOR : #080808;
+	--SECONDARY-BACKGROUND : #efefef;
+	--SECONDARY-BORDER : #b0b0b0;
+
+	--TERTIARY-COLOR : #e0e0e0;
+	--TERTIARY-BACKGROUND : #505050;
+	--TERTIARY-BORDER : #b0b0b0;
+}
+@media (prefers-color-scheme: dark) {
+	html:root {
+		--PAGE-BACKGROUND : #050505;
+
+		--PRIMARY-COLOR : #efefef;
+		--PRIMARY-BACKGROUND : #202020;
+		--PRIMARY-BORDER : #505050;
+
+		--SECONDARY-COLOR : #f9f9f9;
+		--SECONDARY-BACKGROUND : #303030;
+		--SECONDARY-BORDER : #606060;
+
+		--TERTIARY-COLOR : #101010;
+		--TERTIARY-BACKGROUND : #505050;
+		--TERTIARY-BORDER : #404040;
+	}
+}
+
+.primary {
+	color : var(--PRIMARY-COLOR);
+	background-color : var(--PRIMARY-BACKGROUND);
+	border : 1px solid var(--PAGE-BACKGROUND);
+}
+.secondary {
+	color : var(--SECONDARY-COLOR);
+	background-color : var(--SECONDARY-BACKGROUND);
+	border: solid var(--BORDER-WIDTH-MID) var(--SECONDARY-BORDER);
+}
+.secondary::before {
+	box-shadow: #00000080 0 0 var(--BORDER-WIDTH-MID) var(--BORDER-WIDTH-MID);
+}
+.tertiary {
+	color : var(--TERTIARY-COLOR);
+	background-color : var(--TERTIARY-BACKGROUND);
+	border: solid var(--BORDER-WIDTH-MID) var(--TERTIARY-BORDER);
+}
+.tertiary::before {
+	box-shadow: #00000080 0 0 var(--BORDER-WIDTH-MID) var(--BORDER-WIDTH-MID);
+}
+
+.GeekyIllustration {
+	& body {
+		color : var(--PRIMARY-COLOR);
+		& svg text:not([fill]) {fill : var(--PRIMARY-COLOR);}
+	}
+	& figure {
+		max-height: 100%;
+  		max-width: 100%;
+
+		& svg {
+			
+			transition: all 1s ease;
+			& * {
+				transition: all 1s ease;
+			}
+		}
+	}
+
+}
+
+.Square {aspect-ratio : 1 / 1 !important;}
+.leftAligned {justify-self: left;}
+.centerAligned {justify-self: center;}
+.rightAligned {justify-self: right;}
+.stretchAligned {justify-self: stretch;}
+
+::-webkit-scrollbar {
+	position : absolute;
+	right : -10px;
+	width : 8px;
+}
+::-webkit-scrollbar-button {
+	display : none;
+}
+::-webkit-scrollbar-thumb {
+	border-radius : 4px;
+	background : var(--PRIMARY-BORDER);
+}
+::-webkit-scrollbar-track-piece {
+	background : var(--PRIMARY-BORDER);
+	opacity : 0.4;
+}
+::-webkit-scrollbar-track-piece:hover {
+	opacity : 0.6;
+}
+::-webkit-scrollbar-corner {
+	display : none;
+}
+
+@media (prefers-reduced-motion) {
+	svg {
+		transition: none;
+
+		& * {
+			transition: none;
+		}
+	}
+}</style>
+		<style>
+:root {
+	--DOCUMENT-PAGE-MARGIN : 2cm;
+}
+
+.GeekyIllustration body {
+	min-height: 100vh;
+	width: 100vw;
+	margin : 0;
+	padding : 0;
+	border : none;
+	border-radius : none;
+	box-shadow : none;
+	font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
+	&:has(>header.FixedHeader) {
+		min-height: calc(100vh - 6em);
+		height: calc(100vh - 6em);
+		margin-top : 6em;
+	}
+	& > header.FixedHeader {
+		position : fixed;
+		left : 0;
+		right : 0;
+		top : 0;
+		height : 6em;
+		display : flex;
+		justify-content: flex-start;
+		align-items: baseline;
+		gap: 1em;
+		padding : 0 6em;
+		border-left: none;
+		border-top: none;
+		border-right: none;
+	}
+	& > main {
+		margin : 0 auto;
+		width: 100%;
+		background-color: var(--PAGE-BACKGROUND);
+
+		& > section:not(.MonoFigure) {
+			margin : 1cm auto;
+			position : relative;
+			display : flex;
+			flex-direction : column;
+			justify-content: flex-start;
+			justify-items: left;
+			padding : var(--DOCUMENT-PAGE-MARGIN) var(--DOCUMENT-PAGE-MARGIN);
+			width : calc(21cm - 4cm);
+			height : calc(29.7cm - 4cm);
+
+			/* border-radius: calc(var(--DOCUMENT-PAGE-MARGIN) / 4); */
+		}
+		& > section.FrontPage {
+			justify-items: center;
+			text-align : center;
+		}
+	}
+	& figure {
+		overflow: hidden;
+	}
+}
+
+
+
+@media screen and (orientation : landscape) {
+	.GeekyIllustration section.MonoFigure {
+		height : 100%;
+		max-width : 100%;
+	}
+}
+@media screen and (orientation : portrait) {
+	.GeekyIllustration section.MonoFigure {
+		max-height : 100%;
+		width : 100%;
+	}
+}
+
+.GeekyIllustration body {
+	height : 100vh;
+	& > main:has(>section.MonoFigure) {
+		overflow: hidden;
+	}
+	& > main {
+		border : none !important;
+		height : 100%;
+		width : 100%;
+		
+		& > section:not(.MonoFigure) {
+			height : calc(100% - 4cm) !important;
+			width : calc(100% - 4cm) !important;
+			margin : auto !important;
+		}
+		& > section.MonoFigure {
+			border : none;
+
+			background : none !important;
+			border : none !important;
+			
+			margin : auto;
+			padding : 0;
+
+			display : flex;
+			flex-direction : row;
+			justify-content: center;
+			align-items: stretch;
+			flex-wrap: wrap;
+			gap : 1em;
+			overflow-y: scroll;
+
+			& > figure {
+				flex-grow: 1;
+				margin : 0;
+				/* flex: 1 1; */
+				aspect-ratio: 1 / 1;
+				& > div > svg {
+					max-height : 100vh;
+				}
+			}
+			&:has(>:only-child) {
+				flex-wrap: unset;
+			}
+		}
+		&:has(>header.FixedHeader) > main:has(>section.MonoFigure) > section.MonoFigure > figure > div > svg {
+			max-height : calc(100vh - 6em);
+		}
+	}
+}</style>
+	</head>
+	<body class="GeekyIllustration">
+		<main class="GeekyIllustration">
+			<section class="MonoFigure GeekyIllustration">
+				<figure>
+					<div>
+						<svg height="100%" width="100%" viewBox="-13 -10 118 123" class="GeekyIllustration Plot">
+							<style type="text/css">
+/* Default svg coloring */
+
+.GeekyIllustration {
+	& svg {
+		& circle:not([stroke]) {stroke : var(--PRIMARY-COLOR);}
+		& rect:not([stroke]) {stroke : var(--PRIMARY-COLOR);}
+		& line:not([stroke]) {stroke : var(--PRIMARY-COLOR);}
+
+		& text:not([fill]) {fill : var(--PRIMARY-COLOR);}
+		& textPath:not([fill]) {fill : var(--PRIMARY-COLOR);}
+
+		&.primary, & .primary {
+			& circle:not([stroke]) {stroke : var(--PRIMARY-COLOR);}
+			& rect:not([stroke]) {stroke : var(--PRIMARY-COLOR);}
+			& line:not([stroke]) {stroke : var(--PRIMARY-COLOR);}
+		}
+		&.secondary, & .secondary {
+			& circle:not([stroke]) {stroke : var(--SECONDARY-COLOR);}
+			& rect:not([stroke]) {stroke : var(--SECONDARY-COLOR);}
+			& line:not([stroke]) {stroke : var(--SECONDARY-COLOR);}
+		}
+		&.tertiary, & .tertiary {
+			& circle:not([stroke]) {stroke : var(--TERTIARY-COLOR);}
+			& rect:not([stroke]) {stroke : var(--TERTIARY-COLOR);}
+			& line:not([stroke]) {stroke : var(--TERTIARY-COLOR);}
+		}
+		&.primary, & .primary {
+			& text:not([fill]) {fill : var(--PRIMARY-COLOR);}
+			& tspan:not([fill]) {fill : var(--PRIMARY-COLOR);}
+			& textPath:not([fill]) {fill : var(--PRIMARY-COLOR);}
+		}
+		&.secondary, & .secondary {
+			& text:not([fill]) {fill : var(--SECONDARY-COLOR);}
+			& tspan:not([fill]) {fill : var(--SECONDARY-COLOR);}
+			& textPath:not([fill]) {fill : var(--SECONDARY-COLOR);}
+		}
+		&.tertiary, & .tertiary {
+			& text:not([fill]) {fill : var(--TERTIARY-COLOR);}
+			& tspan:not([fill]) {fill : var(--TERTIARY-COLOR);}
+			& textPath:not([fill]) {fill : var(--TERTIARY-COLOR);}
+		}
+
+		& #PlotY-Axis {
+			& line {z-index: -1;}
+		}
+		& #PlotX-Axis {
+			& line {z-index: -1;}
+		}
+	}
+	/* &.Plot .Legend {
+		visibility : hidden;
+	}
+	&.Plot .Legend:hover {
+		visibility : visible;
+	} */
+}</style>
+							<style type="text/css">/*4.5*/</style>
+							<rect x="0" y="0" height="100" width="100" fill="var(--PRIMARY-BACKGROUND)" stroke-width="0">
+							</rect>
+							<defs>
+								<mask id="XFANPW">
+									<rect x="0.13541666666666674" y="91.88950163398694" width="2.506944444444444" height="8.176470588235293" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="2.913194444444445" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="5.690972222222223" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="8.46875" y="99.18361928104576" width="2.506944444444444" height="0.8823529411764706" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="11.246527777777779" y="98.47773692810458" width="2.506944444444444" height="1.588235294117647" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="14.024305555555557" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="16.802083333333332" y="98.124795751634" width="2.506944444444444" height="1.9411764705882353" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="19.57986111111111" y="98.59538398692811" width="2.506944444444444" height="1.4705882352941175" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="22.35763888888889" y="90.124795751634" width="2.506944444444444" height="9.941176470588236" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="25.135416666666668" y="88.47773692810458" width="2.506944444444444" height="11.588235294117647" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="27.913194444444446" y="70.83067810457517" width="2.506944444444444" height="29.235294117647058" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="30.690972222222225" y="58.24244281045752" width="2.506944444444444" height="41.8235294117647" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="33.46875" y="23.47773692810457" width="2.506944444444444" height="76.58823529411765" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="36.24652777777778" y="4.418913398692816" width="2.506944444444444" height="95.6470588235294" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="39.02430555555556" y="17.418913398692816" width="2.506944444444444" height="82.6470588235294" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="41.802083333333336" y="36.41891339869281" width="2.506944444444444" height="63.64705882352941" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="44.579861111111114" y="66.06597222222223" width="2.506944444444444" height="34.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="47.35763888888889" y="88.06597222222223" width="2.506944444444444" height="12.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="50.13541666666667" y="94.124795751634" width="2.506944444444444" height="5.9411764705882355" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="52.91319444444445" y="96.124795751634" width="2.506944444444444" height="3.941176470588235" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="55.69097222222223" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="58.46875000000001" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="61.246527777777786" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="64.02430555555557" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="66.80208333333334" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="69.57986111111113" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="72.3576388888889" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="75.13541666666669" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="77.91319444444446" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="80.69097222222224" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="83.46875000000001" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="86.2465277777778" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="89.02430555555557" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="91.80208333333334" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="94.57986111111113" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="97.3576388888889" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+								</mask>
+								<mask id="XODFEQ">
+									<rect x="0.13541666666666674" y="91.88950163398694" width="2.506944444444444" height="8.176470588235293" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="2.913194444444445" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="5.690972222222223" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="8.46875" y="99.18361928104576" width="2.506944444444444" height="0.8823529411764706" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="11.246527777777779" y="98.47773692810458" width="2.506944444444444" height="1.588235294117647" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="14.024305555555557" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="16.802083333333332" y="98.124795751634" width="2.506944444444444" height="1.9411764705882353" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="19.57986111111111" y="98.59538398692811" width="2.506944444444444" height="1.4705882352941175" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="22.35763888888889" y="90.124795751634" width="2.506944444444444" height="9.941176470588236" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="25.135416666666668" y="88.47773692810458" width="2.506944444444444" height="11.588235294117647" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="27.913194444444446" y="70.83067810457517" width="2.506944444444444" height="29.235294117647058" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="30.690972222222225" y="58.24244281045752" width="2.506944444444444" height="41.8235294117647" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="33.46875" y="23.47773692810457" width="2.506944444444444" height="76.58823529411765" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="36.24652777777778" y="4.418913398692816" width="2.506944444444444" height="95.6470588235294" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="39.02430555555556" y="17.418913398692816" width="2.506944444444444" height="82.6470588235294" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="41.802083333333336" y="36.41891339869281" width="2.506944444444444" height="63.64705882352941" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="44.579861111111114" y="66.06597222222223" width="2.506944444444444" height="34.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="47.35763888888889" y="88.06597222222223" width="2.506944444444444" height="12.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="50.13541666666667" y="94.124795751634" width="2.506944444444444" height="5.9411764705882355" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="52.91319444444445" y="96.124795751634" width="2.506944444444444" height="3.941176470588235" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="55.69097222222223" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="58.46875000000001" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="61.246527777777786" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="64.02430555555557" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="66.80208333333334" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="69.57986111111113" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="72.3576388888889" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="75.13541666666669" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="77.91319444444446" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="80.69097222222224" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="83.46875000000001" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="86.2465277777778" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="89.02430555555557" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="91.80208333333334" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="94.57986111111113" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="97.3576388888889" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+								</mask>
+								<mask id="XBEECF">
+									<rect x="0.13541666666666674" y="99.88950163398694" width="2.506944444444444" height="0.1764705882352941" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="2.913194444444445" y="94.71303104575163" width="2.506944444444444" height="5.352941176470588" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="5.690972222222223" y="95.41891339869282" width="2.506944444444444" height="4.647058823529412" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="8.46875" y="90.88950163398694" width="2.506944444444444" height="9.176470588235293" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="11.246527777777779" y="77.18361928104576" width="2.506944444444444" height="22.88235294117647" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="14.024305555555557" y="86.94832516339869" width="2.506944444444444" height="13.117647058823529" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="16.802083333333332" y="84.06597222222223" width="2.506944444444444" height="16.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="19.57986111111111" y="79.41891339869281" width="2.506944444444444" height="20.647058823529413" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="22.35763888888889" y="67.47773692810458" width="2.506944444444444" height="32.588235294117645" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="25.135416666666668" y="68.124795751634" width="2.506944444444444" height="31.941176470588236" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="27.913194444444446" y="62.595383986928105" width="2.506944444444444" height="37.470588235294116" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="30.690972222222225" y="81.41891339869281" width="2.506944444444444" height="18.647058823529413" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="33.46875" y="69.83067810457517" width="2.506944444444444" height="30.235294117647058" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="36.24652777777778" y="71.30126633986929" width="2.506944444444444" height="28.764705882352942" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="39.02430555555556" y="72.18361928104576" width="2.506944444444444" height="27.88235294117647" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="41.802083333333336" y="78.24244281045752" width="2.506944444444444" height="21.823529411764707" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="44.579861111111114" y="81.53656045751634" width="2.506944444444444" height="18.52941176470588" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="47.35763888888889" y="78.36008986928105" width="2.506944444444444" height="21.705882352941178" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="50.13541666666667" y="88.30126633986929" width="2.506944444444444" height="11.76470588235294" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="52.91319444444445" y="87.124795751634" width="2.506944444444444" height="12.941176470588236" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="55.69097222222223" y="94.41891339869282" width="2.506944444444444" height="5.647058823529411" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="58.46875000000001" y="83.30126633986929" width="2.506944444444444" height="16.764705882352942" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="61.246527777777786" y="87.83067810457517" width="2.506944444444444" height="12.235294117647058" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="64.02430555555557" y="79.47773692810458" width="2.506944444444444" height="20.58823529411765" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="66.80208333333334" y="93.53656045751634" width="2.506944444444444" height="6.529411764705882" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="69.57986111111113" y="94.83067810457517" width="2.506944444444444" height="5.235294117647059" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="72.3576388888889" y="94.59538398692811" width="2.506944444444444" height="5.470588235294118" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="75.13541666666669" y="95.124795751634" width="2.506944444444444" height="4.9411764705882355" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="77.91319444444446" y="94.30126633986929" width="2.506944444444444" height="5.764705882352941" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="80.69097222222224" y="98.47773692810458" width="2.506944444444444" height="1.588235294117647" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="83.46875000000001" y="96.00714869281046" width="2.506944444444444" height="4.0588235294117645" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="86.2465277777778" y="98.47773692810458" width="2.506944444444444" height="1.588235294117647" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="89.02430555555557" y="99.53656045751634" width="2.506944444444444" height="0.5294117647058824" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="91.80208333333334" y="98.47773692810458" width="2.506944444444444" height="1.588235294117647" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="94.57986111111113" y="99.41891339869282" width="2.506944444444444" height="0.6470588235294118" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="97.3576388888889" y="98.47773692810458" width="2.506944444444444" height="1.588235294117647" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+								</mask>
+								<mask id="XFVQUF">
+									<rect x="0.13541666666666674" y="92.124795751634" width="2.506944444444444" height="7.9411764705882355" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="2.913194444444445" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="5.690972222222223" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="8.46875" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="11.246527777777779" y="95.7718545751634" width="2.506944444444444" height="4.294117647058823" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="14.024305555555557" y="98.59538398692811" width="2.506944444444444" height="1.4705882352941175" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="16.802083333333332" y="98.124795751634" width="2.506944444444444" height="1.9411764705882353" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="19.57986111111111" y="93.71303104575163" width="2.506944444444444" height="6.352941176470588" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="22.35763888888889" y="90.36008986928105" width="2.506944444444444" height="9.705882352941176" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="25.135416666666668" y="89.94832516339869" width="2.506944444444444" height="10.117647058823529" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="27.913194444444446" y="81.83067810457517" width="2.506944444444444" height="18.235294117647058" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="30.690972222222225" y="88.18361928104576" width="2.506944444444444" height="11.882352941176471" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="33.46875" y="55.94832516339869" width="2.506944444444444" height="44.11764705882353" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="36.24652777777778" y="59.713031045751634" width="2.506944444444444" height="40.35294117647059" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="39.02430555555556" y="51.94832516339869" width="2.506944444444444" height="48.11764705882353" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="41.802083333333336" y="50.18361928104575" width="2.506944444444444" height="49.88235294117647" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="44.579861111111114" y="51.94832516339869" width="2.506944444444444" height="48.11764705882353" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="47.35763888888889" y="65.18361928104576" width="2.506944444444444" height="34.88235294117647" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="50.13541666666667" y="58.47773692810458" width="2.506944444444444" height="41.588235294117645" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="52.91319444444445" y="60.00714869281046" width="2.506944444444444" height="40.05882352941176" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="55.69097222222223" y="71.83067810457517" width="2.506944444444444" height="28.235294117647058" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="58.46875000000001" y="87.65420751633988" width="2.506944444444444" height="12.411764705882353" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="61.246527777777786" y="93.88950163398694" width="2.506944444444444" height="6.176470588235294" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="64.02430555555557" y="95.53656045751634" width="2.506944444444444" height="4.529411764705882" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="66.80208333333334" y="94.06597222222223" width="2.506944444444444" height="6.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="69.57986111111113" y="98.59538398692811" width="2.506944444444444" height="1.4705882352941175" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="72.3576388888889" y="96.88950163398694" width="2.506944444444444" height="3.176470588235294" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="75.13541666666669" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="77.91319444444446" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="80.69097222222224" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="83.46875000000001" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="86.2465277777778" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="89.02430555555557" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="91.80208333333334" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="94.57986111111113" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+									<rect x="97.3576388888889" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" fill="#202020">
+									</rect>
+								</mask>
+							</defs>
+							<defs>
+								<mask id="XDNXDT">
+									<rect x="0.13541666666666674" y="91.88950163398694" width="2.506944444444444" height="8.176470588235293" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="2.913194444444445" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="5.690972222222223" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="8.46875" y="99.18361928104576" width="2.506944444444444" height="0.8823529411764706" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="11.246527777777779" y="98.47773692810458" width="2.506944444444444" height="1.588235294117647" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="14.024305555555557" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="16.802083333333332" y="98.124795751634" width="2.506944444444444" height="1.9411764705882353" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="19.57986111111111" y="98.59538398692811" width="2.506944444444444" height="1.4705882352941175" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="22.35763888888889" y="90.124795751634" width="2.506944444444444" height="9.941176470588236" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="25.135416666666668" y="88.47773692810458" width="2.506944444444444" height="11.588235294117647" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="27.913194444444446" y="70.83067810457517" width="2.506944444444444" height="29.235294117647058" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="30.690972222222225" y="58.24244281045752" width="2.506944444444444" height="41.8235294117647" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="33.46875" y="23.47773692810457" width="2.506944444444444" height="76.58823529411765" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="36.24652777777778" y="4.418913398692816" width="2.506944444444444" height="95.6470588235294" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="39.02430555555556" y="17.418913398692816" width="2.506944444444444" height="82.6470588235294" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="41.802083333333336" y="36.41891339869281" width="2.506944444444444" height="63.64705882352941" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="44.579861111111114" y="66.06597222222223" width="2.506944444444444" height="34.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="47.35763888888889" y="88.06597222222223" width="2.506944444444444" height="12.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="50.13541666666667" y="94.124795751634" width="2.506944444444444" height="5.9411764705882355" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="52.91319444444445" y="96.124795751634" width="2.506944444444444" height="3.941176470588235" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="55.69097222222223" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="58.46875000000001" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="61.246527777777786" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="64.02430555555557" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="66.80208333333334" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="69.57986111111113" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="72.3576388888889" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="75.13541666666669" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="77.91319444444446" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="80.69097222222224" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="83.46875000000001" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="86.2465277777778" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="89.02430555555557" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="91.80208333333334" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="94.57986111111113" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="97.3576388888889" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+								</mask>
+								<mask id="XMXTRG">
+									<rect x="0.13541666666666674" y="91.88950163398694" width="2.506944444444444" height="8.176470588235293" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="2.913194444444445" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="5.690972222222223" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="8.46875" y="99.18361928104576" width="2.506944444444444" height="0.8823529411764706" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="11.246527777777779" y="98.47773692810458" width="2.506944444444444" height="1.588235294117647" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="14.024305555555557" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="16.802083333333332" y="98.124795751634" width="2.506944444444444" height="1.9411764705882353" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="19.57986111111111" y="98.59538398692811" width="2.506944444444444" height="1.4705882352941175" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="22.35763888888889" y="90.124795751634" width="2.506944444444444" height="9.941176470588236" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="25.135416666666668" y="88.47773692810458" width="2.506944444444444" height="11.588235294117647" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="27.913194444444446" y="70.83067810457517" width="2.506944444444444" height="29.235294117647058" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="30.690972222222225" y="58.24244281045752" width="2.506944444444444" height="41.8235294117647" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="33.46875" y="23.47773692810457" width="2.506944444444444" height="76.58823529411765" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="36.24652777777778" y="4.418913398692816" width="2.506944444444444" height="95.6470588235294" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="39.02430555555556" y="17.418913398692816" width="2.506944444444444" height="82.6470588235294" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="41.802083333333336" y="36.41891339869281" width="2.506944444444444" height="63.64705882352941" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="44.579861111111114" y="66.06597222222223" width="2.506944444444444" height="34.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="47.35763888888889" y="88.06597222222223" width="2.506944444444444" height="12.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="50.13541666666667" y="94.124795751634" width="2.506944444444444" height="5.9411764705882355" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="52.91319444444445" y="96.124795751634" width="2.506944444444444" height="3.941176470588235" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="55.69097222222223" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="58.46875000000001" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="61.246527777777786" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="64.02430555555557" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="66.80208333333334" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="69.57986111111113" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="72.3576388888889" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="75.13541666666669" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="77.91319444444446" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="80.69097222222224" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="83.46875000000001" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="86.2465277777778" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="89.02430555555557" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="91.80208333333334" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="94.57986111111113" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="97.3576388888889" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+								</mask>
+								<mask id="XUNXNW">
+									<rect x="0.13541666666666674" y="99.88950163398694" width="2.506944444444444" height="0.1764705882352941" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="2.913194444444445" y="94.71303104575163" width="2.506944444444444" height="5.352941176470588" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="5.690972222222223" y="95.41891339869282" width="2.506944444444444" height="4.647058823529412" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="8.46875" y="90.88950163398694" width="2.506944444444444" height="9.176470588235293" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="11.246527777777779" y="77.18361928104576" width="2.506944444444444" height="22.88235294117647" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="14.024305555555557" y="86.94832516339869" width="2.506944444444444" height="13.117647058823529" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="16.802083333333332" y="84.06597222222223" width="2.506944444444444" height="16.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="19.57986111111111" y="79.41891339869281" width="2.506944444444444" height="20.647058823529413" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="22.35763888888889" y="67.47773692810458" width="2.506944444444444" height="32.588235294117645" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="25.135416666666668" y="68.124795751634" width="2.506944444444444" height="31.941176470588236" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="27.913194444444446" y="62.595383986928105" width="2.506944444444444" height="37.470588235294116" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="30.690972222222225" y="81.41891339869281" width="2.506944444444444" height="18.647058823529413" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="33.46875" y="69.83067810457517" width="2.506944444444444" height="30.235294117647058" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="36.24652777777778" y="71.30126633986929" width="2.506944444444444" height="28.764705882352942" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="39.02430555555556" y="72.18361928104576" width="2.506944444444444" height="27.88235294117647" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="41.802083333333336" y="78.24244281045752" width="2.506944444444444" height="21.823529411764707" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="44.579861111111114" y="81.53656045751634" width="2.506944444444444" height="18.52941176470588" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="47.35763888888889" y="78.36008986928105" width="2.506944444444444" height="21.705882352941178" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="50.13541666666667" y="88.30126633986929" width="2.506944444444444" height="11.76470588235294" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="52.91319444444445" y="87.124795751634" width="2.506944444444444" height="12.941176470588236" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="55.69097222222223" y="94.41891339869282" width="2.506944444444444" height="5.647058823529411" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="58.46875000000001" y="83.30126633986929" width="2.506944444444444" height="16.764705882352942" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="61.246527777777786" y="87.83067810457517" width="2.506944444444444" height="12.235294117647058" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="64.02430555555557" y="79.47773692810458" width="2.506944444444444" height="20.58823529411765" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="66.80208333333334" y="93.53656045751634" width="2.506944444444444" height="6.529411764705882" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="69.57986111111113" y="94.83067810457517" width="2.506944444444444" height="5.235294117647059" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="72.3576388888889" y="94.59538398692811" width="2.506944444444444" height="5.470588235294118" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="75.13541666666669" y="95.124795751634" width="2.506944444444444" height="4.9411764705882355" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="77.91319444444446" y="94.30126633986929" width="2.506944444444444" height="5.764705882352941" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="80.69097222222224" y="98.47773692810458" width="2.506944444444444" height="1.588235294117647" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="83.46875000000001" y="96.00714869281046" width="2.506944444444444" height="4.0588235294117645" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="86.2465277777778" y="98.47773692810458" width="2.506944444444444" height="1.588235294117647" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="89.02430555555557" y="99.53656045751634" width="2.506944444444444" height="0.5294117647058824" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="91.80208333333334" y="98.47773692810458" width="2.506944444444444" height="1.588235294117647" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="94.57986111111113" y="99.41891339869282" width="2.506944444444444" height="0.6470588235294118" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="97.3576388888889" y="98.47773692810458" width="2.506944444444444" height="1.588235294117647" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+								</mask>
+								<mask id="XROLRM">
+									<rect x="0.13541666666666674" y="92.124795751634" width="2.506944444444444" height="7.9411764705882355" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="2.913194444444445" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="5.690972222222223" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="8.46875" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="11.246527777777779" y="95.7718545751634" width="2.506944444444444" height="4.294117647058823" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="14.024305555555557" y="98.59538398692811" width="2.506944444444444" height="1.4705882352941175" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="16.802083333333332" y="98.124795751634" width="2.506944444444444" height="1.9411764705882353" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="19.57986111111111" y="93.71303104575163" width="2.506944444444444" height="6.352941176470588" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="22.35763888888889" y="90.36008986928105" width="2.506944444444444" height="9.705882352941176" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="25.135416666666668" y="89.94832516339869" width="2.506944444444444" height="10.117647058823529" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="27.913194444444446" y="81.83067810457517" width="2.506944444444444" height="18.235294117647058" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="30.690972222222225" y="88.18361928104576" width="2.506944444444444" height="11.882352941176471" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="33.46875" y="55.94832516339869" width="2.506944444444444" height="44.11764705882353" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="36.24652777777778" y="59.713031045751634" width="2.506944444444444" height="40.35294117647059" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="39.02430555555556" y="51.94832516339869" width="2.506944444444444" height="48.11764705882353" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="41.802083333333336" y="50.18361928104575" width="2.506944444444444" height="49.88235294117647" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="44.579861111111114" y="51.94832516339869" width="2.506944444444444" height="48.11764705882353" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="47.35763888888889" y="65.18361928104576" width="2.506944444444444" height="34.88235294117647" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="50.13541666666667" y="58.47773692810458" width="2.506944444444444" height="41.588235294117645" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="52.91319444444445" y="60.00714869281046" width="2.506944444444444" height="40.05882352941176" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="55.69097222222223" y="71.83067810457517" width="2.506944444444444" height="28.235294117647058" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="58.46875000000001" y="87.65420751633988" width="2.506944444444444" height="12.411764705882353" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="61.246527777777786" y="93.88950163398694" width="2.506944444444444" height="6.176470588235294" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="64.02430555555557" y="95.53656045751634" width="2.506944444444444" height="4.529411764705882" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="66.80208333333334" y="94.06597222222223" width="2.506944444444444" height="6.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="69.57986111111113" y="98.59538398692811" width="2.506944444444444" height="1.4705882352941175" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="72.3576388888889" y="96.88950163398694" width="2.506944444444444" height="3.176470588235294" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="75.13541666666669" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="77.91319444444446" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="80.69097222222224" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="83.46875000000001" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="86.2465277777778" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="89.02430555555557" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="91.80208333333334" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="94.57986111111113" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+									<rect x="97.3576388888889" y="100.06597222222223" width="2.506944444444444" height="0.0" stroke-width="0.13194444444444445" stroke="white">
+									</rect>
+								</mask>
+							</defs>
+							<defs>
+								<linearGradient id="XQIMCW" x1="0" x2="0" y1="0" y2="1">
+									<stop offset="0.0%" stop-color="#030303">
+									</stop>
+								</linearGradient>
+								<linearGradient id="XSXJXN" x1="0" x2="0" y1="0" y2="1">
+									<stop offset="0.0%" stop-color="#030303">
+									</stop>
+								</linearGradient>
+								<linearGradient id="XQMYAA" x1="0" x2="0" y1="0" y2="1">
+									<stop offset="0.0%" stop-color="#030303">
+									</stop>
+								</linearGradient>
+								<linearGradient id="XGVDXX" x1="0" x2="0" y1="0" y2="1">
+									<stop offset="0.0%" stop-color="#030303">
+									</stop>
+								</linearGradient>
+							</defs>
+							<defs>
+								<linearGradient id="XQQFOQ" x1="0" x2="0" y1="0" y2="1">
+									<stop offset="0.0%" stop-color="#030303">
+									</stop>
+								</linearGradient>
+								<linearGradient id="XJYJZF" x1="0" x2="0" y1="0" y2="1">
+									<stop offset="0.0%" stop-color="#030303">
+									</stop>
+								</linearGradient>
+								<linearGradient id="XPIGTI" x1="0" x2="0" y1="0" y2="1">
+									<stop offset="0.0%" stop-color="#030303">
+									</stop>
+								</linearGradient>
+								<linearGradient id="XUGEJH" x1="0" x2="0" y1="0" y2="1">
+									<stop offset="0.0%" stop-color="#030303">
+									</stop>
+								</linearGradient>
+							</defs>
+							<g name="yAxis" class="PlotY-Axis">
+								<text x="-9" y="50" text-anchor="middle" font-size="4" transform="rotate(270 -9,50)">MetaCanSNPs</text>
+								<line x1="-1" y1="100.0" x2="0" y2="100.0" stroke-width="0.25">
+								</line>
+								<text x="-1.25" y="100.66666666666667" font-size="2" stroke-width="0.01" text-anchor="end">
+									<tspan x="-1.25">0</tspan>
+								</text>
+								<line x1="-1" y1="94.11764705882354" x2="0" y2="94.11764705882354" stroke-width="0.25">
+								</line>
+								<text x="-1.25" y="94.78431372549021" font-size="2" stroke-width="0.01" text-anchor="end">
+									<tspan x="-1.25">000</tspan>
+								</text>
+								<line x1="-1" y1="88.23529411764706" x2="0" y2="88.23529411764706" stroke-width="0.25">
+								</line>
+								<text x="-1.25" y="88.90196078431373" font-size="2" stroke-width="0.01" text-anchor="end">
+									<tspan x="-1.25">000</tspan>
+								</text>
+								<line x1="-1" y1="82.35294117647058" x2="0" y2="82.35294117647058" stroke-width="0.25">
+								</line>
+								<text x="-1.25" y="83.01960784313725" font-size="2" stroke-width="0.01" text-anchor="end">
+									<tspan x="-1.25">000</tspan>
+								</text>
+								<line x1="-1" y1="76.47058823529412" x2="0" y2="76.47058823529412" stroke-width="0.25">
+								</line>
+								<text x="-1.25" y="77.13725490196079" font-size="2" stroke-width="0.01" text-anchor="end">
+									<tspan x="-1.25">000</tspan>
+								</text>
+								<line x1="-1" y1="70.58823529411765" x2="0" y2="70.58823529411765" stroke-width="0.25">
+								</line>
+								<text x="-1.25" y="71.25490196078432" font-size="2" stroke-width="0.01" text-anchor="end">
+									<tspan x="-1.25">000</tspan>
+								</text>
+								<line x1="-1" y1="64.70588235294117" x2="0" y2="64.70588235294117" stroke-width="0.25">
+								</line>
+								<text x="-1.25" y="65.37254901960785" font-size="2" stroke-width="0.01" text-anchor="end">
+									<tspan x="-1.25">000</tspan>
+								</text>
+								<line x1="-1" y1="58.8235294117647" x2="0" y2="58.8235294117647" stroke-width="0.25">
+								</line>
+								<text x="-1.25" y="59.49019607843137" font-size="2" stroke-width="0.01" text-anchor="end">
+									<tspan x="-1.25">000</tspan>
+								</text>
+								<line x1="-1" y1="52.94117647058824" x2="0" y2="52.94117647058824" stroke-width="0.25">
+								</line>
+								<text x="-1.25" y="53.6078431372549" font-size="2" stroke-width="0.01" text-anchor="end">
+									<tspan x="-1.25">000</tspan>
+								</text>
+								<line x1="-1" y1="47.05882352941177" x2="0" y2="47.05882352941177" stroke-width="0.25">
+								</line>
+								<text x="-1.25" y="47.72549019607843" font-size="2" stroke-width="0.01" text-anchor="end">
+									<tspan x="-1.25">000</tspan>
+								</text>
+								<line x1="-1" y1="41.1764705882353" x2="0" y2="41.1764705882353" stroke-width="0.25">
+								</line>
+								<text x="-1.25" y="41.84313725490196" font-size="2" stroke-width="0.01" text-anchor="end">
+									<tspan x="-1.25">0000</tspan>
+								</text>
+								<line x1="-1" y1="35.294117647058826" x2="0" y2="35.294117647058826" stroke-width="0.25">
+								</line>
+								<text x="-1.25" y="35.96078431372549" font-size="2" stroke-width="0.01" text-anchor="end">
+									<tspan x="-1.25">1000</tspan>
+								</text>
+								<line x1="-1" y1="29.411764705882348" x2="0" y2="29.411764705882348" stroke-width="0.25">
+								</line>
+								<text x="-1.25" y="30.078431372549016" font-size="2" stroke-width="0.01" text-anchor="end">
+									<tspan x="-1.25">2000</tspan>
+								</text>
+								<line x1="-1" y1="23.529411764705884" x2="0" y2="23.529411764705884" stroke-width="0.25">
+								</line>
+								<text x="-1.25" y="24.196078431372552" font-size="2" stroke-width="0.01" text-anchor="end">
+									<tspan x="-1.25">3000</tspan>
+								</text>
+								<line x1="-1" y1="17.647058823529406" x2="0" y2="17.647058823529406" stroke-width="0.25">
+								</line>
+								<text x="-1.25" y="18.313725490196074" font-size="2" stroke-width="0.01" text-anchor="end">
+									<tspan x="-1.25">4000</tspan>
+								</text>
+								<line x1="-1" y1="11.764705882352942" x2="0" y2="11.764705882352942" stroke-width="0.25">
+								</line>
+								<text x="-1.25" y="12.431372549019608" font-size="2" stroke-width="0.01" text-anchor="end">
+									<tspan x="-1.25">5000</tspan>
+								</text>
+								<line x1="-1" y1="5.882352941176478" x2="0" y2="5.882352941176478" stroke-width="0.25">
+								</line>
+								<text x="-1.25" y="6.549019607843145" font-size="2" stroke-width="0.01" text-anchor="end">
+									<tspan x="-1.25">6000</tspan>
+								</text>
+								<line x1="-1" y1="0.0" x2="0" y2="0.0" stroke-width="0.25">
+								</line>
+								<text x="-1.25" y="0.6666666666666666" font-size="2" stroke-width="0.01" text-anchor="end">
+									<tspan x="-1.25">7000</tspan>
+								</text>
+							</g>
+							<g name="xAxis" class="PlotX-Axis">
+								<text x="50" y="110" text-anchor="middle" font-size="4">Coverage</text>
+								<g name="0">
+									<line x1="0.0" y1="100" x2="0.0" y2="101" stroke-width="0.25" stroke="url(#XPIGTI)">
+									</line>
+									<line x1="0.0" y1="101" x2="0.0" y2="105" stroke-opacity="0.2" stroke-width="0.25" stroke="url(#XPIGTI)">
+									</line>
+									<text x="0.0" y="108" font-size="3" stroke-width="0.03" text-anchor="end" fill="url(#XPIGTI)" stroke="var(--PRIMARY-COLOR)">
+										<tspan x="0.0">0</tspan>
+									</text>
+								</g>
+								<g name="239.0">
+									<line x1="24.288617886178862" y1="100" x2="24.288617886178862" y2="101" stroke-width="0.25" stroke="url(#XPIGTI)">
+									</line>
+									<line x1="24.288617886178862" y1="101" x2="24.288617886178862" y2="105" stroke-opacity="0.2" stroke-width="0.25" stroke="url(#XPIGTI)">
+									</line>
+									<text x="24.288617886178862" y="108" font-size="3" stroke-width="0.03" text-anchor="end" fill="url(#XPIGTI)" stroke="var(--PRIMARY-COLOR)">
+										<tspan x="24.288617886178862">239</tspan>
+									</text>
+								</g>
+								<g name="351.0">
+									<line x1="35.670731707317074" y1="100" x2="35.670731707317074" y2="101" stroke-width="0.25" stroke="url(#XPIGTI)">
+									</line>
+									<line x1="35.670731707317074" y1="101" x2="35.670731707317074" y2="105" stroke-opacity="0.2" stroke-width="0.25" stroke="url(#XPIGTI)">
+									</line>
+									<text x="35.670731707317074" y="108" font-size="3" stroke-width="0.03" text-anchor="middle" fill="url(#XPIGTI)" stroke="var(--PRIMARY-COLOR)">
+										<tspan x="35.670731707317074">351</tspan>
+									</text>
+								</g>
+								<g name="491.0">
+									<line x1="49.89837398373984" y1="100" x2="49.89837398373984" y2="101" stroke-width="0.25" stroke="url(#XPIGTI)">
+									</line>
+									<line x1="49.89837398373984" y1="101" x2="49.89837398373984" y2="105" stroke-opacity="0.2" stroke-width="0.25" stroke="url(#XPIGTI)">
+									</line>
+									<text x="49.89837398373984" y="108" font-size="3" stroke-width="0.03" text-anchor="start" fill="url(#XPIGTI)" stroke="var(--PRIMARY-COLOR)">
+										<tspan x="49.89837398373984">491</tspan>
+									</text>
+								</g>
+								<g name="984">
+									<line x1="100.0" y1="100" x2="100.0" y2="101" stroke-width="0.25" stroke="url(#XPIGTI)">
+									</line>
+									<line x1="100.0" y1="101" x2="100.0" y2="105" stroke-opacity="0.2" stroke-width="0.25" stroke="url(#XPIGTI)">
+									</line>
+									<text x="100.0" y="108" font-size="3" stroke-width="0.03" text-anchor="start" fill="url(#XPIGTI)" stroke="var(--PRIMARY-COLOR)">
+										<tspan x="100.0">984</tspan>
+									</text>
+								</g>
+								<g name="0">
+									<line x1="0.0" y1="100" x2="0.0" y2="101" stroke-width="0.25" stroke="url(#XJYJZF)">
+									</line>
+									<line x1="0.0" y1="101" x2="0.0" y2="103" stroke-opacity="0.2" stroke-width="0.25" stroke="url(#XJYJZF)">
+									</line>
+									<text x="0.0" y="106" font-size="3" stroke-width="0.03" text-anchor="end" fill="url(#XJYJZF)" stroke="var(--PRIMARY-COLOR)">
+										<tspan x="0.0">0</tspan>
+									</text>
+								</g>
+								<g name="331.0">
+									<line x1="33.63821138211382" y1="100" x2="33.63821138211382" y2="101" stroke-width="0.25" stroke="url(#XJYJZF)">
+									</line>
+									<line x1="33.63821138211382" y1="101" x2="33.63821138211382" y2="103" stroke-opacity="0.2" stroke-width="0.25" stroke="url(#XJYJZF)">
+									</line>
+									<text x="33.63821138211382" y="106" font-size="3" stroke-width="0.03" text-anchor="end" fill="url(#XJYJZF)" stroke="var(--PRIMARY-COLOR)">
+										<tspan x="33.63821138211382">331</tspan>
+									</text>
+								</g>
+								<g name="374.0">
+									<line x1="38.00813008130081" y1="100" x2="38.00813008130081" y2="101" stroke-width="0.25" stroke="url(#XJYJZF)">
+									</line>
+									<line x1="38.00813008130081" y1="101" x2="38.00813008130081" y2="103" stroke-opacity="0.2" stroke-width="0.25" stroke="url(#XJYJZF)">
+									</line>
+									<text x="38.00813008130081" y="106" font-size="3" stroke-width="0.03" text-anchor="middle" fill="url(#XJYJZF)" stroke="var(--PRIMARY-COLOR)">
+										<tspan x="38.00813008130081">374</tspan>
+									</text>
+								</g>
+								<g name="409.0">
+									<line x1="41.5650406504065" y1="100" x2="41.5650406504065" y2="101" stroke-width="0.25" stroke="url(#XJYJZF)">
+									</line>
+									<line x1="41.5650406504065" y1="101" x2="41.5650406504065" y2="103" stroke-opacity="0.2" stroke-width="0.25" stroke="url(#XJYJZF)">
+									</line>
+									<text x="41.5650406504065" y="106" font-size="3" stroke-width="0.03" text-anchor="start" fill="url(#XJYJZF)" stroke="var(--PRIMARY-COLOR)">
+										<tspan x="41.5650406504065">409</tspan>
+									</text>
+								</g>
+								<g name="533">
+									<line x1="54.166666666666664" y1="100" x2="54.166666666666664" y2="101" stroke-width="0.25" stroke="url(#XJYJZF)">
+									</line>
+									<line x1="54.166666666666664" y1="101" x2="54.166666666666664" y2="103" stroke-opacity="0.2" stroke-width="0.25" stroke="url(#XJYJZF)">
+									</line>
+									<text x="54.166666666666664" y="106" font-size="3" stroke-width="0.03" text-anchor="start" fill="url(#XJYJZF)" stroke="var(--PRIMARY-COLOR)">
+										<tspan x="54.166666666666664">533</tspan>
+									</text>
+								</g>
+								<g name="0">
+									<line x1="0.0" y1="100" x2="0.0" y2="101" stroke-width="0.25" stroke="url(#XQQFOQ)">
+									</line>
+									<text x="0.0" y="104" font-size="3" stroke-width="0.03" text-anchor="end" fill="url(#XQQFOQ)" stroke="var(--PRIMARY-COLOR)">
+										<tspan x="0.0">0</tspan>
+									</text>
+								</g>
+								<g name="0">
+									<line x1="0.0" y1="100" x2="0.0" y2="101" stroke-width="0.25" stroke="url(#XUGEJH)">
+									</line>
+									<text x="0.0" y="104" font-size="3" stroke-width="0.03" text-anchor="end" fill="url(#XUGEJH)" stroke="var(--PRIMARY-COLOR)">
+										<tspan x="0.0">0</tspan>
+									</text>
+								</g>
+								<g name="331.0">
+									<line x1="33.63821138211382" y1="100" x2="33.63821138211382" y2="101" stroke-width="0.25" stroke="url(#XQQFOQ)">
+									</line>
+									<text x="33.63821138211382" y="104" font-size="3" stroke-width="0.03" text-anchor="end" fill="url(#XQQFOQ)" stroke="var(--PRIMARY-COLOR)">
+										<tspan x="33.63821138211382">331</tspan>
+									</text>
+								</g>
+								<g name="357.0">
+									<line x1="36.28048780487805" y1="100" x2="36.28048780487805" y2="101" stroke-width="0.25" stroke="url(#XUGEJH)">
+									</line>
+									<text x="36.28048780487805" y="104" font-size="3" stroke-width="0.03" text-anchor="end" fill="url(#XUGEJH)" stroke="var(--PRIMARY-COLOR)">
+										<tspan x="36.28048780487805">357</tspan>
+									</text>
+								</g>
+								<g name="374.0">
+									<line x1="38.00813008130081" y1="100" x2="38.00813008130081" y2="101" stroke-width="0.25" stroke="url(#XQQFOQ)">
+									</line>
+									<text x="38.00813008130081" y="104" font-size="3" stroke-width="0.03" text-anchor="middle" fill="url(#XQQFOQ)" stroke="var(--PRIMARY-COLOR)">
+										<tspan x="38.00813008130081">374</tspan>
+									</text>
+								</g>
+								<g name="409.0">
+									<line x1="41.5650406504065" y1="100" x2="41.5650406504065" y2="101" stroke-width="0.25" stroke="url(#XQQFOQ)">
+									</line>
+									<text x="41.5650406504065" y="104" font-size="3" stroke-width="0.03" text-anchor="start" fill="url(#XQQFOQ)" stroke="var(--PRIMARY-COLOR)">
+										<tspan x="41.5650406504065">409</tspan>
+									</text>
+								</g>
+								<g name="427.0">
+									<line x1="43.39430894308943" y1="100" x2="43.39430894308943" y2="101" stroke-width="0.25" stroke="url(#XUGEJH)">
+									</line>
+									<text x="43.39430894308943" y="104" font-size="3" stroke-width="0.03" text-anchor="middle" fill="url(#XUGEJH)" stroke="var(--PRIMARY-COLOR)">
+										<tspan x="43.39430894308943">427</tspan>
+									</text>
+								</g>
+								<g name="505.0">
+									<line x1="51.32113821138211" y1="100" x2="51.32113821138211" y2="101" stroke-width="0.25" stroke="url(#XUGEJH)">
+									</line>
+									<text x="51.32113821138211" y="104" font-size="3" stroke-width="0.03" text-anchor="start" fill="url(#XUGEJH)" stroke="var(--PRIMARY-COLOR)">
+										<tspan x="51.32113821138211">505</tspan>
+									</text>
+								</g>
+								<g name="533">
+									<line x1="54.166666666666664" y1="100" x2="54.166666666666664" y2="101" stroke-width="0.25" stroke="url(#XQQFOQ)">
+									</line>
+									<text x="54.166666666666664" y="104" font-size="3" stroke-width="0.03" text-anchor="start" fill="url(#XQQFOQ)" stroke="var(--PRIMARY-COLOR)">
+										<tspan x="54.166666666666664">533</tspan>
+									</text>
+								</g>
+								<g name="725">
+									<line x1="73.67886178861788" y1="100" x2="73.67886178861788" y2="101" stroke-width="0.25" stroke="url(#XUGEJH)">
+									</line>
+									<text x="73.67886178861788" y="104" font-size="3" stroke-width="0.03" text-anchor="start" fill="url(#XUGEJH)" stroke="var(--PRIMARY-COLOR)">
+										<tspan x="73.67886178861788">725</tspan>
+									</text>
+								</g>
+							</g>
+							<g name="header" class="PlotHeader">
+								<text x="50" y="-3" font-size="5" text-anchor="middle">Variant Call Coverage</text>
+							</g>
+							<g name="legend" class="Legend">
+								<rect x="54.75" y="0" width="45.25" height="45.75" stroke="var(--SECONDARY-COLOR)" fill="var(--SECONDARY-BACKGROUND)" fill-opacity="0.125" stroke-width="0.25">
+								</rect>
+								<text x="94" y="3.25" font-size="3" text-anchor="end" mask="url(#XECBWT)">
+									<tspan x="94">SCHUS4[Bytes-01-25</tspan>
+									<tspan x="94" dy="1em">-2000000000]-2024-06</tspan>
+									<tspan x="94" dy="1em">-26_21-58-20</tspan>
+								</text>
+								<rect x="95.5" y="4.75" width="1.5" height="1.5" stroke-width="0.25" mask="url(#XECBWT)" fill="url(#XQIMCW)" fill-opacity="0.125" stroke="url(#XQQFOQ)">
+								</rect>
+								<text x="94" y="14.5" font-size="3" text-anchor="end" mask="url(#XECBWT)">
+									<tspan x="94">SCHUS4[Bytes-01-25</tspan>
+									<tspan x="94" dy="1em">-2000000000]-2024-06</tspan>
+									<tspan x="94" dy="1em">-26_21-58-20</tspan>
+								</text>
+								<rect x="95.5" y="16.0" width="1.5" height="1.5" stroke-width="0.25" mask="url(#XECBWT)" fill="url(#XSXJXN)" fill-opacity="0.125" stroke="url(#XJYJZF)">
+								</rect>
+								<text x="94" y="25.75" font-size="3" text-anchor="end" mask="url(#XECBWT)">
+									<tspan x="94">LVS[Bytes-01-25</tspan>
+									<tspan x="94" dy="1em">-2000000000]-2024-06</tspan>
+									<tspan x="94" dy="1em">-27_13-22-22</tspan>
+								</text>
+								<rect x="95.5" y="27.25" width="1.5" height="1.5" stroke-width="0.25" mask="url(#XECBWT)" fill="url(#XQMYAA)" fill-opacity="0.125" stroke="url(#XPIGTI)">
+								</rect>
+								<text x="94" y="37.0" font-size="3" text-anchor="end" mask="url(#XECBWT)">
+									<tspan x="94">FSC148[Bytes-01-25</tspan>
+									<tspan x="94" dy="1em">-2000000000]-2024-06</tspan>
+									<tspan x="94" dy="1em">-26_19-37-07</tspan>
+								</text>
+								<rect x="95.5" y="38.5" width="1.5" height="1.5" stroke-width="0.25" mask="url(#XECBWT)" fill="url(#XGVDXX)" fill-opacity="0.125" stroke="url(#XUGEJH)">
+								</rect>
+							</g>
+							<rect x="-0.125" y="-0.125" width="100.25" height="100.25" fill="url(#XQIMCW)" stroke-width="0" mask="url(#XFANPW)">
+							</rect>
+							<rect x="-0.125" y="-0.125" width="100.25" height="100.25" fill="url(#XQQFOQ)" stroke-width="0" mask="url(#XDNXDT)">
+							</rect>
+							<rect x="-0.125" y="-0.125" width="100.25" height="100.25" fill="url(#XSXJXN)" stroke-width="0" mask="url(#XODFEQ)">
+							</rect>
+							<rect x="-0.125" y="-0.125" width="100.25" height="100.25" fill="url(#XJYJZF)" stroke-width="0" mask="url(#XMXTRG)">
+							</rect>
+							<rect x="-0.125" y="-0.125" width="100.25" height="100.25" fill="url(#XQMYAA)" stroke-width="0" mask="url(#XBEECF)">
+							</rect>
+							<rect x="-0.125" y="-0.125" width="100.25" height="100.25" fill="url(#XPIGTI)" stroke-width="0" mask="url(#XUNXNW)">
+							</rect>
+							<rect x="-0.125" y="-0.125" width="100.25" height="100.25" fill="url(#XGVDXX)" stroke-width="0" mask="url(#XFVQUF)">
+							</rect>
+							<rect x="-0.125" y="-0.125" width="100.25" height="100.25" fill="url(#XUGEJH)" stroke-width="0" mask="url(#XROLRM)">
+							</rect>
+							<defs id="XECBWT">
+								<mask fill="white" stroke-width="0">
+									<rect x="54.875" y="0.125" width="44.75" height="45.25">
+									</rect>
+								</mask>
+							</defs>
+							<rect x="0" y="0" height="100" width="100" fill="transparent" stroke="var(--PRIMARY-COLOR)" stroke-width="0.25">
+							</rect>
+						</svg>
+					</div>
+				</figure>
+			</section>
+		</main>
+	</body>
+</html>

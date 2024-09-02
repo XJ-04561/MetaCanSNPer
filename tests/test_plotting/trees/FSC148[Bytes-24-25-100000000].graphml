@@ -1,0 +1,3640 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd">
+	<key attr.name="Organism" attr.type="string" id="organism" for="graph">
+		<default>NaN</default>
+	</key>
+	<key attr.name="Session Name" attr.type="string" id="sessionName" for="graph">
+		<default>NaN</default>
+	</key>
+	<key id="genotype" for="node" attr.name="Variant" attr.type="string"/>
+	<key id="called" for="edge" attr.name="Called SNP" attr.type="int">
+		<default>NaN</default>
+	</key>
+	<key id="ancestral" for="edge" attr.name="Ancestral Bases" attr.type="int">
+		<default>NaN</default>
+	</key>
+	<key id="nonCanon" for="edge" attr.name="Non-Canonical Bases" attr.type="int">
+		<default>NaN</default>
+	</key>
+	<key id="depth" for="edge" attr.name="Read Depth" attr.type="int">
+		<default>NaN</default>
+	</key>
+	<key id="ratio" for="edge" attr.name="Ratio Called/Depth" attr.type="float">
+		<default>NaN</default>
+	</key>
+	<key id="logRatio" for="edge" attr.name="Ratio log_10(Called)/log_10(Depth)" attr.type="float">
+		<default>NaN</default>
+	</key>
+	<graph id="FSC148" edgedefault="directed">
+		<data id="organism">francisella_tularensis</data>
+		<data id="sessionName">FSC148[Bytes-24-25-100000000]-2024-06-27_23-25-36</data>
+		<node id="1">
+			<data id="genotype">T/N.1</data>
+		</node>
+		<node id="2">
+			<data id="genotype">T.1</data>
+		</node>
+		<node id="3">
+			<data id="genotype">B.1</data>
+		</node>
+		<node id="304">
+			<data id="genotype">A/M.1</data>
+		</node>
+		<node id="4">
+			<data id="genotype">B.2</data>
+		</node>
+		<node id="292">
+			<data id="genotype">B.16</data>
+		</node>
+		<node id="305">
+			<data id="genotype">A.1</data>
+		</node>
+		<node id="328">
+			<data id="genotype">M.1</data>
+		</node>
+		<node id="5">
+			<data id="genotype">B.159</data>
+		</node>
+		<node id="8">
+			<data id="genotype">B.3</data>
+		</node>
+		<node id="293">
+			<data id="genotype">B.217</data>
+		</node>
+		<node id="294">
+			<data id="genotype">B.218</data>
+		</node>
+		<node id="306">
+			<data id="genotype">A.I.1</data>
+		</node>
+		<node id="322">
+			<data id="genotype">A.II.1</data>
+		</node>
+		<node id="6">
+			<data id="genotype">B.160</data>
+		</node>
+		<node id="7">
+			<data id="genotype">B.161</data>
+		</node>
+		<node id="9">
+			<data id="genotype">B.4</data>
+		</node>
+		<node id="34">
+			<data id="genotype">B.5</data>
+		</node>
+		<node id="295">
+			<data id="genotype">B.219</data>
+		</node>
+		<node id="297">
+			<data id="genotype">B.220</data>
+		</node>
+		<node id="307">
+			<data id="genotype">A.I.3</data>
+		</node>
+		<node id="311">
+			<data id="genotype">A.I.7</data>
+		</node>
+		<node id="323">
+			<data id="genotype">A.II.2</data>
+		</node>
+		<node id="327">
+			<data id="genotype">A.II.8</data>
+		</node>
+		<node id="10">
+			<data id="genotype">B.111</data>
+		</node>
+		<node id="28">
+			<data id="genotype">B.112</data>
+		</node>
+		<node id="35">
+			<data id="genotype">B.6</data>
+		</node>
+		<node id="197">
+			<data id="genotype">B.12</data>
+		</node>
+		<node id="296">
+			<data id="genotype">B.221</data>
+		</node>
+		<node id="298">
+			<data id="genotype">B.222</data>
+		</node>
+		<node id="300">
+			<data id="genotype">B.223</data>
+		</node>
+		<node id="308">
+			<data id="genotype">A.I.4</data>
+		</node>
+		<node id="309">
+			<data id="genotype">A.I.5</data>
+		</node>
+		<node id="312">
+			<data id="genotype">A.I.8</data>
+		</node>
+		<node id="316">
+			<data id="genotype">A.I.12</data>
+		</node>
+		<node id="324">
+			<data id="genotype">A.II.6</data>
+		</node>
+		<node id="325">
+			<data id="genotype">A.II.3</data>
+		</node>
+		<node id="11">
+			<data id="genotype">B.113</data>
+		</node>
+		<node id="24">
+			<data id="genotype">B.114</data>
+		</node>
+		<node id="29">
+			<data id="genotype">B.130</data>
+		</node>
+		<node id="36">
+			<data id="genotype">B.7</data>
+		</node>
+		<node id="74">
+			<data id="genotype">B.10</data>
+		</node>
+		<node id="198">
+			<data id="genotype">B.71</data>
+		</node>
+		<node id="199">
+			<data id="genotype">B.72</data>
+		</node>
+		<node id="299">
+			<data id="genotype">B.224</data>
+		</node>
+		<node id="301">
+			<data id="genotype">B.225</data>
+		</node>
+		<node id="302">
+			<data id="genotype">B.226</data>
+		</node>
+		<node id="310">
+			<data id="genotype">A.I.6</data>
+		</node>
+		<node id="313">
+			<data id="genotype">A.I.9</data>
+		</node>
+		<node id="314">
+			<data id="genotype">A.I.10</data>
+		</node>
+		<node id="317">
+			<data id="genotype">A.I.2</data>
+		</node>
+		<node id="326">
+			<data id="genotype">A.II.4</data>
+		</node>
+		<node id="12">
+			<data id="genotype">B.115</data>
+		</node>
+		<node id="20">
+			<data id="genotype">B.116</data>
+		</node>
+		<node id="25">
+			<data id="genotype">B.127</data>
+		</node>
+		<node id="26">
+			<data id="genotype">B.128</data>
+		</node>
+		<node id="30">
+			<data id="genotype">B.131</data>
+		</node>
+		<node id="32">
+			<data id="genotype">B.102</data>
+		</node>
+		<node id="37">
+			<data id="genotype">B.8</data>
+		</node>
+		<node id="45">
+			<data id="genotype">B.133</data>
+		</node>
+		<node id="75">
+			<data id="genotype">B.70</data>
+		</node>
+		<node id="76">
+			<data id="genotype">B.11</data>
+		</node>
+		<node id="200">
+			<data id="genotype">B.13</data>
+		</node>
+		<node id="277">
+			<data id="genotype">B.39</data>
+		</node>
+		<node id="303">
+			<data id="genotype">B.227</data>
+		</node>
+		<node id="315">
+			<data id="genotype">A.I.11</data>
+		</node>
+		<node id="318">
+			<data id="genotype">A.I.13</data>
+		</node>
+		<node id="319">
+			<data id="genotype">A.I.14</data>
+		</node>
+		<node id="320">
+			<data id="genotype">A.I.15</data>
+		</node>
+		<node id="13">
+			<data id="genotype">B.117</data>
+		</node>
+		<node id="21">
+			<data id="genotype">B.124</data>
+		</node>
+		<node id="27">
+			<data id="genotype">B.129</data>
+		</node>
+		<node id="31">
+			<data id="genotype">B.78</data>
+		</node>
+		<node id="33">
+			<data id="genotype">B.132</data>
+		</node>
+		<node id="38">
+			<data id="genotype">B.162</data>
+		</node>
+		<node id="42">
+			<data id="genotype">B.9</data>
+		</node>
+		<node id="46">
+			<data id="genotype">B.134</data>
+		</node>
+		<node id="47">
+			<data id="genotype">B.81</data>
+		</node>
+		<node id="77">
+			<data id="genotype">B.82</data>
+		</node>
+		<node id="82">
+			<data id="genotype">B.44</data>
+		</node>
+		<node id="201">
+			<data id="genotype">B.26</data>
+		</node>
+		<node id="269">
+			<data id="genotype">B.27</data>
+		</node>
+		<node id="278">
+			<data id="genotype">B.74</data>
+		</node>
+		<node id="279">
+			<data id="genotype">B.73</data>
+		</node>
+		<node id="290">
+			<data id="genotype">B.215</data>
+		</node>
+		<node id="321">
+			<data id="genotype">A.I.16</data>
+		</node>
+		<node id="14">
+			<data id="genotype">B.118</data>
+		</node>
+		<node id="22">
+			<data id="genotype">B.125</data>
+		</node>
+		<node id="39">
+			<data id="genotype">B.163</data>
+		</node>
+		<node id="40">
+			<data id="genotype">B.164</data>
+		</node>
+		<node id="41">
+			<data id="genotype">B.165</data>
+		</node>
+		<node id="43">
+			<data id="genotype">B.166</data>
+		</node>
+		<node id="44">
+			<data id="genotype">B.167</data>
+		</node>
+		<node id="48">
+			<data id="genotype">B.135</data>
+		</node>
+		<node id="64">
+			<data id="genotype">B.136</data>
+		</node>
+		<node id="78">
+			<data id="genotype">B.83</data>
+		</node>
+		<node id="83">
+			<data id="genotype">B.45</data>
+		</node>
+		<node id="190">
+			<data id="genotype">B.228</data>
+		</node>
+		<node id="202">
+			<data id="genotype">B.42</data>
+		</node>
+		<node id="254">
+			<data id="genotype">B.23</data>
+		</node>
+		<node id="270">
+			<data id="genotype">B.28</data>
+		</node>
+		<node id="275">
+			<data id="genotype">B.203</data>
+		</node>
+		<node id="280">
+			<data id="genotype">B.205</data>
+		</node>
+		<node id="284">
+			<data id="genotype">B.206</data>
+		</node>
+		<node id="285">
+			<data id="genotype">B.210</data>
+		</node>
+		<node id="291">
+			<data id="genotype">B.216</data>
+		</node>
+		<node id="15">
+			<data id="genotype">B.119</data>
+		</node>
+		<node id="23">
+			<data id="genotype">B.126</data>
+		</node>
+		<node id="49">
+			<data id="genotype">B.137</data>
+		</node>
+		<node id="53">
+			<data id="genotype">B.138</data>
+		</node>
+		<node id="56">
+			<data id="genotype">B.139</data>
+		</node>
+		<node id="65">
+			<data id="genotype">B.93</data>
+		</node>
+		<node id="68">
+			<data id="genotype">B.153</data>
+		</node>
+		<node id="70">
+			<data id="genotype">B.155</data>
+		</node>
+		<node id="79">
+			<data id="genotype">B.84</data>
+		</node>
+		<node id="84">
+			<data id="genotype">B.231</data>
+		</node>
+		<node id="86">
+			<data id="genotype">B.233</data>
+		</node>
+		<node id="87">
+			<data id="genotype">B.234</data>
+		</node>
+		<node id="90">
+			<data id="genotype">B.237</data>
+		</node>
+		<node id="91">
+			<data id="genotype">B.238</data>
+		</node>
+		<node id="93">
+			<data id="genotype">B.240</data>
+		</node>
+		<node id="95">
+			<data id="genotype">B.242</data>
+		</node>
+		<node id="100">
+			<data id="genotype">B.247</data>
+		</node>
+		<node id="103">
+			<data id="genotype">B.250</data>
+		</node>
+		<node id="104">
+			<data id="genotype">B.251</data>
+		</node>
+		<node id="112">
+			<data id="genotype">B.259</data>
+		</node>
+		<node id="113">
+			<data id="genotype">B.260</data>
+		</node>
+		<node id="114">
+			<data id="genotype">B.261</data>
+		</node>
+		<node id="115">
+			<data id="genotype">B.87</data>
+		</node>
+		<node id="123">
+			<data id="genotype">B.89</data>
+		</node>
+		<node id="129">
+			<data id="genotype">B.90</data>
+		</node>
+		<node id="130">
+			<data id="genotype">B.91</data>
+		</node>
+		<node id="131">
+			<data id="genotype">B.92</data>
+		</node>
+		<node id="132">
+			<data id="genotype">B.262</data>
+		</node>
+		<node id="138">
+			<data id="genotype">B.50</data>
+		</node>
+		<node id="159">
+			<data id="genotype">B.49</data>
+		</node>
+		<node id="172">
+			<data id="genotype">B.52</data>
+		</node>
+		<node id="176">
+			<data id="genotype">B.54</data>
+		</node>
+		<node id="180">
+			<data id="genotype">B.55</data>
+		</node>
+		<node id="184">
+			<data id="genotype">B.51</data>
+		</node>
+		<node id="188">
+			<data id="genotype">B.53</data>
+		</node>
+		<node id="189">
+			<data id="genotype">B.101</data>
+		</node>
+		<node id="191">
+			<data id="genotype">B.46</data>
+		</node>
+		<node id="195">
+			<data id="genotype">B.229</data>
+		</node>
+		<node id="203">
+			<data id="genotype">B.79</data>
+		</node>
+		<node id="206">
+			<data id="genotype">B.168</data>
+		</node>
+		<node id="255">
+			<data id="genotype">B.195</data>
+		</node>
+		<node id="257">
+			<data id="genotype">B.196</data>
+		</node>
+		<node id="271">
+			<data id="genotype">B.29</data>
+		</node>
+		<node id="276">
+			<data id="genotype">B.204</data>
+		</node>
+		<node id="281">
+			<data id="genotype">B.207</data>
+		</node>
+		<node id="283">
+			<data id="genotype">B.208</data>
+		</node>
+		<node id="286">
+			<data id="genotype">B.211</data>
+		</node>
+		<node id="287">
+			<data id="genotype">B.212</data>
+		</node>
+		<node id="16">
+			<data id="genotype">B.120</data>
+		</node>
+		<node id="18">
+			<data id="genotype">B.121</data>
+		</node>
+		<node id="50">
+			<data id="genotype">B.140</data>
+		</node>
+		<node id="51">
+			<data id="genotype">B.141</data>
+		</node>
+		<node id="52">
+			<data id="genotype">B.142</data>
+		</node>
+		<node id="54">
+			<data id="genotype">B.143</data>
+		</node>
+		<node id="55">
+			<data id="genotype">B.144</data>
+		</node>
+		<node id="57">
+			<data id="genotype">B.94</data>
+		</node>
+		<node id="59">
+			<data id="genotype">B.146</data>
+		</node>
+		<node id="62">
+			<data id="genotype">B.149</data>
+		</node>
+		<node id="63">
+			<data id="genotype">B.150</data>
+		</node>
+		<node id="66">
+			<data id="genotype">B.151</data>
+		</node>
+		<node id="69">
+			<data id="genotype">B.154</data>
+		</node>
+		<node id="71">
+			<data id="genotype">B.156</data>
+		</node>
+		<node id="80">
+			<data id="genotype">B.85</data>
+		</node>
+		<node id="85">
+			<data id="genotype">B.232</data>
+		</node>
+		<node id="88">
+			<data id="genotype">B.235</data>
+		</node>
+		<node id="89">
+			<data id="genotype">B.236</data>
+		</node>
+		<node id="92">
+			<data id="genotype">B.239</data>
+		</node>
+		<node id="94">
+			<data id="genotype">B.241</data>
+		</node>
+		<node id="96">
+			<data id="genotype">B.243</data>
+		</node>
+		<node id="99">
+			<data id="genotype">B.246</data>
+		</node>
+		<node id="101">
+			<data id="genotype">B.248</data>
+		</node>
+		<node id="105">
+			<data id="genotype">B.252</data>
+		</node>
+		<node id="109">
+			<data id="genotype">B.256</data>
+		</node>
+		<node id="111">
+			<data id="genotype">B.258</data>
+		</node>
+		<node id="116">
+			<data id="genotype">B.299</data>
+		</node>
+		<node id="117">
+			<data id="genotype">B.300</data>
+		</node>
+		<node id="118">
+			<data id="genotype">B.301</data>
+		</node>
+		<node id="120">
+			<data id="genotype">B.302</data>
+		</node>
+		<node id="121">
+			<data id="genotype">B.303</data>
+		</node>
+		<node id="122">
+			<data id="genotype">B.304</data>
+		</node>
+		<node id="124">
+			<data id="genotype">B.305</data>
+		</node>
+		<node id="126">
+			<data id="genotype">B.307</data>
+		</node>
+		<node id="128">
+			<data id="genotype">B.309</data>
+		</node>
+		<node id="133">
+			<data id="genotype">B.48</data>
+		</node>
+		<node id="139">
+			<data id="genotype">B.60</data>
+		</node>
+		<node id="145">
+			<data id="genotype">B.61</data>
+		</node>
+		<node id="157">
+			<data id="genotype">B.59</data>
+		</node>
+		<node id="158">
+			<data id="genotype">B.289</data>
+		</node>
+		<node id="160">
+			<data id="genotype">B.263</data>
+		</node>
+		<node id="163">
+			<data id="genotype">B.266</data>
+		</node>
+		<node id="165">
+			<data id="genotype">B.268</data>
+		</node>
+		<node id="168">
+			<data id="genotype">B.271</data>
+		</node>
+		<node id="169">
+			<data id="genotype">B.272</data>
+		</node>
+		<node id="170">
+			<data id="genotype">B.273</data>
+		</node>
+		<node id="171">
+			<data id="genotype">B.58</data>
+		</node>
+		<node id="173">
+			<data id="genotype">B.290</data>
+		</node>
+		<node id="177">
+			<data id="genotype">B.293</data>
+		</node>
+		<node id="179">
+			<data id="genotype">B.295</data>
+		</node>
+		<node id="181">
+			<data id="genotype">B.296</data>
+		</node>
+		<node id="183">
+			<data id="genotype">B.298</data>
+		</node>
+		<node id="185">
+			<data id="genotype">B.62</data>
+		</node>
+		<node id="192">
+			<data id="genotype">B.47</data>
+		</node>
+		<node id="196">
+			<data id="genotype">B.230</data>
+		</node>
+		<node id="204">
+			<data id="genotype">B.68</data>
+		</node>
+		<node id="205">
+			<data id="genotype">B.76</data>
+		</node>
+		<node id="207">
+			<data id="genotype">B.21</data>
+		</node>
+		<node id="231">
+			<data id="genotype">B.66</data>
+		</node>
+		<node id="256">
+			<data id="genotype">B.25</data>
+		</node>
+		<node id="258">
+			<data id="genotype">B.24</data>
+		</node>
+		<node id="262">
+			<data id="genotype">B.65</data>
+		</node>
+		<node id="272">
+			<data id="genotype">B.30</data>
+		</node>
+		<node id="282">
+			<data id="genotype">B.209</data>
+		</node>
+		<node id="288">
+			<data id="genotype">B.213</data>
+		</node>
+		<node id="289">
+			<data id="genotype">B.214</data>
+		</node>
+		<node id="17">
+			<data id="genotype">B.122</data>
+		</node>
+		<node id="19">
+			<data id="genotype">B.123</data>
+		</node>
+		<node id="58">
+			<data id="genotype">B.145</data>
+		</node>
+		<node id="60">
+			<data id="genotype">B.147</data>
+		</node>
+		<node id="61">
+			<data id="genotype">B.148</data>
+		</node>
+		<node id="67">
+			<data id="genotype">B.152</data>
+		</node>
+		<node id="72">
+			<data id="genotype">B.157</data>
+		</node>
+		<node id="73">
+			<data id="genotype">B.158</data>
+		</node>
+		<node id="81">
+			<data id="genotype">B.86</data>
+		</node>
+		<node id="97">
+			<data id="genotype">B.244</data>
+		</node>
+		<node id="98">
+			<data id="genotype">B.245</data>
+		</node>
+		<node id="102">
+			<data id="genotype">B.249</data>
+		</node>
+		<node id="106">
+			<data id="genotype">B.253</data>
+		</node>
+		<node id="108">
+			<data id="genotype">B.255</data>
+		</node>
+		<node id="110">
+			<data id="genotype">B.257</data>
+		</node>
+		<node id="119">
+			<data id="genotype">B.88</data>
+		</node>
+		<node id="125">
+			<data id="genotype">B.306</data>
+		</node>
+		<node id="127">
+			<data id="genotype">B.308</data>
+		</node>
+		<node id="134">
+			<data id="genotype">B.56</data>
+		</node>
+		<node id="136">
+			<data id="genotype">B.57</data>
+		</node>
+		<node id="137">
+			<data id="genotype">B.108</data>
+		</node>
+		<node id="140">
+			<data id="genotype">B.274</data>
+		</node>
+		<node id="141">
+			<data id="genotype">B.275</data>
+		</node>
+		<node id="142">
+			<data id="genotype">B.276</data>
+		</node>
+		<node id="144">
+			<data id="genotype">B.278</data>
+		</node>
+		<node id="146">
+			<data id="genotype">B.279</data>
+		</node>
+		<node id="147">
+			<data id="genotype">B.280</data>
+		</node>
+		<node id="148">
+			<data id="genotype">B.281</data>
+		</node>
+		<node id="149">
+			<data id="genotype">B.282</data>
+		</node>
+		<node id="150">
+			<data id="genotype">B.283</data>
+		</node>
+		<node id="151">
+			<data id="genotype">B.284</data>
+		</node>
+		<node id="152">
+			<data id="genotype">B.285</data>
+		</node>
+		<node id="156">
+			<data id="genotype">B.109</data>
+		</node>
+		<node id="161">
+			<data id="genotype">B.264</data>
+		</node>
+		<node id="164">
+			<data id="genotype">B.267</data>
+		</node>
+		<node id="166">
+			<data id="genotype">B.269</data>
+		</node>
+		<node id="174">
+			<data id="genotype">B.291</data>
+		</node>
+		<node id="175">
+			<data id="genotype">B.292</data>
+		</node>
+		<node id="178">
+			<data id="genotype">B.294</data>
+		</node>
+		<node id="182">
+			<data id="genotype">B.297</data>
+		</node>
+		<node id="186">
+			<data id="genotype">B.110</data>
+		</node>
+		<node id="193">
+			<data id="genotype">B.63</data>
+		</node>
+		<node id="194">
+			<data id="genotype">B.64</data>
+		</node>
+		<node id="208">
+			<data id="genotype">B.169</data>
+		</node>
+		<node id="209">
+			<data id="genotype">B.170</data>
+		</node>
+		<node id="232">
+			<data id="genotype">B.190</data>
+		</node>
+		<node id="240">
+			<data id="genotype">B.33</data>
+		</node>
+		<node id="259">
+			<data id="genotype">B.77</data>
+		</node>
+		<node id="260">
+			<data id="genotype">B.197</data>
+		</node>
+		<node id="261">
+			<data id="genotype">B.198</data>
+		</node>
+		<node id="263">
+			<data id="genotype">B.199</data>
+		</node>
+		<node id="268">
+			<data id="genotype">B.200</data>
+		</node>
+		<node id="273">
+			<data id="genotype">B.31</data>
+		</node>
+		<node id="107">
+			<data id="genotype">B.254</data>
+		</node>
+		<node id="135">
+			<data id="genotype">B.107</data>
+		</node>
+		<node id="143">
+			<data id="genotype">B.277</data>
+		</node>
+		<node id="153">
+			<data id="genotype">B.286</data>
+		</node>
+		<node id="154">
+			<data id="genotype">B.287</data>
+		</node>
+		<node id="162">
+			<data id="genotype">B.265</data>
+		</node>
+		<node id="167">
+			<data id="genotype">B.270</data>
+		</node>
+		<node id="187">
+			<data id="genotype">B.315</data>
+		</node>
+		<node id="210">
+			<data id="genotype">B.171</data>
+		</node>
+		<node id="218">
+			<data id="genotype">B.179</data>
+		</node>
+		<node id="221">
+			<data id="genotype">B.180</data>
+		</node>
+		<node id="233">
+			<data id="genotype">B.191</data>
+		</node>
+		<node id="235">
+			<data id="genotype">B.100</data>
+		</node>
+		<node id="238">
+			<data id="genotype">B.98</data>
+		</node>
+		<node id="239">
+			<data id="genotype">B.67</data>
+		</node>
+		<node id="241">
+			<data id="genotype">B.314</data>
+		</node>
+		<node id="242">
+			<data id="genotype">B.103</data>
+		</node>
+		<node id="248">
+			<data id="genotype">B.34</data>
+		</node>
+		<node id="264">
+			<data id="genotype">B.201</data>
+		</node>
+		<node id="274">
+			<data id="genotype">B.32</data>
+		</node>
+		<node id="155">
+			<data id="genotype">B.288</data>
+		</node>
+		<node id="211">
+			<data id="genotype">B.172</data>
+		</node>
+		<node id="212">
+			<data id="genotype">B.173</data>
+		</node>
+		<node id="213">
+			<data id="genotype">B.174</data>
+		</node>
+		<node id="214">
+			<data id="genotype">B.175</data>
+		</node>
+		<node id="215">
+			<data id="genotype">B.176</data>
+		</node>
+		<node id="216">
+			<data id="genotype">B.177</data>
+		</node>
+		<node id="219">
+			<data id="genotype">B.97</data>
+		</node>
+		<node id="220">
+			<data id="genotype">B.181</data>
+		</node>
+		<node id="222">
+			<data id="genotype">B.182</data>
+		</node>
+		<node id="223">
+			<data id="genotype">B.22</data>
+		</node>
+		<node id="234">
+			<data id="genotype">B.99</data>
+		</node>
+		<node id="236">
+			<data id="genotype">B.192</data>
+		</node>
+		<node id="243">
+			<data id="genotype">B.106</data>
+		</node>
+		<node id="245">
+			<data id="genotype">B.104</data>
+		</node>
+		<node id="249">
+			<data id="genotype">B.105</data>
+		</node>
+		<node id="250">
+			<data id="genotype">B.35</data>
+		</node>
+		<node id="265">
+			<data id="genotype">B.95</data>
+		</node>
+		<node id="266">
+			<data id="genotype">B.96</data>
+		</node>
+		<node id="267">
+			<data id="genotype">B.202</data>
+		</node>
+		<node id="217">
+			<data id="genotype">B.178</data>
+		</node>
+		<node id="224">
+			<data id="genotype">B.183</data>
+		</node>
+		<node id="225">
+			<data id="genotype">B.184</data>
+		</node>
+		<node id="226">
+			<data id="genotype">B.185</data>
+		</node>
+		<node id="227">
+			<data id="genotype">B.186</data>
+		</node>
+		<node id="228">
+			<data id="genotype">B.187</data>
+		</node>
+		<node id="229">
+			<data id="genotype">B.188</data>
+		</node>
+		<node id="237">
+			<data id="genotype">B.193</data>
+		</node>
+		<node id="244">
+			<data id="genotype">B.75</data>
+		</node>
+		<node id="246">
+			<data id="genotype">B.80</data>
+		</node>
+		<node id="251">
+			<data id="genotype">B.36</data>
+		</node>
+		<node id="230">
+			<data id="genotype">B.189</data>
+		</node>
+		<node id="247">
+			<data id="genotype">B.194</data>
+		</node>
+		<node id="252">
+			<data id="genotype">B.37</data>
+		</node>
+		<node id="253">
+			<data id="genotype">B.38</data>
+		</node>
+		<edge id="T/N.1" source="0" target="1">
+			<data id="called">0</data>
+			<data id="ancestral">0</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">0</data>
+			<data id="ratio">NaN</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="T.1" source="1" target="2">
+			<data id="called">23</data>
+			<data id="ancestral">0</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">23</data>
+			<data id="ratio">1.0</data>
+			<data id="logRatio">1.000</data>
+		</edge>
+		<edge id="B.1" source="2" target="3">
+			<data id="called">0</data>
+			<data id="ancestral">27</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">27</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="A/M.1" source="2" target="304">
+			<data id="called">32</data>
+			<data id="ancestral">0</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">32</data>
+			<data id="ratio">1.0</data>
+			<data id="logRatio">1.000</data>
+		</edge>
+		<edge id="B.2" source="3" target="4">
+			<data id="called">0</data>
+			<data id="ancestral">13</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">13</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.16" source="3" target="292">
+			<data id="called">0</data>
+			<data id="ancestral">24</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">24</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="A.1" source="304" target="305">
+			<data id="called">0</data>
+			<data id="ancestral">12</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">12</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="M.1" source="304" target="328">
+			<data id="called">40</data>
+			<data id="ancestral">0</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">40</data>
+			<data id="ratio">1.0</data>
+			<data id="logRatio">1.000</data>
+		</edge>
+		<edge id="B.159" source="4" target="5">
+			<data id="called">0</data>
+			<data id="ancestral">15</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">15</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.3" source="4" target="8">
+			<data id="called">0</data>
+			<data id="ancestral">17</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">17</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.217" source="292" target="293">
+			<data id="called">0</data>
+			<data id="ancestral">33</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">33</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.218" source="292" target="294">
+			<data id="called">0</data>
+			<data id="ancestral">26</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">26</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="A.I.1" source="305" target="306">
+			<data id="called">0</data>
+			<data id="ancestral">36</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">36</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="A.II.1" source="305" target="322">
+			<data id="called">0</data>
+			<data id="ancestral">19</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">19</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.160" source="5" target="6">
+			<data id="called">0</data>
+			<data id="ancestral">17</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">17</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.161" source="5" target="7">
+			<data id="called">0</data>
+			<data id="ancestral">19</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">19</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.4" source="8" target="9">
+			<data id="called">0</data>
+			<data id="ancestral">22</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">22</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.5" source="8" target="34">
+			<data id="called">0</data>
+			<data id="ancestral">18</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">18</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.219" source="294" target="295">
+			<data id="called">0</data>
+			<data id="ancestral">28</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">28</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.220" source="294" target="297">
+			<data id="called">0</data>
+			<data id="ancestral">22</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">22</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="A.I.3" source="306" target="307">
+			<data id="called">0</data>
+			<data id="ancestral">14</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">14</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="A.I.7" source="306" target="311">
+			<data id="called">0</data>
+			<data id="ancestral">28</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">28</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="A.II.2" source="322" target="323">
+			<data id="called">0</data>
+			<data id="ancestral">16</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">16</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="A.II.8" source="322" target="327">
+			<data id="called">0</data>
+			<data id="ancestral">20</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">20</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.111" source="9" target="10">
+			<data id="called">0</data>
+			<data id="ancestral">21</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">21</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.112" source="9" target="28">
+			<data id="called">1</data>
+			<data id="ancestral">24</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">25</data>
+			<data id="ratio">0.04</data>
+			<data id="logRatio">0.000</data>
+		</edge>
+		<edge id="B.6" source="34" target="35">
+			<data id="called">0</data>
+			<data id="ancestral">19</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">19</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.12" source="34" target="197">
+			<data id="called">0</data>
+			<data id="ancestral">32</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">32</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.221" source="295" target="296">
+			<data id="called">0</data>
+			<data id="ancestral">35</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">35</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.222" source="297" target="298">
+			<data id="called">0</data>
+			<data id="ancestral">15</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">15</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.223" source="297" target="300">
+			<data id="called">0</data>
+			<data id="ancestral">16</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">16</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="A.I.4" source="307" target="308">
+			<data id="called">0</data>
+			<data id="ancestral">18</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">18</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="A.I.5" source="307" target="309">
+			<data id="called">0</data>
+			<data id="ancestral">16</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">16</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="A.I.8" source="311" target="312">
+			<data id="called">0</data>
+			<data id="ancestral">14</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">14</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="A.I.12" source="311" target="316">
+			<data id="called">0</data>
+			<data id="ancestral">33</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">33</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="A.II.6" source="323" target="324">
+			<data id="called">0</data>
+			<data id="ancestral">31</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">31</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="A.II.3" source="323" target="325">
+			<data id="called">0</data>
+			<data id="ancestral">34</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">34</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.113" source="10" target="11">
+			<data id="called">0</data>
+			<data id="ancestral">31</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">31</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.114" source="10" target="24">
+			<data id="called">0</data>
+			<data id="ancestral">41</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">41</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.130" source="28" target="29">
+			<data id="called">0</data>
+			<data id="ancestral">25</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">25</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.7" source="35" target="36">
+			<data id="called">0</data>
+			<data id="ancestral">20</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">20</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.10" source="35" target="74">
+			<data id="called">0</data>
+			<data id="ancestral">10</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">10</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.71" source="197" target="198">
+			<data id="called">0</data>
+			<data id="ancestral">29</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">29</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.72" source="197" target="199">
+			<data id="called">0</data>
+			<data id="ancestral">29</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">29</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.224" source="298" target="299">
+			<data id="called">0</data>
+			<data id="ancestral">23</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">23</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.225" source="300" target="301">
+			<data id="called">0</data>
+			<data id="ancestral">22</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">22</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.226" source="300" target="302">
+			<data id="called">0</data>
+			<data id="ancestral">18</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">18</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="A.I.6" source="309" target="310">
+			<data id="called">0</data>
+			<data id="ancestral">19</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">19</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="A.I.9" source="312" target="313">
+			<data id="called">0</data>
+			<data id="ancestral">15</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">15</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="A.I.10" source="312" target="314">
+			<data id="called">0</data>
+			<data id="ancestral">43</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">43</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="A.I.2" source="316" target="317">
+			<data id="called">0</data>
+			<data id="ancestral">26</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">26</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="A.II.4" source="325" target="326">
+			<data id="called">0</data>
+			<data id="ancestral">29</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">29</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.115" source="11" target="12">
+			<data id="called">0</data>
+			<data id="ancestral">15</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">15</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.116" source="11" target="20">
+			<data id="called">0</data>
+			<data id="ancestral">24</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">24</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.127" source="24" target="25">
+			<data id="called">0</data>
+			<data id="ancestral">37</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">37</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.128" source="24" target="26">
+			<data id="called">0</data>
+			<data id="ancestral">19</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">19</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.131" source="29" target="30">
+			<data id="called">0</data>
+			<data id="ancestral">19</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">19</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.102" source="29" target="32">
+			<data id="called">0</data>
+			<data id="ancestral">22</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">22</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.8" source="36" target="37">
+			<data id="called">0</data>
+			<data id="ancestral">19</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">19</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.133" source="36" target="45">
+			<data id="called">0</data>
+			<data id="ancestral">28</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">28</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.70" source="74" target="75">
+			<data id="called">0</data>
+			<data id="ancestral">32</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">32</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.11" source="74" target="76">
+			<data id="called">0</data>
+			<data id="ancestral">32</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">32</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.13" source="199" target="200">
+			<data id="called">0</data>
+			<data id="ancestral">29</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">29</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.39" source="199" target="277">
+			<data id="called">0</data>
+			<data id="ancestral">14</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">14</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.227" source="302" target="303">
+			<data id="called">0</data>
+			<data id="ancestral">16</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">16</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="A.I.11" source="314" target="315">
+			<data id="called">0</data>
+			<data id="ancestral">28</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">28</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="A.I.13" source="317" target="318">
+			<data id="called">0</data>
+			<data id="ancestral">22</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">22</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="A.I.14" source="317" target="319">
+			<data id="called">0</data>
+			<data id="ancestral">27</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">27</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="A.I.15" source="317" target="320">
+			<data id="called">0</data>
+			<data id="ancestral">17</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">17</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.117" source="12" target="13">
+			<data id="called">0</data>
+			<data id="ancestral">34</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">34</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.124" source="20" target="21">
+			<data id="called">0</data>
+			<data id="ancestral">24</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">24</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.129" source="26" target="27">
+			<data id="called">0</data>
+			<data id="ancestral">25</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">25</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.78" source="30" target="31">
+			<data id="called">0</data>
+			<data id="ancestral">41</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">41</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.132" source="32" target="33">
+			<data id="called">0</data>
+			<data id="ancestral">25</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">25</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.162" source="37" target="38">
+			<data id="called">0</data>
+			<data id="ancestral">27</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">27</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.9" source="37" target="42">
+			<data id="called">0</data>
+			<data id="ancestral">13</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">13</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.134" source="45" target="46">
+			<data id="called">0</data>
+			<data id="ancestral">18</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">18</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.81" source="45" target="47">
+			<data id="called">0</data>
+			<data id="ancestral">22</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">22</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.82" source="76" target="77">
+			<data id="called">0</data>
+			<data id="ancestral">47</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">47</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.44" source="76" target="82">
+			<data id="called">0</data>
+			<data id="ancestral">22</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">22</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.26" source="200" target="201">
+			<data id="called">0</data>
+			<data id="ancestral">29</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">29</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.27" source="200" target="269">
+			<data id="called">0</data>
+			<data id="ancestral">46</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">46</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.74" source="277" target="278">
+			<data id="called">0</data>
+			<data id="ancestral">12</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">12</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.73" source="277" target="279">
+			<data id="called">0</data>
+			<data id="ancestral">17</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">17</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.215" source="277" target="290">
+			<data id="called">0</data>
+			<data id="ancestral">27</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">27</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="A.I.16" source="320" target="321">
+			<data id="called">0</data>
+			<data id="ancestral">11</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">11</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.118" source="13" target="14">
+			<data id="called">0</data>
+			<data id="ancestral">26</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">26</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.125" source="21" target="22">
+			<data id="called">0</data>
+			<data id="ancestral">16</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">16</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.163" source="38" target="39">
+			<data id="called">0</data>
+			<data id="ancestral">23</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">23</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.164" source="38" target="40">
+			<data id="called">0</data>
+			<data id="ancestral">22</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">22</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.165" source="38" target="41">
+			<data id="called">0</data>
+			<data id="ancestral">19</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">19</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.166" source="42" target="43">
+			<data id="called">0</data>
+			<data id="ancestral">19</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">19</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.167" source="42" target="44">
+			<data id="called">0</data>
+			<data id="ancestral">31</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">31</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.135" source="47" target="48">
+			<data id="called">0</data>
+			<data id="ancestral">19</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">19</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.136" source="47" target="64">
+			<data id="called">0</data>
+			<data id="ancestral">26</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">26</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.83" source="77" target="78">
+			<data id="called">0</data>
+			<data id="ancestral">28</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">28</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.45" source="82" target="83">
+			<data id="called">0</data>
+			<data id="ancestral">7</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">7</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.228" source="82" target="190">
+			<data id="called">0</data>
+			<data id="ancestral">21</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">21</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.42" source="201" target="202">
+			<data id="called">0</data>
+			<data id="ancestral">37</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">37</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.23" source="201" target="254">
+			<data id="called">0</data>
+			<data id="ancestral">24</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">24</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.28" source="269" target="270">
+			<data id="called">0</data>
+			<data id="ancestral">18</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">18</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.203" source="269" target="275">
+			<data id="called">0</data>
+			<data id="ancestral">18</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">18</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.205" source="279" target="280">
+			<data id="called">0</data>
+			<data id="ancestral">38</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">38</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.206" source="279" target="284">
+			<data id="called">0</data>
+			<data id="ancestral">23</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">23</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.210" source="279" target="285">
+			<data id="called">0</data>
+			<data id="ancestral">29</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">29</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.216" source="290" target="291">
+			<data id="called">0</data>
+			<data id="ancestral">17</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">17</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.119" source="14" target="15">
+			<data id="called">0</data>
+			<data id="ancestral">29</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">29</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.126" source="22" target="23">
+			<data id="called">0</data>
+			<data id="ancestral">34</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">34</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.137" source="48" target="49">
+			<data id="called">0</data>
+			<data id="ancestral">14</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">14</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.138" source="48" target="53">
+			<data id="called">0</data>
+			<data id="ancestral">20</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">20</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.139" source="48" target="56">
+			<data id="called">0</data>
+			<data id="ancestral">0</data>
+			<data id="nonCanon">29</data>
+			<data id="depth">29</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.93" source="64" target="65">
+			<data id="called">0</data>
+			<data id="ancestral">16</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">16</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.153" source="64" target="68">
+			<data id="called">0</data>
+			<data id="ancestral">13</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">13</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.155" source="64" target="70">
+			<data id="called">0</data>
+			<data id="ancestral">23</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">23</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.84" source="78" target="79">
+			<data id="called">0</data>
+			<data id="ancestral">26</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">26</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.231" source="83" target="84">
+			<data id="called">0</data>
+			<data id="ancestral">24</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">24</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.233" source="83" target="86">
+			<data id="called">0</data>
+			<data id="ancestral">4</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">4</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.234" source="83" target="87">
+			<data id="called">0</data>
+			<data id="ancestral">41</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">41</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.237" source="83" target="90">
+			<data id="called">0</data>
+			<data id="ancestral">35</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">35</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.238" source="83" target="91">
+			<data id="called">0</data>
+			<data id="ancestral">24</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">24</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.240" source="83" target="93">
+			<data id="called">0</data>
+			<data id="ancestral">11</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">11</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.242" source="83" target="95">
+			<data id="called">0</data>
+			<data id="ancestral">13</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">13</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.247" source="83" target="100">
+			<data id="called">0</data>
+			<data id="ancestral">18</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">18</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.250" source="83" target="103">
+			<data id="called">0</data>
+			<data id="ancestral">31</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">31</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.251" source="83" target="104">
+			<data id="called">0</data>
+			<data id="ancestral">27</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">27</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.259" source="83" target="112">
+			<data id="called">0</data>
+			<data id="ancestral">10</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">10</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.260" source="83" target="113">
+			<data id="called">0</data>
+			<data id="ancestral">25</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">25</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.261" source="83" target="114">
+			<data id="called">0</data>
+			<data id="ancestral">26</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">26</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.87" source="83" target="115">
+			<data id="called">0</data>
+			<data id="ancestral">13</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">13</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.89" source="83" target="123">
+			<data id="called">0</data>
+			<data id="ancestral">21</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">21</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.90" source="83" target="129">
+			<data id="called">0</data>
+			<data id="ancestral">21</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">21</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.91" source="83" target="130">
+			<data id="called">0</data>
+			<data id="ancestral">9</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">9</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.92" source="83" target="131">
+			<data id="called">0</data>
+			<data id="ancestral">15</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">15</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.262" source="83" target="132">
+			<data id="called">0</data>
+			<data id="ancestral">16</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">16</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.50" source="83" target="138">
+			<data id="called">0</data>
+			<data id="ancestral">14</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">14</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.49" source="83" target="159">
+			<data id="called">0</data>
+			<data id="ancestral">18</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">18</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.52" source="83" target="172">
+			<data id="called">0</data>
+			<data id="ancestral">0</data>
+			<data id="nonCanon">21</data>
+			<data id="depth">21</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.54" source="83" target="176">
+			<data id="called">0</data>
+			<data id="ancestral">24</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">24</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.55" source="83" target="180">
+			<data id="called">0</data>
+			<data id="ancestral">10</data>
+			<data id="nonCanon">1</data>
+			<data id="depth">11</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.51" source="83" target="184">
+			<data id="called">0</data>
+			<data id="ancestral">8</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">8</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.53" source="83" target="188">
+			<data id="called">0</data>
+			<data id="ancestral">16</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">16</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.101" source="83" target="189">
+			<data id="called">0</data>
+			<data id="ancestral">27</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">27</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.46" source="190" target="191">
+			<data id="called">0</data>
+			<data id="ancestral">28</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">28</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.229" source="190" target="195">
+			<data id="called">0</data>
+			<data id="ancestral">28</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">28</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.79" source="202" target="203">
+			<data id="called">0</data>
+			<data id="ancestral">22</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">22</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.168" source="202" target="206">
+			<data id="called">0</data>
+			<data id="ancestral">16</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">16</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.195" source="254" target="255">
+			<data id="called">0</data>
+			<data id="ancestral">10</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">10</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.196" source="254" target="257">
+			<data id="called">0</data>
+			<data id="ancestral">22</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">22</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.29" source="270" target="271">
+			<data id="called">0</data>
+			<data id="ancestral">23</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">23</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.204" source="275" target="276">
+			<data id="called">0</data>
+			<data id="ancestral">20</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">20</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.207" source="280" target="281">
+			<data id="called">0</data>
+			<data id="ancestral">27</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">27</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.208" source="280" target="283">
+			<data id="called">0</data>
+			<data id="ancestral">20</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">20</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.211" source="285" target="286">
+			<data id="called">0</data>
+			<data id="ancestral">48</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">48</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.212" source="285" target="287">
+			<data id="called">0</data>
+			<data id="ancestral">41</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">41</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.120" source="15" target="16">
+			<data id="called">0</data>
+			<data id="ancestral">23</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">23</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.121" source="15" target="18">
+			<data id="called">0</data>
+			<data id="ancestral">16</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">16</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.140" source="49" target="50">
+			<data id="called">0</data>
+			<data id="ancestral">18</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">18</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.141" source="49" target="51">
+			<data id="called">0</data>
+			<data id="ancestral">33</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">33</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.142" source="49" target="52">
+			<data id="called">0</data>
+			<data id="ancestral">18</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">18</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.143" source="53" target="54">
+			<data id="called">0</data>
+			<data id="ancestral">40</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">40</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.144" source="53" target="55">
+			<data id="called">0</data>
+			<data id="ancestral">19</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">19</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.94" source="56" target="57">
+			<data id="called">0</data>
+			<data id="ancestral">21</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">21</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.146" source="56" target="59">
+			<data id="called">0</data>
+			<data id="ancestral">17</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">17</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.149" source="56" target="62">
+			<data id="called">0</data>
+			<data id="ancestral">14</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">14</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.150" source="56" target="63">
+			<data id="called">0</data>
+			<data id="ancestral">22</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">22</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.151" source="65" target="66">
+			<data id="called">0</data>
+			<data id="ancestral">15</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">15</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.154" source="68" target="69">
+			<data id="called">0</data>
+			<data id="ancestral">22</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">22</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.156" source="70" target="71">
+			<data id="called">0</data>
+			<data id="ancestral">21</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">21</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.85" source="79" target="80">
+			<data id="called">0</data>
+			<data id="ancestral">29</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">29</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.232" source="84" target="85">
+			<data id="called">0</data>
+			<data id="ancestral">17</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">17</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.235" source="87" target="88">
+			<data id="called">0</data>
+			<data id="ancestral">22</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">22</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.236" source="87" target="89">
+			<data id="called">0</data>
+			<data id="ancestral">19</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">19</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.239" source="91" target="92">
+			<data id="called">0</data>
+			<data id="ancestral">18</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">18</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.241" source="93" target="94">
+			<data id="called">0</data>
+			<data id="ancestral">26</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">26</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.243" source="95" target="96">
+			<data id="called">0</data>
+			<data id="ancestral">32</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">32</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.246" source="95" target="99">
+			<data id="called">0</data>
+			<data id="ancestral">13</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">13</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.248" source="100" target="101">
+			<data id="called">0</data>
+			<data id="ancestral">33</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">33</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.252" source="104" target="105">
+			<data id="called">0</data>
+			<data id="ancestral">28</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">28</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.256" source="104" target="109">
+			<data id="called">0</data>
+			<data id="ancestral">27</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">27</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.258" source="104" target="111">
+			<data id="called">0</data>
+			<data id="ancestral">25</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">25</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.299" source="115" target="116">
+			<data id="called">0</data>
+			<data id="ancestral">24</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">24</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.300" source="115" target="117">
+			<data id="called">0</data>
+			<data id="ancestral">36</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">36</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.301" source="115" target="118">
+			<data id="called">0</data>
+			<data id="ancestral">20</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">20</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.302" source="115" target="120">
+			<data id="called">0</data>
+			<data id="ancestral">22</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">22</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.303" source="115" target="121">
+			<data id="called">0</data>
+			<data id="ancestral">12</data>
+			<data id="nonCanon">1</data>
+			<data id="depth">13</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.304" source="115" target="122">
+			<data id="called">0</data>
+			<data id="ancestral">11</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">11</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.305" source="123" target="124">
+			<data id="called">0</data>
+			<data id="ancestral">33</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">33</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.307" source="123" target="126">
+			<data id="called">0</data>
+			<data id="ancestral">36</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">36</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.309" source="123" target="128">
+			<data id="called">0</data>
+			<data id="ancestral">21</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">21</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.48" source="132" target="133">
+			<data id="called">0</data>
+			<data id="ancestral">25</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">25</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.60" source="138" target="139">
+			<data id="called">0</data>
+			<data id="ancestral">9</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">9</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.61" source="138" target="145">
+			<data id="called">0</data>
+			<data id="ancestral">18</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">18</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.59" source="138" target="157">
+			<data id="called">0</data>
+			<data id="ancestral">15</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">15</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.289" source="138" target="158">
+			<data id="called">0</data>
+			<data id="ancestral">22</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">22</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.263" source="159" target="160">
+			<data id="called">0</data>
+			<data id="ancestral">14</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">14</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.266" source="159" target="163">
+			<data id="called">0</data>
+			<data id="ancestral">33</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">33</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.268" source="159" target="165">
+			<data id="called">0</data>
+			<data id="ancestral">12</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">12</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.271" source="159" target="168">
+			<data id="called">0</data>
+			<data id="ancestral">18</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">18</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.272" source="159" target="169">
+			<data id="called">0</data>
+			<data id="ancestral">29</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">29</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.273" source="159" target="170">
+			<data id="called">0</data>
+			<data id="ancestral">31</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">31</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.58" source="159" target="171">
+			<data id="called">0</data>
+			<data id="ancestral">17</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">17</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.290" source="172" target="173">
+			<data id="called">0</data>
+			<data id="ancestral">19</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">19</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.293" source="176" target="177">
+			<data id="called">0</data>
+			<data id="ancestral">43</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">43</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.295" source="176" target="179">
+			<data id="called">0</data>
+			<data id="ancestral">13</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">13</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.296" source="180" target="181">
+			<data id="called">0</data>
+			<data id="ancestral">14</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">14</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.298" source="180" target="183">
+			<data id="called">0</data>
+			<data id="ancestral">24</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">24</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.62" source="184" target="185">
+			<data id="called">0</data>
+			<data id="ancestral">5</data>
+			<data id="nonCanon">1</data>
+			<data id="depth">6</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.47" source="191" target="192">
+			<data id="called">0</data>
+			<data id="ancestral">18</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">18</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.230" source="195" target="196">
+			<data id="called">0</data>
+			<data id="ancestral">28</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">28</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.68" source="203" target="204">
+			<data id="called">0</data>
+			<data id="ancestral">39</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">39</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.76" source="203" target="205">
+			<data id="called">0</data>
+			<data id="ancestral">23</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">23</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.21" source="206" target="207">
+			<data id="called">0</data>
+			<data id="ancestral">20</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">20</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.66" source="206" target="231">
+			<data id="called">0</data>
+			<data id="ancestral">0</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">0</data>
+			<data id="ratio">NaN</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.25" source="255" target="256">
+			<data id="called">0</data>
+			<data id="ancestral">34</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">34</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.24" source="257" target="258">
+			<data id="called">0</data>
+			<data id="ancestral">16</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">16</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.65" source="257" target="262">
+			<data id="called">0</data>
+			<data id="ancestral">31</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">31</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.30" source="271" target="272">
+			<data id="called">0</data>
+			<data id="ancestral">38</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">38</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.209" source="281" target="282">
+			<data id="called">0</data>
+			<data id="ancestral">25</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">25</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.213" source="287" target="288">
+			<data id="called">0</data>
+			<data id="ancestral">14</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">14</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.214" source="287" target="289">
+			<data id="called">0</data>
+			<data id="ancestral">26</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">26</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.122" source="16" target="17">
+			<data id="called">0</data>
+			<data id="ancestral">24</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">24</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.123" source="18" target="19">
+			<data id="called">0</data>
+			<data id="ancestral">24</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">24</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.145" source="57" target="58">
+			<data id="called">0</data>
+			<data id="ancestral">28</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">28</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.147" source="59" target="60">
+			<data id="called">0</data>
+			<data id="ancestral">17</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">17</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.148" source="59" target="61">
+			<data id="called">0</data>
+			<data id="ancestral">17</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">17</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.152" source="66" target="67">
+			<data id="called">0</data>
+			<data id="ancestral">28</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">28</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.157" source="71" target="72">
+			<data id="called">0</data>
+			<data id="ancestral">33</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">33</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.158" source="71" target="73">
+			<data id="called">0</data>
+			<data id="ancestral">17</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">17</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.86" source="80" target="81">
+			<data id="called">0</data>
+			<data id="ancestral">22</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">22</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.244" source="96" target="97">
+			<data id="called">0</data>
+			<data id="ancestral">13</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">13</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.245" source="96" target="98">
+			<data id="called">0</data>
+			<data id="ancestral">19</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">19</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.249" source="101" target="102">
+			<data id="called">0</data>
+			<data id="ancestral">19</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">19</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.253" source="105" target="106">
+			<data id="called">0</data>
+			<data id="ancestral">9</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">9</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.255" source="105" target="108">
+			<data id="called">0</data>
+			<data id="ancestral">14</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">14</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.257" source="109" target="110">
+			<data id="called">0</data>
+			<data id="ancestral">27</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">27</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.88" source="118" target="119">
+			<data id="called">0</data>
+			<data id="ancestral">19</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">19</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.306" source="124" target="125">
+			<data id="called">0</data>
+			<data id="ancestral">10</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">10</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.308" source="126" target="127">
+			<data id="called">0</data>
+			<data id="ancestral">15</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">15</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.56" source="133" target="134">
+			<data id="called">0</data>
+			<data id="ancestral">20</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">20</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.57" source="133" target="136">
+			<data id="called">0</data>
+			<data id="ancestral">22</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">22</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.108" source="133" target="137">
+			<data id="called">0</data>
+			<data id="ancestral">11</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">11</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.274" source="139" target="140">
+			<data id="called">0</data>
+			<data id="ancestral">22</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">22</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.275" source="139" target="141">
+			<data id="called">0</data>
+			<data id="ancestral">23</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">23</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.276" source="139" target="142">
+			<data id="called">0</data>
+			<data id="ancestral">19</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">19</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.278" source="139" target="144">
+			<data id="called">0</data>
+			<data id="ancestral">24</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">24</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.279" source="145" target="146">
+			<data id="called">0</data>
+			<data id="ancestral">24</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">24</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.280" source="145" target="147">
+			<data id="called">0</data>
+			<data id="ancestral">29</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">29</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.281" source="145" target="148">
+			<data id="called">0</data>
+			<data id="ancestral">14</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">14</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.282" source="145" target="149">
+			<data id="called">0</data>
+			<data id="ancestral">2</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">2</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.283" source="145" target="150">
+			<data id="called">0</data>
+			<data id="ancestral">22</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">22</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.284" source="145" target="151">
+			<data id="called">0</data>
+			<data id="ancestral">4</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">4</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.285" source="145" target="152">
+			<data id="called">0</data>
+			<data id="ancestral">22</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">22</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.109" source="145" target="156">
+			<data id="called">0</data>
+			<data id="ancestral">17</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">17</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.264" source="160" target="161">
+			<data id="called">0</data>
+			<data id="ancestral">28</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">28</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.267" source="163" target="164">
+			<data id="called">0</data>
+			<data id="ancestral">16</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">16</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.269" source="165" target="166">
+			<data id="called">0</data>
+			<data id="ancestral">20</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">20</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.291" source="173" target="174">
+			<data id="called">0</data>
+			<data id="ancestral">27</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">27</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.292" source="173" target="175">
+			<data id="called">0</data>
+			<data id="ancestral">11</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">11</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.294" source="177" target="178">
+			<data id="called">0</data>
+			<data id="ancestral">0</data>
+			<data id="nonCanon">22</data>
+			<data id="depth">22</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.297" source="181" target="182">
+			<data id="called">0</data>
+			<data id="ancestral">23</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">23</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.110" source="185" target="186">
+			<data id="called">1</data>
+			<data id="ancestral">12</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">13</data>
+			<data id="ratio">0.07692307692307693</data>
+			<data id="logRatio">0.000</data>
+		</edge>
+		<edge id="B.63" source="192" target="193">
+			<data id="called">0</data>
+			<data id="ancestral">26</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">26</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.64" source="192" target="194">
+			<data id="called">0</data>
+			<data id="ancestral">10</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">10</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.169" source="207" target="208">
+			<data id="called">0</data>
+			<data id="ancestral">32</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">32</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.170" source="207" target="209">
+			<data id="called">0</data>
+			<data id="ancestral">27</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">27</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.190" source="231" target="232">
+			<data id="called">0</data>
+			<data id="ancestral">8</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">8</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.33" source="231" target="240">
+			<data id="called">0</data>
+			<data id="ancestral">20</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">20</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.77" source="258" target="259">
+			<data id="called">0</data>
+			<data id="ancestral">21</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">21</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.197" source="258" target="260">
+			<data id="called">0</data>
+			<data id="ancestral">21</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">21</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.198" source="258" target="261">
+			<data id="called">0</data>
+			<data id="ancestral">13</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">13</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.199" source="262" target="263">
+			<data id="called">0</data>
+			<data id="ancestral">30</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">30</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.200" source="262" target="268">
+			<data id="called">0</data>
+			<data id="ancestral">14</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">14</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.31" source="272" target="273">
+			<data id="called">0</data>
+			<data id="ancestral">27</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">27</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.254" source="106" target="107">
+			<data id="called">0</data>
+			<data id="ancestral">18</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">18</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.107" source="134" target="135">
+			<data id="called">0</data>
+			<data id="ancestral">27</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">27</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.277" source="142" target="143">
+			<data id="called">0</data>
+			<data id="ancestral">10</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">10</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.286" source="152" target="153">
+			<data id="called">0</data>
+			<data id="ancestral">31</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">31</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.287" source="152" target="154">
+			<data id="called">0</data>
+			<data id="ancestral">8</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">8</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.265" source="161" target="162">
+			<data id="called">0</data>
+			<data id="ancestral">22</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">22</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.270" source="166" target="167">
+			<data id="called">0</data>
+			<data id="ancestral">16</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">16</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.315" source="186" target="187">
+			<data id="called">0</data>
+			<data id="ancestral">40</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">40</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.171" source="209" target="210">
+			<data id="called">0</data>
+			<data id="ancestral">26</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">26</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.179" source="209" target="218">
+			<data id="called">0</data>
+			<data id="ancestral">18</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">18</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.180" source="209" target="221">
+			<data id="called">0</data>
+			<data id="ancestral">22</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">22</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.191" source="232" target="233">
+			<data id="called">0</data>
+			<data id="ancestral">11</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">11</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.100" source="232" target="235">
+			<data id="called">0</data>
+			<data id="ancestral">14</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">14</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.98" source="232" target="238">
+			<data id="called">0</data>
+			<data id="ancestral">24</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">24</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.67" source="232" target="239">
+			<data id="called">0</data>
+			<data id="ancestral">22</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">22</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.314" source="240" target="241">
+			<data id="called">0</data>
+			<data id="ancestral">24</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">24</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.103" source="240" target="242">
+			<data id="called">0</data>
+			<data id="ancestral">17</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">17</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.34" source="240" target="248">
+			<data id="called">0</data>
+			<data id="ancestral">10</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">10</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.201" source="263" target="264">
+			<data id="called">0</data>
+			<data id="ancestral">10</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">10</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.32" source="273" target="274">
+			<data id="called">0</data>
+			<data id="ancestral">29</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">29</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.288" source="154" target="155">
+			<data id="called">0</data>
+			<data id="ancestral">26</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">26</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.172" source="210" target="211">
+			<data id="called">0</data>
+			<data id="ancestral">12</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">12</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.173" source="210" target="212">
+			<data id="called">0</data>
+			<data id="ancestral">33</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">33</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.174" source="210" target="213">
+			<data id="called">0</data>
+			<data id="ancestral">36</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">36</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.175" source="210" target="214">
+			<data id="called">0</data>
+			<data id="ancestral">7</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">7</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.176" source="210" target="215">
+			<data id="called">0</data>
+			<data id="ancestral">23</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">23</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.177" source="210" target="216">
+			<data id="called">0</data>
+			<data id="ancestral">29</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">29</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.97" source="218" target="219">
+			<data id="called">0</data>
+			<data id="ancestral">17</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">17</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.181" source="218" target="220">
+			<data id="called">0</data>
+			<data id="ancestral">12</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">12</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.182" source="221" target="222">
+			<data id="called">0</data>
+			<data id="ancestral">1</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">1</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.22" source="221" target="223">
+			<data id="called">0</data>
+			<data id="ancestral">20</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">20</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.99" source="233" target="234">
+			<data id="called">0</data>
+			<data id="ancestral">19</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">19</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.192" source="235" target="236">
+			<data id="called">0</data>
+			<data id="ancestral">11</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">11</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.106" source="242" target="243">
+			<data id="called">0</data>
+			<data id="ancestral">10</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">10</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.104" source="242" target="245">
+			<data id="called">0</data>
+			<data id="ancestral">16</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">16</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.105" source="248" target="249">
+			<data id="called">0</data>
+			<data id="ancestral">16</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">16</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.35" source="248" target="250">
+			<data id="called">0</data>
+			<data id="ancestral">34</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">34</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.95" source="264" target="265">
+			<data id="called">0</data>
+			<data id="ancestral">21</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">21</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.96" source="264" target="266">
+			<data id="called">0</data>
+			<data id="ancestral">8</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">8</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.202" source="264" target="267">
+			<data id="called">0</data>
+			<data id="ancestral">16</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">16</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.178" source="216" target="217">
+			<data id="called">0</data>
+			<data id="ancestral">19</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">19</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.183" source="223" target="224">
+			<data id="called">0</data>
+			<data id="ancestral">19</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">19</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.184" source="223" target="225">
+			<data id="called">0</data>
+			<data id="ancestral">30</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">30</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.185" source="223" target="226">
+			<data id="called">0</data>
+			<data id="ancestral">22</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">22</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.186" source="223" target="227">
+			<data id="called">0</data>
+			<data id="ancestral">33</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">33</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.187" source="223" target="228">
+			<data id="called">0</data>
+			<data id="ancestral">0</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">0</data>
+			<data id="ratio">NaN</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.188" source="223" target="229">
+			<data id="called">0</data>
+			<data id="ancestral">27</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">27</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.193" source="236" target="237">
+			<data id="called">0</data>
+			<data id="ancestral">35</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">35</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.75" source="243" target="244">
+			<data id="called">0</data>
+			<data id="ancestral">25</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">25</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.80" source="245" target="246">
+			<data id="called">0</data>
+			<data id="ancestral">27</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">27</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.36" source="250" target="251">
+			<data id="called">0</data>
+			<data id="ancestral">5</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">5</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.189" source="229" target="230">
+			<data id="called">0</data>
+			<data id="ancestral">0</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">0</data>
+			<data id="ratio">NaN</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.194" source="246" target="247">
+			<data id="called">0</data>
+			<data id="ancestral">34</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">34</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.37" source="251" target="252">
+			<data id="called">0</data>
+			<data id="ancestral">21</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">21</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+		<edge id="B.38" source="252" target="253">
+			<data id="called">0</data>
+			<data id="ancestral">28</data>
+			<data id="nonCanon">0</data>
+			<data id="depth">28</data>
+			<data id="ratio">0.0</data>
+			<data id="logRatio">NaN-Der</data>
+		</edge>
+	</graph>
+</graphml>

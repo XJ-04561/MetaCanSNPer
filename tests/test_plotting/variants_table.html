@@ -1,0 +1,380 @@
+<!doctype html>
+<html class="GeekyIllustration">
+	<head>
+		<title>Variants</title>
+		<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%2016%2016%22%3E%0A%09%3Crect%20x%3D%221%22%20y%3D%221%22%20height%3D%2214%22%20width%3D%2214%22%20fill%3D%22transparent%22%20stroke%3D%22%23a0a0a0%22%20stroke-width%3D%221%22%3E%0A%09%3C/rect%3E%0A%3C/svg%3E">
+		<meta property="article:published_time" content="2024-08-26 12:09:45 (UTC+0200)" data-rh="true">
+		<style>
+@media screen and (max-width : 1024px) {
+	html:root {
+		--BORDER-WIDTH-THIN : 1px;
+		--BORDER-WIDTH-MID : 2px;
+		--BORDER-WIDTH-THICK : 5px;
+
+		--BORDER-RADIUS-THIN : 10px;
+		--BORDER-RADIUS-MID : 20px;
+		--BORDER-RADIUS-THICK : 50px;
+
+		--PADDING-THIN : 10px;
+		--PADDING-MID : 20px;
+		--PADDING-THICK : 50px;
+	}
+}
+@media screen and (min-width : 1025px) and (max-width : 1920px) {
+	html:root {
+		--BORDER-WIDTH-THIN : 2px;
+		--BORDER-WIDTH-MID : 4px;
+		--BORDER-WIDTH-THICK : 8px;
+
+		--BORDER-RADIUS-THIN : 20px;
+		--BORDER-RADIUS-MID : 40px;
+		--BORDER-RADIUS-THICK : 80px;
+
+		--PADDING-THIN : 20px;
+		--PADDING-MID : 40px;
+		--PADDING-THICK : 80px;
+	}
+}
+@media screen and (min-width : 1921px) and (max-width : 3840px) {
+	html:root {
+		--BORDER-WIDTH-THIN : 3px;
+		--BORDER-WIDTH-MID : 8px;
+		--BORDER-WIDTH-THICK : 16px;
+
+		--BORDER-RADIUS-THIN : 40px;
+		--BORDER-RADIUS-MID : 60px;
+		--BORDER-RADIUS-THICK : 120px;
+
+		--PADDING-THIN : 40px;
+		--PADDING-MID : 60px;
+		--PADDING-THICK : 120px;
+	}
+}
+@media screen and (min-width : 3841px) {
+	html:root {
+		--BORDER-WIDTH-THIN : min(0.25vh, 0.25vw);
+		--BORDER-WIDTH-MID : min(0.5vh, 0.5vw);
+		--BORDER-WIDTH-THICK : min(1vh, 1vw);
+
+		--BORDER-RADIUS-THIN : min(1vh, 1vw);
+		--BORDER-RADIUS-MID : min(2.5vh, 2.5vw);
+		--BORDER-RADIUS-THICK : min(5vh, 5vw);
+
+		--PADDING-THIN : min(1vh, 1vw);
+		--PADDING-MID : min(2.5vh, 2.5vw);
+		--PADDING-THICK : min(5vh, 5vw);
+	}
+}
+html:root {
+	--PAGE-BACKGROUND : #ffffff;
+	/* --PAGE-BACKGROUND : #fbb74d; */
+
+	--PRIMARY-COLOR : #101010;
+	--PRIMARY-BACKGROUND : #ffffff;
+	--PRIMARY-BORDER : #c0c0c0;
+
+	--SECONDARY-COLOR : #080808;
+	--SECONDARY-BACKGROUND : #efefef;
+	--SECONDARY-BORDER : #b0b0b0;
+
+	--TERTIARY-COLOR : #e0e0e0;
+	--TERTIARY-BACKGROUND : #505050;
+	--TERTIARY-BORDER : #b0b0b0;
+}
+@media (prefers-color-scheme: dark) {
+	html:root {
+		--PAGE-BACKGROUND : #050505;
+
+		--PRIMARY-COLOR : #efefef;
+		--PRIMARY-BACKGROUND : #202020;
+		--PRIMARY-BORDER : #505050;
+
+		--SECONDARY-COLOR : #f9f9f9;
+		--SECONDARY-BACKGROUND : #303030;
+		--SECONDARY-BORDER : #606060;
+
+		--TERTIARY-COLOR : #101010;
+		--TERTIARY-BACKGROUND : #505050;
+		--TERTIARY-BORDER : #404040;
+	}
+}
+
+.primary {
+	color : var(--PRIMARY-COLOR);
+	background-color : var(--PRIMARY-BACKGROUND);
+	border : 1px solid var(--PAGE-BACKGROUND);
+}
+.secondary {
+	color : var(--SECONDARY-COLOR);
+	background-color : var(--SECONDARY-BACKGROUND);
+	border: solid var(--BORDER-WIDTH-MID) var(--SECONDARY-BORDER);
+}
+.secondary::before {
+	box-shadow: #00000080 0 0 var(--BORDER-WIDTH-MID) var(--BORDER-WIDTH-MID);
+}
+.tertiary {
+	color : var(--TERTIARY-COLOR);
+	background-color : var(--TERTIARY-BACKGROUND);
+	border: solid var(--BORDER-WIDTH-MID) var(--TERTIARY-BORDER);
+}
+.tertiary::before {
+	box-shadow: #00000080 0 0 var(--BORDER-WIDTH-MID) var(--BORDER-WIDTH-MID);
+}
+
+.GeekyIllustration {
+	& body {
+		color : var(--PRIMARY-COLOR);
+		& svg text:not([fill]) {fill : var(--PRIMARY-COLOR);}
+	}
+	& figure {
+		max-height: 100%;
+  		max-width: 100%;
+
+		& svg {
+			
+			transition: all 1s ease;
+			& * {
+				transition: all 1s ease;
+			}
+		}
+	}
+
+}
+
+.Square {aspect-ratio : 1 / 1 !important;}
+.leftAligned {justify-self: left;}
+.centerAligned {justify-self: center;}
+.rightAligned {justify-self: right;}
+.stretchAligned {justify-self: stretch;}
+
+::-webkit-scrollbar {
+	position : absolute;
+	right : -10px;
+	width : 8px;
+}
+::-webkit-scrollbar-button {
+	display : none;
+}
+::-webkit-scrollbar-thumb {
+	border-radius : 4px;
+	background : var(--PRIMARY-BORDER);
+}
+::-webkit-scrollbar-track-piece {
+	background : var(--PRIMARY-BORDER);
+	opacity : 0.4;
+}
+::-webkit-scrollbar-track-piece:hover {
+	opacity : 0.6;
+}
+::-webkit-scrollbar-corner {
+	display : none;
+}
+
+@media (prefers-reduced-motion) {
+	svg {
+		transition: none;
+
+		& * {
+			transition: none;
+		}
+	}
+}</style>
+		<style>
+:root {
+	--DOCUMENT-PAGE-MARGIN : 2cm;
+}
+
+.GeekyIllustration body {
+	min-height: 100vh;
+	width: 100vw;
+	margin : 0;
+	padding : 0;
+	border : none;
+	border-radius : none;
+	box-shadow : none;
+	font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
+	&:has(>header.FixedHeader) {
+		min-height: calc(100vh - 6em);
+		height: calc(100vh - 6em);
+		margin-top : 6em;
+	}
+	& > header.FixedHeader {
+		position : fixed;
+		left : 0;
+		right : 0;
+		top : 0;
+		height : 6em;
+		display : flex;
+		justify-content: flex-start;
+		align-items: baseline;
+		gap: 1em;
+		padding : 0 6em;
+		border-left: none;
+		border-top: none;
+		border-right: none;
+	}
+	& > main {
+		margin : 0 auto;
+		width: 100%;
+		background-color: var(--PAGE-BACKGROUND);
+
+		& > section:not(.MonoFigure) {
+			margin : 1cm auto;
+			position : relative;
+			display : flex;
+			flex-direction : column;
+			justify-content: flex-start;
+			justify-items: left;
+			padding : var(--DOCUMENT-PAGE-MARGIN) var(--DOCUMENT-PAGE-MARGIN);
+			width : calc(21cm - 4cm);
+			height : calc(29.7cm - 4cm);
+
+			/* border-radius: calc(var(--DOCUMENT-PAGE-MARGIN) / 4); */
+		}
+		& > section.FrontPage {
+			justify-items: center;
+			text-align : center;
+		}
+	}
+	& figure {
+		overflow: hidden;
+	}
+}
+
+
+
+@media screen and (orientation : landscape) {
+	.GeekyIllustration section.MonoFigure {
+		height : 100%;
+		max-width : 100%;
+	}
+}
+@media screen and (orientation : portrait) {
+	.GeekyIllustration section.MonoFigure {
+		max-height : 100%;
+		width : 100%;
+	}
+}
+
+.GeekyIllustration body {
+	height : 100vh;
+	& > main:has(>section.MonoFigure) {
+		overflow: hidden;
+	}
+	& > main {
+		border : none !important;
+		height : 100%;
+		width : 100%;
+		
+		& > section:not(.MonoFigure) {
+			height : calc(100% - 4cm) !important;
+			width : calc(100% - 4cm) !important;
+			margin : auto !important;
+		}
+		& > section.MonoFigure {
+			border : none;
+
+			background : none !important;
+			border : none !important;
+			
+			margin : auto;
+			padding : 0;
+
+			display : flex;
+			flex-direction : row;
+			justify-content: center;
+			align-items: stretch;
+			flex-wrap: wrap;
+			gap : 1em;
+			overflow-y: scroll;
+
+			& > figure {
+				flex-grow: 1;
+				margin : 0;
+				/* flex: 1 1; */
+				aspect-ratio: 1 / 1;
+				& > div > svg {
+					max-height : 100vh;
+				}
+			}
+			&:has(>:only-child) {
+				flex-wrap: unset;
+			}
+		}
+		&:has(>header.FixedHeader) > main:has(>section.MonoFigure) > section.MonoFigure > figure > div > svg {
+			max-height : calc(100vh - 6em);
+		}
+	}
+}</style>
+		<style>
+figure.IllustrativeTable {
+	padding : 1em;
+
+	& > * {
+		margin-left : 1em;
+		margin-right : 1em;
+	}
+	& > h2 {
+		text-align : center;
+	}
+	& > p {
+		text-align : center;
+	}
+	& > table {
+		width : calc(100% - 2em);
+		overflow-y : scroll;
+
+		& > th {
+			word-wrap: break-word;
+			vertical-align: middle;
+			text-wrap: wrap;
+			text-align: left;
+			padding-left : 1em;
+
+			& > h2 {
+				text-align: center;
+				margin-bottom: 0;
+			}
+		}
+		& > tbody td {
+			word-wrap: break-word;
+			vertical-align: top;
+			text-wrap: balance;
+			text-align: left;
+			padding-left : 0.2cm;
+		}
+	}
+}
+.CollectionViewer aside > nav .IllustrativeTable {
+	font-size : 30%;
+}</style>
+	</head>
+	<body class="GeekyIllustration">
+		<main class="GeekyIllustration">
+			<section class="MonoFigure GeekyIllustration">
+				<figure class="IllustrativeTable">
+					<h2>Variants</h2>
+					<hr>
+					<table class="GeekyIllustration">
+						<thead>
+							<tr>
+								<th>Variant</th>
+								<th>Fraction</th>
+								<th>Coverage</th>
+							</tr>
+						</thead>
+						<tbody>
+							<tr>
+								<td>A.I.13</td>
+								<td>84.69 %</td>
+								<td>
+									356
+								</td>
+							</tr>
+						</tbody>
+					</table>
+				</figure>
+			</section>
+		</main>
+	</body>
+</html>

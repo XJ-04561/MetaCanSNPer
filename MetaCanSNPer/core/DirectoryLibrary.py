@@ -26,7 +26,7 @@ class DirectoryLibrary(SoftwareLibrary, Logged):
 	"""The data file being queried. Can be multiple files in the case of Illumina and other datasets split into parts."""
 	queryName : str = cached_property(lambda self : self.query.name)
 	"""Defaults to a sequence alignment of the query files involved."""
-	sessionName : str = Default["query"](lambda self : f"Sample-{self.queryName}-{self.organism}-{time.strftime('%Y-%m-%d_%H-%M-%S', time.localtime())}")
+	sessionName : str = CachedDefault["query"](lambda self : f"Sample-{self.queryName}-{self.organism}-{time.strftime('%Y-%m-%d_%H-%M-%S', time.localtime())}")
 	"""Defaults to 'Sample-[QUERY_NAME]-[ORGANISM_NAME]-[CURRENT_DATE]'"""
 	
 	targetDir : DirectoryGroup
@@ -56,23 +56,23 @@ class DirectoryLibrary(SoftwareLibrary, Logged):
 		
 		self.__dict__["query"] = FileList(queryList)
 
-	@Default["workDir", "userDir"]
+	@CachedDefault["workDir", "userDir"]
 	def targetDir(self) -> DirectoryGroup:
 		return self.workDir | self.userDir
 	
-	@Default["dataDir", "organism"]
+	@CachedDefault["dataDir", "organism"]
 	def refDir(self) -> DirectoryGroup:
 		return self.dataDir / "References" / self.organism
 	
-	@Default["dataDir", "organism"]
+	@CachedDefault["dataDir", "organism"]
 	def SNPDir(self) -> DirectoryGroup:
 		return self.dataDir / "SNPs" / self.organism
 	
-	@Default["dataDir"]
+	@CachedDefault["dataDir"]
 	def databaseDir(self) -> DirectoryGroup:
 		return self.dataDir / "Databases"
 	
-	@Default["userCacheDir", "sessionName"]
+	@CachedDefault["userCacheDir", "sessionName"]
 	def tmpDir(self) -> DirectoryPath:
 		if self.settings.get("tmpDir"):
 			return DirectoryPath(self.settings.get("tmpDir"))
@@ -86,17 +86,17 @@ class DirectoryLibrary(SoftwareLibrary, Logged):
 		else:
 			return PseudoPathyFunctions.createTempDir(f"{self.organism}_{self.queryName}", dir=self.userCacheDir.writable)
 	
-	@Default["targetDir", "userDir", "SOFTWARE_NAME"]
+	@CachedDefault["targetDir", "userDir", "SOFTWARE_NAME"]
 	def outDir(self) -> DirectoryGroup:
 		return DirectoryPath(self.workDir, purpose="w") | (self.userDir / self.SOFTWARE_NAME)
 	
-	@Default["outDir", "sessionName"]
+	@CachedDefault["outDir", "sessionName"]
 	def resultDir(self) -> DirectoryPath:
 		"""Should not be overriden, instead look to instance.outDir and instance.sessionName separately.
 		This will automatically change to reflect those two values. ([OUT_DIR]/[SESSION_NAME]/)"""
 		return self.outDir.create(self.sessionName)
 
-	@Default["tmpDir", "sessionName"]
+	@CachedDefault["tmpDir", "sessionName"]
 	def logDir(self) -> DirectoryPath:
 		return self.tmpDir / "SoftwareLogs"
 	
@@ -107,12 +107,12 @@ class DirectoryLibrary(SoftwareLibrary, Logged):
 		else:
 			self.__dict__["logDir"] = Path(value)
 	
-	@Default["refDir", "database"]
+	@CachedDefault["refDir", "database"]
 	def targetSNPs(self) -> dict[str,Path]:
 		"""{GENOME_NAME : TARGET_SNPS_FILE_PATH}"""
 		return {genome:self.SNPDir.find(f"{genome}.vcf") for _, genome, *_ in self.database.references}
 	
-	@Default["refDir", "database"]
+	@CachedDefault["refDir", "database"]
 	def references(self) -> dict[str,Path]:
 		"""{GENOME_NAME : REFERENCE_GENOME_FILE_PATH}"""
 		return {genome:self.refDir.find(f"{assemblyName}.fna") or self.refDir.find(f"{assemblyName}.fasta") for _, genome, strain, genbankID, refseqID, assemblyName in self.database.references}

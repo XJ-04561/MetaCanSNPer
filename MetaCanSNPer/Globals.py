@@ -30,7 +30,7 @@ import VariantCallFixer.Globals as VCFGlobals
 import SQLOOP.Globals as SQLOOPGlobals
 from VariantCallFixer import openVCF
 from PseudoPathy import *
-from GeekyGadgets.Classy import Default
+from GeekyGadgets.Classy import CachedDefault
 from collections import namedtuple
 
 from types import FunctionType, MethodType

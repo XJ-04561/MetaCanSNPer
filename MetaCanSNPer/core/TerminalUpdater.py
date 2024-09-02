@@ -260,19 +260,19 @@ class Indicator(Logged):
 	def borders(self, value):
 		self._borders = tuple(value)
 
-	@Default["length", "borderLength"]
+	@CachedDefault["length", "borderLength"]
 	def innerLength(self):
 		return self.length - self.borderLength
 
-	@Default["sep"]
+	@CachedDefault["sep"]
 	def sepLength(self):
 		return len(self.sep)
 
-	@Default["borders"]
+	@CachedDefault["borders"]
 	def borderLength(self):
 		return len(self.borders[0]) + len(self.borders[1])
 
-	@Default["borderLength", "sepLength"]
+	@CachedDefault["borderLength", "sepLength"]
 	def outerLength(self):
 		return self.borderLength + self.sepLength
 	

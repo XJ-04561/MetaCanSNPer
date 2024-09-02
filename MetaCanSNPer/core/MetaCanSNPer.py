@@ -34,7 +34,7 @@ class MetaCanSNPer(Logged):
 	database : MetaCanSNPerDatabase
 
 	databasePath : Path
-	databaseName : str = Default["organism"](lambda self:f"{self.organism}.db")
+	databaseName : str = CachedDefault["organism"](lambda self:f"{self.organism}.db")
 	
 	referenceFiles = property(lambda self:self.Lib.references)
 	references = property(lambda self:self.database.references,
@@ -43,12 +43,12 @@ class MetaCanSNPer(Logged):
 	query : FileList = property(lambda self: self.Lib.query,
 								lambda self, value:setattr(self.Lib, "query", value),
 								lambda self:delattr(self.Lib, "query"), DirectoryLibrary.query.__doc__)
-	queryName : str = Default["Lib.query"](lambda self:self.Lib.queryName)
+	queryName : str = CachedDefault["Lib.query"](lambda self:self.Lib.queryName)
 	sessionName : str = property(lambda self: self.Lib.sessionName,
 								 lambda self, value: setattr(self.Lib, "sessionName", value),
 								 lambda self: delattr(self.Lib, "sessionName"))
 	
-	SNPresults : defaultdict[int,defaultdict[int,tuple[int,int,dict[str,int],int]]] = Default["Lib.query"](lambda self:defaultdict(lambda :defaultdict(lambda :(0,0,dict(),0))))
+	SNPresults : defaultdict[int,defaultdict[int,tuple[int,int,dict[str,int],int]]] = CachedDefault["Lib.query"](lambda self:defaultdict(lambda :defaultdict(lambda :(0,0,dict(),0))))
 	exceptions : list[Exception]
 
 	@overload
@@ -299,7 +299,7 @@ class MetaCanSNPer(Logged):
 		from MetaCanSNPer.modules.Database import CanSNPNode
 		rootNode = self.database.tree
 		assert next(rootNode.children, False)
-
+		
 		nodeScores : dict[int,tuple[int,int,dict[str,int],int]] = {rootNode.node : (0,0,{},0)}
 		
 		paths : list[list[CanSNPNode]] = []
@@ -330,15 +330,16 @@ class MetaCanSNPer(Logged):
 		
 		if minimumDepth is None:
 			minimumDepth = (sum(x[3] for x in nodeScores.values()) / (len(nodeScores)-1)) * fractionLimit
-		calledNodes = []
+		calledNodes : list[list[CanSNPNode]]= []
 		for layer in reversed(paths):
 			for node in layer:
-				if nodeScores[node.node][0] and nodeScores[node.node][0] == max(nodeScores[node.node][2].values()) \
+				if any(isinstance(pathIndex := i, int) for i, nodePath in enumerate(calledNodes) if any(isinstance(nodeIndex := j, int) for j, called in enumerate(nodePath) if called.parent == node)):
+					calledNodes[pathIndex][nodeIndex]
+				elif nodeScores[node.node][0] and nodeScores[node.node][0] == max(nodeScores[node.node][2].values()) \
 					and nodeScores[node.node][0] > minimumDepth:
-					calledNodes.append(node.node)
-			if calledNodes:
-				break
-		else:
+					calledNodes.append([node])
+			
+		if not calledNodes:
 			self.LOG.warning(f"No variant called, check your settings ({fractionLimit =}, minimumDepth (defaults to `averageDepth * fractionLimit`) ={minimumDepth}).")
 		
 		self.LOG.info(f"Finished traversing tree.")
